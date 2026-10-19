@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.2 */
+/* Axon · Northpeak Studios · v1.2.1 */
 (function () {
   'use strict';
-  var VERSION = '1.2';
+  var VERSION = '1.2.1';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');

@@ -13,10 +13,12 @@
   --padxr:max(20px, calc(var(--sar) + 14px));
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--text);overscroll-behavior:none}
+html,body{margin:0;height:100%;max-width:100%;overflow-x:hidden;background:var(--bg);color:var(--text);overscroll-behavior:none}
 body{font-family:var(--sans);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;overflow:hidden}
 button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
 input,textarea{font:inherit;color:inherit}
+/* iOS zooms on focus when an editable field is under 16px: keep every field at 16px+ */
+input,textarea,select,[contenteditable]{font-size:max(16px, 1em)}
 svg{display:block}
 #app{position:fixed;inset:0;display:flex;flex-direction:column}
 #view{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
@@ -48,7 +50,7 @@ body.editing #tabbar{display:none}
 
 .searchbox{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:0 12px;height:44px;color:var(--faint)}
 .searchbox svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;flex:none}
-.searchbox input{flex:1;min-width:0;background:none;border:0;outline:0;font-size:17px;color:var(--text);height:100%}
+.searchbox input{flex:1;min-width:0;background:none;border:0;outline:0;font-size:max(16px, 17px);color:var(--text);height:100%}
 .searchbox input::placeholder{color:var(--faint)}
 .searchbox .clear{width:28px;height:28px;display:grid;place-items:center;color:var(--faint)}
 
@@ -154,7 +156,7 @@ a.wl.unresolved{opacity:.6;text-decoration:underline dotted;text-underline-offse
 
 /* editor */
 .editor{display:block;width:100%;min-height:55vh;background:none;border:0;outline:0;resize:none;color:var(--text);
-  font-family:var(--mono);font-size:calc(var(--fs) * .88);line-height:1.6;padding:0;caret-color:var(--accent)}
+  font-family:var(--mono);font-size:max(16px, calc(var(--fs) * .88));line-height:1.6;padding:0;caret-color:var(--accent)}
 .kb{position:fixed;left:0;right:0;bottom:0;z-index:30;display:none;align-items:center;justify-content:space-between;gap:2px;
   padding:6px max(10px,var(--sar)) calc(6px + var(--sab)) max(10px,var(--sal));background:rgba(17,17,19,.96);border-top:1px solid var(--line);
   -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
