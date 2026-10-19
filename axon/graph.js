@@ -16,7 +16,7 @@
     function setData(data) {
       nodes = data.nodes.map(function (n) {
         var m = memory[n.id];
-        var a = hash(n.id) * Math.PI * 2, rr = 60 + hash(n.id + 'r') * 160;
+        var key = n.label || n.id, a = hash(key) * Math.PI * 2, rr = 60 + hash(key + 'r') * 160;
         return { id: n.id, label: n.label, kind: n.kind || 'note', deg: 0,
           x: m ? m.x : Math.cos(a) * rr, y: m ? m.y : Math.sin(a) * rr, vx: 0, vy: 0, fixed: false, isNew: !m };
       });
