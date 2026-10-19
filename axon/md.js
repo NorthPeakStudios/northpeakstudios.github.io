@@ -17,6 +17,22 @@
     while ((m = WL.exec(s))) out.push({ target: m[1].trim(), heading: m[2] ? m[2].slice(1).trim() : '', alias: m[3] ? m[3].trim() : '' });
     return out;
   }
+  function images(src) {
+    var out = [], m, re = /!\[[^\]\n]*\]\(\s*axon-img:([\w-]+)\s*\)/g, s = String(src || '');
+    while ((m = re.exec(s))) if (out.indexOf(m[1]) < 0) out.push(m[1]);
+    return out;
+  }
+  function cards(src) {
+    var out = [], s = String(src || '').replace(/```[\s\S]*?(```|$)/g, '');
+    s.split('\n').forEach(function (l) {
+      var t = l.replace(/^\s*(?:>\s*)*/, '').replace(/^(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?/, '');
+      var i = t.indexOf(' :: ');
+      if (i < 0) return;
+      var q = t.slice(0, i).trim(), a = t.slice(i + 4).trim();
+      if (q && a) out.push({ q: q, a: a });
+    });
+    return out;
+  }
   function tags(src) {
     var out = {}, m, re = /(^|\s)#([A-Za-z][\w\-\/]*)/g, s = stripCode(src).replace(/^#{1,6}\s.*$/gm, '');
     while ((m = re.exec(s))) out[m[2].toLowerCase()] = 1;
@@ -26,6 +42,11 @@
   function inline(text, opt) {
     var codes = [], toks = [];
     text = text.replace(/`([^`\n]+)`/g, function (m, c) { codes.push(c); return '\u0000' + (codes.length - 1) + '\u0000'; });
+    text = text.replace(/!\[([^\]\n]*)\]\(\s*((?:axon-img:[\w-]+)|(?:https?:\/\/[^\s)]+))\s*\)/g, function (m, alt, u) {
+      var im = /^axon-img:([\w-]+)$/.exec(u);
+      toks.push(im ? '<img class="aimg" data-img="' + esc(im[1]) + '" alt="' + esc(alt) + '">' : '<img class="aimg" src="' + esc(u) + '" alt="' + esc(alt) + '" loading="lazy">');
+      return '\u0001' + (toks.length - 1) + '\u0001';
+    });
     text = text.replace(WL, function (m, t, h, a) {
       t = t.trim();
       var exists = opt && opt.resolve ? opt.resolve(t) : true;
@@ -49,7 +70,8 @@
       .replace(/(^|[^\w])_(?=\S)([^_\n]*?\S)_(?!\w)/g, '$1<em>$2</em>')
       .replace(/~~(?=\S)([\s\S]*?\S)~~/g, '<del>$1</del>')
       .replace(/==(?=\S)([\s\S]*?\S)==/g, '<mark>$1</mark>')
-      .replace(/(^|\s)#([A-Za-z][\w\-\/]*)/g, '$1<span class="tag" data-tag="$2">#$2</span>');
+      .replace(/(^|\s)#([A-Za-z][\w\-\/]*)/g, '$1<span class="tag" data-tag="$2">#$2</span>')
+      .replace(/ :: (?=\S)/, ' <span class="qa">::</span> ');
     text = text.replace(/\u0001(\d+)\u0001/g, function (m, i) { return toks[+i]; });
     text = text.replace(/\u0000(\d+)\u0000/g, function (m, i) { return '<code>' + esc(codes[+i]) + '</code>'; });
     return text;
@@ -165,11 +187,12 @@
     return out.join('\n');
   }
 
+  var IMG = /!\[[^\]\n]*\]\([^)\n]*\)/g;
   function plain(src) {
-    return stripCode(src).replace(WL, function (m, t, h, a) { return a || t; })
+    return stripCode(src).replace(IMG, '').replace(WL, function (m, t, h, a) { return a || t; })
       .replace(/^#{1,6}\s+/gm, '').replace(/^\s*>\s?(\[!\w+\]\s*)?/gm, '').replace(/^\s*([-*+]|\d+[.)])\s+(\[[ xX]\]\s+)?/gm, '')
       .replace(/[*_~=`]/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
   }
 
-  window.MD = { render: render, links: links, tags: tags, plain: plain, esc: esc, slug: slug, WL: WL };
+  window.MD = { render: render, links: links, tags: tags, images: images, cards: cards, IMG: IMG, plain: plain, esc: esc, slug: slug, WL: WL };
 })();

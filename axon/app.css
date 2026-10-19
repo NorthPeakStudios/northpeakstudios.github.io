@@ -266,3 +266,22 @@ body.editing #toast{bottom:auto;top:calc(var(--sat) + 56px)}
 .esub{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px}
 .esub .pill{color:var(--dim);height:36px;padding:0 16px;border-radius:18px}
 .gempty{position:absolute;left:var(--padx);right:var(--padxr);top:50%;transform:translateY(-42%);display:flex;flex-direction:column;align-items:center;text-align:center;z-index:2}
+
+/* v1.2: daily notes, tags, images, cards */
+.row.today .nm{font-size:18px}
+.row .ct i{font-style:normal;color:var(--accent);margin-left:2px}
+.daynav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:-2px 0 12px;font-size:13px;color:var(--faint)}
+.daynav button{display:flex;align-items:center;gap:4px;height:34px;color:var(--dim);font-size:13px;font-variant-numeric:tabular-nums;padding:0 2px}
+.daynav button svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.daynav .dl{color:var(--faint);letter-spacing:.04em}
+.daynav .dl.on{color:var(--accent)}
+.daynav button.dl{color:var(--dim);text-decoration:underline;text-decoration-color:var(--line2);text-underline-offset:4px}
+.tagwrap{display:flex;flex-wrap:wrap;gap:8px}
+.tagwrap .chip{font-family:var(--mono);font-size:13px;height:32px;padding:0 12px}
+.tagwrap .chip .n{opacity:.5;margin-left:2px}
+.tag[data-tag]{cursor:pointer}
+.cardct{font-size:13px;color:var(--accent);padding:2px 0}
+.prose img.aimg{display:block;max-width:100%;height:auto;border-radius:10px;margin:12px 0;border:1px solid var(--line);background:var(--card)}
+.prose img.aimg.missing{min-height:56px;width:100%}
+.prose .qa{color:var(--accent);font-family:var(--mono);font-size:.85em;opacity:.8}
+.tagwrap .chip[data-on]{background:var(--text);color:#0b0b0c;border-color:var(--text)}

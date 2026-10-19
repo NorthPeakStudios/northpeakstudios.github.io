@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.0 */
+/* Axon · Northpeak Studios · v1.2 */
 (function () {
   'use strict';
-  var VERSION = '1.1';
+  var VERSION = '1.2';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -31,7 +31,10 @@
     zout: '<svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg>',
     list: '<svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg>',
     check: '<svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><path d="M8 12.5l2.8 2.8L16.5 9"/></svg>',
-    quote: '<svg viewBox="0 0 24 24"><path d="M5 18V6M10 8h9M10 12h9M10 16h6"/></svg>'
+    quote: '<svg viewBox="0 0 24 24"><path d="M5 18V6M10 8h9M10 12h9M10 16h6"/></svg>',
+    cal: '<svg class="fi" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>',
+    img: '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17l5-4.5 3.5 3 3-2.5L20 17"/></svg>',
+    tagi: '<svg class="fi" viewBox="0 0 24 24"><path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3-8.7 8.7z"/><circle cx="8" cy="8" r="1.4"/></svg>'
   };
 
   /* ---------- helpers ---------- */
@@ -79,9 +82,10 @@
   function recent(k) { return Array.from(notes.values()).sort(function (a, b) { return b.updated - a.updated; }).slice(0, k || 1e9); }
   function snippetHTML(body, max) {
     max = max || 140;
-    var lines = String(body || '').replace(/```[\s\S]*?(```|$)/g, '').split('\n').filter(function (l) { return l.trim() && !/^#{1,6}\s/.test(l) && !/^\s*\|?\s*:?-{2,}/.test(l); });
+    var hasImg = MD.IMG.test(body || ''); MD.IMG.lastIndex = 0;
+    var lines = String(body || '').replace(/```[\s\S]*?(```|$)/g, '').replace(MD.IMG, '').split('\n').filter(function (l) { return l.trim() && !/^#{1,6}\s/.test(l) && !/^\s*\|?\s*:?-{2,}/.test(l); });
     var t = lines.join(' ').replace(/\s+/g, ' ').trim();
-    if (!t) return '<span style="opacity:.6">Empty note</span>';
+    if (!t) return '<span style="opacity:.6">' + (hasImg ? 'Image' : 'Empty note') + '</span>';
     return inlineSnippet(t.slice(0, max * 1.6), max);
   }
   function inlineSnippet(t, max) {
@@ -98,7 +102,7 @@
   }
   function backlinkSnippet(src, title) {
     var re = new RegExp('\\[\\[\\s*' + escRe(title) + '\\s*(#[^\\]|\\n]*)?(\\|[^\\]\\n]*)?\\]\\]', 'i');
-    var lines = String(src).split('\n');
+    var lines = String(src).replace(MD.IMG, '').split('\n');
     for (var i = 0; i < lines.length; i++) {
       var m = re.exec(lines[i]);
       if (m) {
@@ -123,6 +127,99 @@
   function uniqueTitle(base) {
     if (!byTitle(base)) return base;
     for (var i = 2; ; i++) if (!byTitle(base + ' ' + i)) return base + ' ' + i;
+  }
+  /* daily notes */
+  var DAILY = 'Daily', DAY_RE = /^(\d{4})-(\d{2})-(\d{2})$/, autoDaily = {};
+  function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function dayOf(t) { var m = DAY_RE.exec(t || ''); if (!m) return null; var d = new Date(+m[1], +m[2] - 1, +m[3]); return ymd(d) === t ? d : null; }
+  function shiftDay(t, k) { var d = dayOf(t); d.setDate(d.getDate() + k); return ymd(d); }
+  function isDaily(n) { return !!(n && dayOf(n.title)); }
+  function dayLabel(t, long) { var d = dayOf(t); return d ? d.toLocaleDateString(undefined, long ? { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' } : { month: 'short', day: 'numeric' }) : t; }
+  function openDaily(t, replace) {
+    t = t || ymd(new Date());
+    var n = byTitle(t);
+    if (!n) { n = createNote({ title: t, folder: DAILY, body: '' }); if (t !== ymd(new Date())) autoDaily[n.id] = 1; }
+    go('#/n/' + n.id, replace);
+  }
+  /* empty daily notes opened only by the prev/next arrows are tidied away when you leave them */
+  function tidyDaily(keepId) {
+    Object.keys(autoDaily).forEach(function (id) {
+      if (id === keepId) return;
+      var n = notes.get(id); delete autoDaily[id];
+      if (n && !n.body.trim() && n.folder === DAILY && isDaily(n) && !backlinks(n).length) deleteNote(n);
+    });
+  }
+  /* tags */
+  function tagCounts() { var tc = {}; notes.forEach(function (n) { MD.tags(n.body).forEach(function (t) { tc[t] = (tc[t] || 0) + 1; }); }); return tc; }
+  function tagChips(tc, max) {
+    var tags = Object.keys(tc).sort(function (a, b) { return tc[b] - tc[a] || a.localeCompare(b); });
+    var more = max && tags.length > max ? tags.length - max : 0;
+    return '<div class="tagwrap">' + tags.slice(0, max || 1e9).map(function (t) { return '<button class="chip" data-act="stag" data-tag="' + esc(t) + '">#' + esc(t) + ' <span class="n">' + tc[t] + '</span></button>'; }).join('') +
+      (more ? '<button class="chip" data-act="gosearch">+' + more + '</button>' : '') + '</div>';
+  }
+  /* images */
+  var imgURL = {};
+  function hydrateImgs(root) {
+    (root || viewEl).querySelectorAll('img[data-img]:not([src])').forEach(function (el) {
+      var id = el.dataset.img;
+      if (imgURL[id]) { el.src = imgURL[id]; return; }
+      IMG.get(id).then(function (r) {
+        if (!r) { el.classList.add('missing'); el.alt = 'Image not found'; return; }
+        imgURL[id] = imgURL[id] || URL.createObjectURL(new Blob([r.data], { type: r.type || 'image/jpeg' }));
+        el.src = imgURL[id];
+      }).catch(function () { el.classList.add('missing'); });
+    });
+  }
+  function dropImages(ids) {
+    if (!ids.length) return;
+    var used = {}; notes.forEach(function (n) { MD.images(n.body).forEach(function (i) { used[i] = 1; }); });
+    var gone = ids.filter(function (i) { return !used[i]; });
+    if (gone.length) IMG.del(gone).catch(function () {});
+    gone.forEach(function (i) { if (imgURL[i]) { URL.revokeObjectURL(imgURL[i]); delete imgURL[i]; } });
+  }
+  function loadImage(file) {
+    return new Promise(function (res, rej) {
+      var u = URL.createObjectURL(file), im = new Image();
+      im.onload = function () { res({ im: im, url: u }); };
+      im.onerror = function () { URL.revokeObjectURL(u); rej(new Error('That file isn\u2019t an image this device can read')); };
+      im.src = u;
+    });
+  }
+  async function storeImage(file) {
+    var L = await loadImage(file), im = L.im, w = im.naturalWidth, h = im.naturalHeight, k = Math.min(1, 1600 / Math.max(w, h));
+    var cw = Math.max(1, Math.round(w * k)), ch = Math.max(1, Math.round(h * k));
+    var c = document.createElement('canvas'); c.width = cw; c.height = ch;
+    var g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cw, ch); g.drawImage(im, 0, 0, cw, ch);
+    URL.revokeObjectURL(L.url);
+    var blob = await new Promise(function (r) { c.toBlob(r, 'image/jpeg', 0.82); });
+    if (!blob) throw new Error('Couldn\u2019t compress that image');
+    var id = 'i' + uid(), data = await blob.arrayBuffer();
+    await IMG.put({ id: id, data: data, type: 'image/jpeg', w: cw, h: ch, created: Date.now() });
+    return id;
+  }
+  /* flashcards (question :: answer) */
+  function cardText(s) {
+    return String(s).replace(MD.IMG, '').replace(new RegExp(MD.WL.source, 'g'), function (m, t, h, a) { return (a || t).trim(); })
+      .replace(/\[([^\]\n]+)\]\([^)]+\)/g, '$1').replace(/\*\*|__|~~|==|`/g, '').replace(/(^|[^\w*])[*_](\S(?:[^*_\n]*\S)?)[*_](?!\w)/g, '$1$2').replace(/\s+/g, ' ').trim();
+  }
+  function slugTag(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40); }
+  function cardsCSV(list) {
+    var q = function (s) { return '"' + String(s).replace(/"/g, '""') + '"'; }, rows = ['front,back,tags'], c = 0;
+    list.forEach(function (n) {
+      var tg = MD.tags(n.body).map(function (t) { return t.replace(/\//g, '-'); }), st = slugTag(n.title);
+      if (st && !/^\d/.test(st)) tg.push(st);
+      MD.cards(n.body).forEach(function (cd) {
+        var f = cardText(cd.q), b = cardText(cd.a);
+        if (f && b) { rows.push([f, b, tg.join(' ')].map(q).join(',')); c++; }
+      });
+    });
+    return { csv: '\uFEFF' + rows.join('\r\n') + '\r\n', count: c };
+  }
+  function exportCards(n) {
+    var list = n ? [n] : Array.from(notes.values()).sort(function (a, b) { return a.title.localeCompare(b.title); });
+    var r = cardsCSV(list);
+    if (!r.count) { toast(n ? 'No cards here. Write a line like: question :: answer' : 'No cards yet. Write lines like: question :: answer'); return; }
+    deliver(new Blob([r.csv], { type: 'text/csv' }), (n ? safeName(n.title) : 'Axon flashcards') + '.csv', 'text/csv', 'Exported ' + r.count + ' card' + (r.count === 1 ? '' : 's') + ' · import the file in Synapse');
   }
   function persist() { try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {} }
   function saveMeta() { DB.put('meta', { k: 'ui', v: { open: ui.open, lastNote: ui.lastNote, graphMode: ui.graphMode, graphTags: ui.graphTags } }); }
@@ -164,7 +261,7 @@
     putNote(n); rebuildIdx();
     return { changed: changed };
   }
-  function deleteNote(n) { notes.delete(n.id); rebuildIdx(); DB.del('notes', n.id); if (ui.lastNote === n.id) { ui.lastNote = null; saveMeta(); } }
+  function deleteNote(n) { notes.delete(n.id); rebuildIdx(); DB.del('notes', n.id); dropImages(MD.images(n.body)); if (ui.lastNote === n.id) { ui.lastNote = null; saveMeta(); } }
   function moveNote(n, folder) { ensureFolder(folder); n.folder = folder; n.updated = Date.now(); n.seed = false; putNote(n); }
   function renameFolder(p, name) {
     var np = (parentOf(p) ? parentOf(p) + '/' : '') + name;
@@ -186,7 +283,7 @@
     DB.delMany('folders', oldF);
     var hit = Array.from(notes.values()).filter(function (n) { return n.folder === p || n.folder.indexOf(p + '/') === 0; });
     if (keepNotes) hit.forEach(function (n) { n.folder = par; putNote(n); });
-    else { hit.forEach(function (n) { notes.delete(n.id); }); DB.delMany('notes', hit.map(function (n) { return n.id; })); rebuildIdx(); }
+    else { hit.forEach(function (n) { notes.delete(n.id); }); DB.delMany('notes', hit.map(function (n) { return n.id; })); rebuildIdx(); dropImages([].concat.apply([], hit.map(function (n) { return MD.images(n.body); }))); }
     saveMeta();
     return hit.length;
   }
@@ -289,6 +386,7 @@
     if (p[0] === 'graph') return { v: 'graph' };
     if (p[0] === 'search') return { v: 'search', q: decodeURIComponent(p.slice(1).join('/')) };
     if (p[0] === 'settings') return { v: 'settings' };
+    if (p[0] === 'today') return { v: 'today' };
     return { v: 'vault' };
   }
   function setTab(t) { document.querySelectorAll('.tb').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === t); }); }
@@ -299,6 +397,7 @@
     if (graphCtl) { graphCtl.destroy(); graphCtl = null; }
     currentHash = location.hash;
     var r = route();
+    tidyDaily(r.v === 'note' ? r.id : null);
     viewEl.className = '';
     var tab = { vault: 'notes', folder: 'notes', note: 'notes', graph: 'graph', search: 'search', settings: 'settings' }[r.v];
     setTab(tab);
@@ -308,6 +407,7 @@
     else if (r.v === 'graph') renderGraph();
     else if (r.v === 'search') renderSearch(r.q);
     else if (r.v === 'settings') renderSettings();
+    else if (r.v === 'today') { openDaily(null, true); return; }
     viewEl.scrollTop = scrollMem[currentHash] || 0;
   }
 
@@ -331,7 +431,11 @@
   function emptyHero(sub) {
     return '<div class="ehero">' + EMPTY_ART + '<b>No notes yet</b><p>' + sub + '</p>' +
       '<button class="bignew" data-act="newempty">' + I.plus + '<span>New note</span></button>' +
-      '<div class="esub"><button class="pill" data-act="newfolder" data-path="">New folder</button><button class="pill" data-act="import">Import .md files</button></div></div>';
+      '<div class="esub"><button class="pill" data-act="today">Today\u2019s note</button><button class="pill" data-act="newfolder" data-path="">New folder</button><button class="pill" data-act="import">Import .md files</button></div></div>';
+  }
+  function todayRow() {
+    var t = ymd(new Date()), has = !!byTitle(t);
+    return '<button class="row today" data-act="today">' + I.cal + '<span class="nm">Today</span><span class="ct">' + esc(dayLabel(t)) + (has ? '' : ' <i>+</i>') + '</span><span class="chev">' + I.chev + '</span></button>';
   }
   function renderVault() {
     var rootNotes = notesIn('');
@@ -339,18 +443,21 @@
       var e = '<div class="page"><div class="eyebrow">Vault</div><h1 class="h1">Notes</h1>';
       if (folders.size) e += '<div class="sec"><span>Folders</span></div><div class="rows">' + folderRows('', 0) + '</div>';
       e += emptyHero('Write your first note. Link ideas with <span class="kbd">[[</span> and watch your graph grow. Everything stays on this device and works offline.');
-      e += '<input type="file" id="file" accept=".md,.markdown,.txt,.zip,text/markdown,text/plain,application/zip" multiple hidden></div>';
+      e += '<input type="file" id="file" accept=".md,.markdown,.txt,.zip,.jpg,.jpeg,.png,.webp,.gif,text/markdown,text/plain,application/zip" multiple hidden></div>';
       viewEl.innerHTML = e;
       $('#file').addEventListener('change', function (ev) { importFiles(Array.from(ev.target.files || [])); ev.target.value = ''; });
       return;
     }
     var h = '<div class="page"><div class="eyebrow">Vault · ' + notes.size + ' note' + (notes.size === 1 ? '' : 's') + '</div><h1 class="h1">Notes</h1>' +
       '<button class="searchbox" data-act="gosearch" style="width:100%;text-align:left">' + I.search + '<span style="flex:1;font-size:17px">Search ' + notes.size + ' note' + (notes.size === 1 ? '' : 's') + '</span></button>' +
+      '<div class="rows" style="margin-top:14px">' + todayRow() + '</div>' +
       '<div class="sec"><span>Folders</span><span><button class="ib ico" aria-label="New folder" data-act="newfolder" data-path="" style="width:44px;height:36px;margin-right:-10px">' + I.newfolder + '</button></span></div><div class="rows">' + folderRows('', 0);
     rootNotes.forEach(function (n) {
       h += '<button class="row" data-act="open" data-id="' + n.id + '">' + I.doc + '<span class="nm">' + esc(n.title) + '</span><span class="chev">' + I.chev + '</span></button>';
     });
     h += '</div>';
+    var tc = tagCounts();
+    if (Object.keys(tc).length) h += '<div class="sec"><span>Tags</span></div>' + tagChips(tc, 10);
     h += '<div class="sec"><span>Recent</span><button data-act="all">See all</button></div>';
     recent(6).forEach(function (n) { h += noteItem(n, false); });
     viewEl.innerHTML = h + '</div>';
@@ -371,6 +478,7 @@
       if (!r.length) h += '<div class="empty"><b>No notes yet</b>Tap + to write one.</div>';
     } else {
       var subs = childFolders(p), ns = notesIn(p);
+      if (p === DAILY) ns.sort(function (a, b) { return isDaily(b) - isDaily(a) || b.title.localeCompare(a.title); });
       if (subs.length) { h += '<div class="rows">'; subs.forEach(function (f) { h += '<button class="row" data-act="folder" data-path="' + esc(f) + '">' + I.folder + '<span class="nm">' + esc(folderName(f)) + '</span><span class="ct">' + countIn(f) + '</span><span class="chev">' + I.chev + '</span></button>'; }); h += '</div>'; }
       ns.forEach(function (n) { h += noteItem(n, false); });
       if (!subs.length && !ns.length) h += '<div class="empty"><b>Empty folder</b>Add a note with the button up top.</div>';
@@ -385,23 +493,31 @@
     if (!n) { toast('That note no longer exists'); go('#/', true); return; }
     opts = opts || {};
     ui.lastNote = n.id; saveMeta();
-    var tags = MD.tags(n.body), bl = backlinks(n), out = outNotes(n);
+    var tags = MD.tags(n.body), bl = backlinks(n), out = outNotes(n), nc = MD.cards(n.body).length;
     var backTo = n.folder ? '#/f/' + encodeURIComponent(n.folder) : '#/';
     var h = '<div class="page"><div class="nav"><button class="back" data-act="back" data-to="' + backTo + '">' + I.back + '<span>' + esc(n.folder ? folderName(n.folder) : 'Notes') + '</span></button><div class="acts">' +
       '<button class="ib" aria-label="Edit" data-act="edit">' + I.edit + '</button>' +
       '<button class="ib" aria-label="Local graph" data-act="localgraph" data-id="' + n.id + '">' + I.graph + '</button>' +
       '<button class="ib" aria-label="Note options" data-act="notemore" data-id="' + n.id + '">' + I.more + '</button></div></div>' +
-      '<div class="crumb">' + esc(crumbOf(n.folder)) + '</div><h1 class="ntitle">' + esc(n.title) + '</h1>' +
+      '<div class="crumb">' + esc(crumbOf(n.folder)) + '</div><h1 class="ntitle">' + esc(n.title) + '</h1>' + dayNav(n) +
       '<div class="meta">' + tags.map(function (t) { return '<span class="tag" data-tag="' + esc(t) + '">#' + esc(t) + '</span>'; }).join('') +
-      '<span>' + (tags.length ? '· ' : '') + 'edited ' + agoLong(n.updated) + ' · ' + words(n.body) + ' words</span></div>' +
+      '<span>' + (tags.length ? '· ' : '') + 'edited ' + agoLong(n.updated) + ' · ' + words(n.body) + ' words' + (nc ? ' · </span><button class="cardct" data-act="cards" data-id="' + n.id + '">' + nc + ' card' + (nc === 1 ? '' : 's') + '</button>' : '</span>') + '</div>' +
       '<article class="prose" id="prose">' + (n.body.trim() ? MD.render(n.body, { resolve: resolver }) : '<p class="empty-note">Empty note. Tap the pencil to write.</p>') + '</article>' +
       '<section class="bl" id="backlinks"><h3><span>' + bl.length + ' backlink' + (bl.length === 1 ? '' : 's') + '</span><span>' + out.length + ' outgoing</span></h3>' +
       (bl.length ? bl.map(function (o) { return '<button class="bi" data-act="open" data-id="' + o.id + '"><b>' + esc(o.title) + '</b><span>' + backlinkSnippet(o.body, n.title) + '</span></button>'; }).join('') :
         '<div class="none">No notes link here yet. Link it from another note with [[' + esc(n.title) + ']].</div>') + '</section></div>';
     viewEl.innerHTML = h;
+    hydrateImgs();
     if (opts.heading) { var hd = document.getElementById('h-' + opts.heading); if (hd) setTimeout(function () { hd.scrollIntoView({ block: 'start' }); }, 30); }
   }
 
+  function dayNav(n) {
+    if (!isDaily(n)) return '';
+    var t = n.title, today = ymd(new Date()), p = shiftDay(t, -1), x = shiftDay(t, 1);
+    return '<div class="daynav"><button data-act="day" data-day="' + p + '" aria-label="Previous day">' + I.back + '<span>' + esc(dayLabel(p)) + '</span></button>' +
+      (t === today ? '<span class="dl on">Today</span>' : '<button class="dl" data-act="today" aria-label="Go to today">' + esc(dayOf(t).toLocaleDateString(undefined, { weekday: 'long' })) + '</button>') +
+      '<button data-act="day" data-day="' + x + '" aria-label="Next day"><span>' + esc(dayLabel(x)) + '</span>' + I.chev + '</button></div>';
+  }
   function openLink(title, heading, from) {
     var n = byTitle(title);
     if (n) { go('#/n/' + n.id); if (heading) { var hd = document.getElementById('h-' + heading); if (hd) hd.scrollIntoView({ block: 'start' }); } return; }
@@ -471,12 +587,18 @@
   function buildKB(ed) {
     if (kb) kb.remove();
     kb = document.createElement('div'); kb.className = 'kb';
-    var btns = [['link', '[['], ['h', '#'], ['b', '<b style="font-family:var(--sans)">B</b>'], ['i', '<i style="font-family:var(--serif)">I</i>'], ['ul', I.list], ['task', I.check], ['code', '`'], ['quote', I.quote]];
+    var btns = [['link', '[['], ['img', I.img], ['h', '#'], ['b', '<b style="font-family:var(--sans)">B</b>'], ['i', '<i style="font-family:var(--serif)">I</i>'], ['ul', I.list], ['task', I.check], ['code', '`'], ['quote', I.quote]];
     kb.innerHTML = btns.map(function (b) { return '<button data-k="' + b[0] + '" aria-label="' + b[0] + '">' + b[1] + '</button>'; }).join('') + '<button class="done" data-k="done">Done</button>';
     kb.addEventListener('pointerdown', function (e) {
       var b = e.target.closest('button'); if (!b) return;
       e.preventDefault();
+      if (b.dataset.k === 'img') return;
       kbAction(b.dataset.k, ed);
+    });
+    /* the photo picker needs a real tap (click), not pointerdown */
+    kb.addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b || b.dataset.k !== 'img') return;
+      e.preventDefault(); pickImage(ed);
     });
     document.body.appendChild(kb);
     placeKB();
@@ -511,6 +633,29 @@
     var txt = lines.join('\n');
     insertText(ed, txt, ls, le);
     ed.setSelectionRange(ls + txt.length, ls + txt.length);
+  }
+  var imgIn = null, imgSel = null;
+  function pickImage(ed) {
+    imgSel = { s: ed.selectionStart, e: ed.selectionEnd };
+    if (!imgIn) {
+      imgIn = document.createElement('input'); imgIn.type = 'file'; imgIn.accept = 'image/*'; imgIn.hidden = true; imgIn.id = 'imgpick';
+      document.body.appendChild(imgIn);
+      imgIn.addEventListener('change', async function () {
+        var f = imgIn.files && imgIn.files[0]; imgIn.value = '';
+        var ed2 = $('#ed'); if (!f || !ed2 || !editing) return;
+        toast('Adding image\u2026');
+        try {
+          var id = await storeImage(f);
+          ed2 = $('#ed'); if (!ed2 || !editing) return;
+          var s = imgSel ? Math.min(imgSel.s, ed2.value.length) : ed2.value.length, e2 = imgSel ? Math.min(imgSel.e, ed2.value.length) : s;
+          var v = ed2.value, pre = s === 0 ? '' : v[s - 1] !== '\n' ? '\n\n' : (s > 1 && v[s - 2] !== '\n' ? '\n' : ''), post = v.slice(e2, e2 + 2) === '\n\n' ? '' : v[e2] === '\n' ? '\n' : '\n\n';
+          insertText(ed2, pre + '![](axon-img:' + id + ')' + post, s, e2);
+          editing.n.body = ed2.value; autoGrow(ed2); scheduleSave();
+          toast('Image added');
+        } catch (err) { toast(err.message || 'Couldn\u2019t add that image'); }
+      });
+    }
+    imgIn.click();
   }
   function kbAction(k, ed) {
     if (k === 'done') { stopEditing(false); return; }
@@ -673,9 +818,8 @@
       return;
     }
     if (!q) {
-      var tc = {}; notes.forEach(function (n) { MD.tags(n.body).forEach(function (t) { tc[t] = (tc[t] || 0) + 1; }); });
-      var tags = Object.keys(tc).sort(function (a, b) { return tc[b] - tc[a] || a.localeCompare(b); });
-      box.innerHTML = (tags.length ? '<div class="sec"><span>Tags</span></div><div class="chips" style="flex-wrap:wrap;overflow:visible;margin:0;padding:0">' + tags.map(function (t) { return '<button class="chip" data-act="stag" data-tag="' + esc(t) + '">#' + esc(t) + ' <span style="opacity:.5">' + tc[t] + '</span></button>'; }).join('') + '</div>' : '') +
+      var tc = tagCounts();
+      box.innerHTML = (Object.keys(tc).length ? '<div class="sec"><span>Tags</span></div>' + tagChips(tc) : '') +
         '<div class="sec"><span>Recent</span></div>' + recent(5).map(function (n) { return noteItem(n, true); }).join('');
       return;
     }
@@ -696,13 +840,15 @@
       });
     }
     res.sort(function (a, b) { return b.sc - a.sc || b.n.updated - a.n.updated; });
-    box.innerHTML = '<div class="sec"><span>' + res.length + ' result' + (res.length === 1 ? '' : 's') + '</span></div>' + (res.length ? res.slice(0, 100).map(function (r) {
+    var tagRow = '';
+    if (/^#[\w\-\/]+$/.test(q)) { tagRow = '<div style="margin-top:14px">' + tagChips(tagCounts(), 12) + '</div>'; tagRow = tagRow.replace('data-tag="' + esc(q.slice(1).toLowerCase()) + '"', 'data-tag="' + esc(q.slice(1).toLowerCase()) + '" data-on="1"'); }
+    box.innerHTML = tagRow + '<div class="sec"><span>' + res.length + ' result' + (res.length === 1 ? '' : 's') + '</span></div>' + (res.length ? res.slice(0, 100).map(function (r) {
       return '<button class="nl" data-act="open" data-id="' + r.n.id + '"><div class="t"><b>' + hl(r.n.title, q) + '</b><time>' + ago(r.n.updated) + '</time></div><div class="s" style="white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">' + r.snip + '</div>' + (r.n.folder ? '<div class="f">' + esc(crumbOf(r.n.folder)) + '</div>' : '') + '</button>';
     }).join('') : '<div class="empty"><b>Nothing found</b><button class="pill acc" data-act="screate" data-q="' + esc(q) + '" style="margin-top:12px">Create \u201c' + esc(q.slice(0, 40)) + '\u201d</button></div>');
   }
   function hl(text, q) { var i = text.toLowerCase().indexOf(q.toLowerCase()); if (i < 0) return esc(text); return esc(text.slice(0, i)) + '<mark>' + esc(text.slice(i, i + q.length)) + '</mark>' + esc(text.slice(i + q.length)); }
   function cleanText(body) {
-    return String(body || '').replace(/```[\s\S]*?(```|$)/g, ' ').replace(new RegExp(MD.WL.source, 'g'), function (m, t, h, a) { return (a || t).trim(); })
+    return String(body || '').replace(/```[\s\S]*?(```|$)/g, ' ').replace(MD.IMG, ' ').replace(new RegExp(MD.WL.source, 'g'), function (m, t, h, a) { return (a || t).trim(); })
       .replace(/\[([^\]\n]+)\]\([^)]+\)/g, '$1').replace(/^\s*#{1,6}\s+/gm, '').replace(/^\s*>\s?(\[!\w+\]\s*)?/gm, '')
       .replace(/^\s*([-*+]|\d+[.)])\s+(\[[ xX]\]\s+)?/gm, '').replace(/^\s*\|?\s*:?-{2,}.*$/gm, '').replace(/\|/g, ' ').replace(/[*_~=`]/g, '').replace(/\s*\n\s*/g, ' · ').replace(/^ · | · $/g, '');
   }
@@ -723,14 +869,15 @@
       '<div class="sec"><span>Accent</span><span style="text-transform:none;letter-spacing:0">' + esc((ACCENTS.filter(function (a) { return a[1] === settings.accent; })[0] || ['Custom'])[0]) + '</span></div><div class="group"><div class="sw">' +
       ACCENTS.map(function (a) { return '<button aria-label="' + a[0] + '" class="' + (settings.accent === a[1] ? 'on' : '') + '" data-act="accent" data-v="' + a[1] + '" style="background:' + a[1] + '"></button>'; }).join('') + '</div></div>' +
       '<div class="sec"><span>Vault</span></div><div class="group">' +
-      '<button class="item" data-act="export"><span>Export vault<small>All ' + notes.size + ' notes as .md files in a .zip</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
+      '<button class="item" data-act="export"><span>Export vault<small>All ' + notes.size + ' notes as .md files in a .zip, with images</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
+      '<button class="item" data-act="allcards"><span>Export flashcards<small>' + (function () { var c = 0, m = 0; notes.forEach(function (n) { var k = MD.cards(n.body).length; c += k; if (k) m++; }); return c ? c + ' card' + (c === 1 ? '' : 's') + ' from ' + m + ' note' + (m === 1 ? '' : 's') + ' · a CSV that Synapse imports' : 'Lines like question :: answer become cards for Synapse'; })() + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<button class="item" data-act="import"><span>Import notes<small>Pick .md files or a .zip of them</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<button class="item" data-act="newfolder" data-path=""><span>New folder</span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
             '<button class="item danger" data-act="wipe"><span>Delete all notes</span></button></div>' +
       '<div class="sec"><span>About</span></div><div class="group">' +
       '<div class="item"><span>Storage<small>Notes live only on this device and work offline. Export now and then to keep a backup.</small></span></div>' +
       (isStandalone() ? '' : '<div class="item"><span>Install on iPhone<small>In Safari tap Share, then Add to Home Screen.</small></span></div>') +
-      '</div><input type="file" id="file" accept=".md,.markdown,.txt,.zip,text/markdown,text/plain,application/zip" multiple hidden>' +
+      '</div><input type="file" id="file" accept=".md,.markdown,.txt,.zip,.jpg,.jpeg,.png,.webp,.gif,text/markdown,text/plain,application/zip" multiple hidden>' +
       '<div class="foot"><b>Axon<i>.</i></b>by Northpeak Studios · v' + VERSION + '</div></div>';
     viewEl.innerHTML = h;
     $('#file').addEventListener('change', function (e) { importFiles(Array.from(e.target.files || [])); e.target.value = ''; });
@@ -746,48 +893,100 @@
 
   /* ---------- export / import ---------- */
   function safeName(s) { return s.replace(/[\\\/:*?"<>|]/g, '-').trim() || 'Untitled'; }
-  function exportVault() {
+  function relUp(folder) { return folder ? folder.split('/').map(function () { return '../'; }).join('') : ''; }
+  async function exportVault() {
     if (!notes.size) { toast('Nothing to export yet'); return; }
-    var used = {}, files = [];
+    var used = {}, files = [], imgs = {};
+    notes.forEach(function (n) { MD.images(n.body).forEach(function (i) { imgs[i] = 1; }); });
+    var ext = {};
+    for (var id of Object.keys(imgs)) {
+      try {
+        var r = await IMG.get(id); if (!r) continue;
+        ext[id] = /png/.test(r.type) ? 'png' : /webp/.test(r.type) ? 'webp' : /gif/.test(r.type) ? 'gif' : 'jpg';
+        files.push({ name: 'attachments/' + id + '.' + ext[id], data: new Uint8Array(r.data), date: new Date(r.created || Date.now()) });
+      } catch (e) {}
+    }
+    var nimg = files.length;
     notes.forEach(function (n) {
-      var path = (n.folder ? n.folder.split('/').map(safeName).join('/') + '/' : '') + safeName(n.title);
+      var folderPath = n.folder ? n.folder.split('/').map(safeName).join('/') : '';
+      var path = (folderPath ? folderPath + '/' : '') + safeName(n.title);
       var p = path, i = 2; while (used[p.toLowerCase()]) p = path + ' ' + (i++);
       used[p.toLowerCase()] = 1;
-      files.push({ name: p + '.md', data: n.body, date: new Date(n.updated) });
+      var body = n.body.replace(/!\[([^\]\n]*)\]\(\s*axon-img:([\w-]+)\s*\)/g, function (m, alt, id) { return ext[id] ? '![' + alt + '](' + relUp(folderPath) + 'attachments/' + id + '.' + ext[id] + ')' : m; });
+      files.push({ name: p + '.md', data: body, date: new Date(n.updated) });
     });
     folders.forEach(function (f) { if (!countIn(f)) files.push({ name: f.split('/').map(safeName).join('/') + '/.keep', data: '' }); });
     var blob = Zip.make(files);
-    var d = new Date(), name = 'Axon vault ' + d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + '.zip';
+    var d = new Date(), name = 'Axon vault ' + ymd(d) + '.zip';
+    deliver(blob, name, 'application/zip', 'Exported ' + notes.size + ' note' + (notes.size === 1 ? '' : 's') + (nimg ? ' · ' + nimg + ' image' + (nimg === 1 ? '' : 's') : ''));
+  }
+  function deliver(blob, name, type, msg) {
     var file = null;
-    try { file = new File([blob], name, { type: 'application/zip' }); } catch (e) {}
+    try { file = new File([blob], name, { type: type }); } catch (e) {}
     var ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     if (ios && file && navigator.canShare && navigator.canShare({ files: [file] })) {
-      navigator.share({ files: [file], title: name }).then(function () { toast('Exported ' + notes.size + ' notes'); }).catch(function (e) { if (e && e.name !== 'AbortError') download(blob, name); });
+      navigator.share({ files: [file], title: name }).then(function () { toast(msg); }).catch(function (e) { if (e && e.name !== 'AbortError') { download(blob, name); toast(msg); } });
       return;
     }
     download(blob, name);
-    toast('Exported ' + notes.size + ' notes');
+    toast(msg);
   }
   function download(blob, name) {
     var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
     document.body.appendChild(a); a.click();
     setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
   }
+  var IMG_EXT = /\.(jpe?g|png|webp|gif)$/i;
+  function imgType(name) { var e = (IMG_EXT.exec(name) || [, 'jpg'])[1].toLowerCase(); return e === 'png' ? 'image/png' : e === 'webp' ? 'image/webp' : e === 'gif' ? 'image/gif' : 'image/jpeg'; }
+  function normPath(p) { var out = []; p.split('/').forEach(function (x) { if (!x || x === '.') return; if (x === '..') out.pop(); else out.push(x); }); return out.join('/'); }
   async function importFiles(list) {
     if (!list.length) return;
-    var entries = [], dec = new TextDecoder();
+    var entries = [], images = [], dec = new TextDecoder();
     for (var i = 0; i < list.length; i++) {
       var f = list[i];
       try {
         if (/\.zip$/i.test(f.name) || f.type === 'application/zip') {
           var z = await Zip.read(await f.arrayBuffer());
-          z.forEach(function (e) { if (/\.(md|markdown|txt)$/i.test(e.name) && !/(^|\/)(__MACOSX|\.)/.test(e.name)) entries.push({ path: e.name, text: dec.decode(e.data) }); });
+          z.forEach(function (e) {
+            if (/(^|\/)(__MACOSX|\.)/.test(e.name)) return;
+            if (/\.(md|markdown|txt)$/i.test(e.name)) entries.push({ path: e.name, text: dec.decode(e.data) });
+            else if (IMG_EXT.test(e.name)) images.push({ path: e.name, data: e.data });
+          });
         } else if (/\.(md|markdown|txt)$/i.test(f.name) || /^text\//.test(f.type)) {
           entries.push({ path: f.name, text: await f.text() });
+        } else if (IMG_EXT.test(f.name)) {
+          images.push({ path: f.name, data: new Uint8Array(await f.arrayBuffer()) });
         }
       } catch (err) { toast('Couldn\u2019t read ' + f.name + ': ' + err.message); }
     }
     if (!entries.length) { toast('No markdown files found'); return; }
+    // images: keep Axon's own ids so a re-import never duplicates them
+    var byPath = {}, byBase = {}, nimg = 0;
+    for (var k = 0; k < images.length; k++) {
+      var im = images[k], base = im.path.split('/').pop(), stem = base.replace(IMG_EXT, '');
+      var id = /^i[a-z0-9]{6,40}$/.test(stem) ? stem : 'i' + uid();
+      try {
+        var buf = im.data.buffer.slice(im.data.byteOffset, im.data.byteOffset + im.data.byteLength);
+        await IMG.put({ id: id, data: buf, type: imgType(base), created: Date.now() });
+        byPath[normPath(im.path).toLowerCase()] = id; byBase[base.toLowerCase()] = id; nimg++;
+      } catch (err) {}
+    }
+    function linkImages(text, path) {
+      if (!nimg) return text;
+      var dir = path.split('/').slice(0, -1).join('/');
+      function find(t) {
+        try { t = decodeURI(t); } catch (e) {}
+        t = t.replace(/^<|>$/g, '').split(/[?#]/)[0];
+        return byPath[normPath((dir ? dir + '/' : '') + t).toLowerCase()] || byPath[normPath(t).toLowerCase()] || byBase[t.split('/').pop().toLowerCase()] || null;
+      }
+      return text.replace(/!\[([^\]\n]*)\]\(\s*([^)\s]+)\s*\)/g, function (m, alt, t) {
+        if (/^(axon-img:|https?:|data:)/i.test(t)) return m;
+        var id = find(t); return id ? '![' + alt + '](axon-img:' + id + ')' : m;
+      }).replace(/!\[\[([^\]|\n]+?)(?:\|[^\]\n]*)?\]\]/g, function (m, t) {
+        if (!IMG_EXT.test(t.trim())) return m;
+        var id = find(t.trim()); return id ? '![](axon-img:' + id + ')' : m;
+      });
+    }
     // drop a shared top folder (e.g. "My vault/")
     var tops = {}; entries.forEach(function (e) { tops[e.path.split('/')[0]] = 1; });
     var strip = Object.keys(tops).length === 1 && entries.every(function (e) { return e.path.indexOf('/') > 0; });
@@ -799,10 +998,10 @@
       var title = base.replace(/[\[\]|#^\\\/:]/g, ' ').replace(/\s+/g, ' ').trim() || 'Untitled';
       var t = title;
       if (byTitle(t)) { t = uniqueTitle(title + ' (imported)'); renamed++; }
-      createNote({ title: t, folder: folder, body: e.text.replace(/\r\n?/g, '\n') });
+      createNote({ title: t, folder: folder, body: linkImages(e.text.replace(/\r\n?/g, '\n'), e.path) });
       count++;
     });
-    toast('Imported ' + count + ' note' + (count === 1 ? '' : 's') + (renamed ? ' · ' + renamed + ' renamed to avoid clashes' : ''));
+    toast('Imported ' + count + ' note' + (count === 1 ? '' : 's') + (nimg ? ' · ' + nimg + ' image' + (nimg === 1 ? '' : 's') : '') + (renamed ? ' · ' + renamed + ' renamed to avoid clashes' : ''));
     render();
   }
 
@@ -827,7 +1026,9 @@
     render();
   }
   async function noteMenu(n) {
-    var a = await sheet({ title: n.title, actions: [{ label: 'Rename', value: 'rename' }, { label: 'Move to folder', value: 'move' }, { label: 'Delete note', value: 'delete', danger: true }] });
+    var nc = MD.cards(n.body).length;
+    var a = await sheet({ title: n.title, actions: [{ label: 'Rename', value: 'rename' }, { label: 'Move to folder', value: 'move' }].concat(nc ? [{ label: 'Export ' + nc + ' flashcard' + (nc === 1 ? '' : 's'), value: 'cards' }] : []).concat([{ label: 'Delete note', value: 'delete', danger: true }]) });
+    if (a === 'cards') { exportCards(n); return; }
     if (a === 'rename') {
       var v = await dialog({ title: 'Rename note', message: 'Links to this note will update too.', input: true, value: n.title, ok: 'Rename', validate: function (v) { return checkTitle(v, n); } });
       if (v && v !== n.title) { var r = renameNote(n, v); toast(r.changed ? 'Renamed · updated links in ' + r.changed + ' note' + (r.changed === 1 ? '' : 's') : 'Renamed'); renderNote(n.id); }
@@ -885,7 +1086,11 @@
     gzout: function () { graphCtl && graphCtl.zoom(1 / 1.3); },
     gopen: function (el) { var id = el.dataset.id; if (id.indexOf('tag:') === 0) go('#/search/' + encodeURIComponent('#' + id.slice(4))); else go('#/n/' + id); },
     glocal: function (el) { ui.lastNote = el.dataset.id; ui.graphMode = 'local'; saveMeta(); render(); },
-    stag: function (el) { var i = $('#sq'); i.value = '#' + el.dataset.tag; i.dispatchEvent(new Event('input')); },
+    stag: function (el) { var i = $('#sq'); if (i && el.dataset.on) { i.value = ''; i.dispatchEvent(new Event('input')); return; } if (!i) { go('#/search/' + encodeURIComponent('#' + el.dataset.tag)); return; } i.value = '#' + el.dataset.tag; i.dispatchEvent(new Event('input')); },
+    today: function () { openDaily(); },
+    day: function (el) { openDaily(el.dataset.day); },
+    cards: function (el) { var n = notes.get(el.dataset.id); if (n) exportCards(n); },
+    allcards: function () { exportCards(null); },
     sclear: function () { var i = $('#sq'); i.value = ''; i.dispatchEvent(new Event('input')); i.focus(); },
     screate: function (el) { var t = el.dataset.q.replace(/[\[\]|#^\\\/:]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120); if (!t) return; var n = createNote({ title: uniqueTitle(t), folder: '', body: '' }); go('#/n/' + n.id); startEditing(n, false); },
     fs: function (el) { settings.fs = +el.dataset.v; saveSettings(); renderSettings(); },
@@ -897,6 +1102,8 @@
       if (!ok) return;
       notes.clear(); folders.clear(); rebuildIdx(); ui.lastNote = null; ui.open = {};
       await DB.clear('notes'); await DB.clear('folders'); saveMeta();
+      try { await IMG.clear(); } catch (e) {}
+      Object.keys(imgURL).forEach(function (i) { URL.revokeObjectURL(imgURL[i]); delete imgURL[i]; });
       toast('Vault erased'); renderSettings();
     }
   };

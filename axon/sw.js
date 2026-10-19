@@ -1,9 +1,12 @@
 /* Axon offline cache · Northpeak Studios */
-var CACHE = 'axon-v1.1.0';
-var SHELL = ['./', './index.html', './app.css?v=3', './md.js?v=3', './zip.js?v=3', './db.js?v=3', './graph.js?v=5', './app.js?v=3',
+var CACHE = 'axon-v1.2.0';
+var SHELL = ['./', './index.html', './app.css?v=4', './md.js?v=4', './zip.js?v=4', './db.js?v=4', './graph.js?v=6', './app.js?v=4',
   './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png', './icons/icon-32.png', './icons/favicon.svg'];
 self.addEventListener('install', function (e) {
-  e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(SHELL); }).then(function () { return self.skipWaiting(); }));
+  /* cache: 'reload' skips the browser's HTTP cache so a new version never stores an old page */
+  e.waitUntil(caches.open(CACHE).then(function (c) {
+    return c.addAll(SHELL.map(function (u) { return new Request(u, { cache: 'reload' }); }));
+  }).then(function () { return self.skipWaiting(); }));
 });
 self.addEventListener('activate', function (e) {
   e.waitUntil(caches.keys().then(function (keys) {
@@ -16,17 +19,22 @@ self.addEventListener('fetch', function (e) {
   var url = new URL(req.url);
   if (url.origin !== location.origin || url.pathname.indexOf(new URL(self.registration.scope).pathname) !== 0) return;
   if (req.mode === 'navigate') {
-    e.respondWith(fetch(req).then(function (res) {
-      if (res && res.ok) { var copy = res.clone(); caches.open(CACHE).then(function (c) { c.put('./index.html', copy); }); }
+    e.respondWith(fetch(url.origin + url.pathname, { cache: 'no-cache', credentials: 'same-origin' }).then(function (res) {
+      if (res && res.ok) { var copy = res.clone(); e.waitUntil(caches.open(CACHE).then(function (c) { return c.put('./index.html', copy); })); }
       return res;
-    }).catch(function () { return caches.match('./index.html').then(function (r) { return r || caches.match('./'); }); }));
+    }).catch(function () {
+      return caches.open(CACHE).then(function (c) { return c.match('./index.html').then(function (r) { return r || c.match('./'); }); });
+    }));
     return;
   }
-  e.respondWith(caches.match(req).then(function (hit) {
-    var net = fetch(req).then(function (res) {
-      if (res && res.ok && res.type === 'basic') { var copy = res.clone(); caches.open(CACHE).then(function (c) { c.put(req, copy); }); }
-      return res;
-    }).catch(function () { return hit; });
-    return hit || net;
+  e.respondWith(caches.open(CACHE).then(function (c) {
+    return c.match(req).then(function (hit) {
+      var net = fetch(req).then(function (res) {
+        if (res && res.ok && res.type === 'basic') { var copy = res.clone(); c.put(req, copy); }
+        return res;
+      }).catch(function () { return hit; });
+      if (hit) { e.waitUntil(net.catch(function () {})); return hit; }
+      return net;
+    });
   }));
 });

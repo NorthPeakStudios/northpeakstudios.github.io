@@ -24,6 +24,34 @@
       t.onerror = t.onabort = function () { rej(t.error); };
     });
   }
+  /* images live in their own database so the notes database is never upgraded or touched */
+  var mdb = null;
+  function mopen() {
+    if (mdb) return Promise.resolve(mdb);
+    return new Promise(function (res, rej) {
+      var r = indexedDB.open('axon-media', 1);
+      r.onupgradeneeded = function () { var d = r.result; if (!d.objectStoreNames.contains('images')) d.createObjectStore('images', { keyPath: 'id' }); };
+      r.onsuccess = function () { mdb = r.result; mdb.onversionchange = function () { mdb.close(); mdb = null; }; res(mdb); };
+      r.onerror = function () { rej(r.error); };
+    });
+  }
+  function mtx(mode, fn) {
+    return mopen().then(function (d) {
+      return new Promise(function (res, rej) {
+        var t = d.transaction('images', mode), s = t.objectStore('images'), out, r = fn(s);
+        if (r && 'onsuccess' in r) r.onsuccess = function () { out = r.result; };
+        t.oncomplete = function () { res(out); };
+        t.onerror = t.onabort = function () { rej(t.error); };
+      });
+    });
+  }
+  window.IMG = {
+    put: function (o) { return mtx('readwrite', function (s) { return s.put(o); }); },
+    get: function (id) { return mtx('readonly', function (s) { return s.get(id); }); },
+    keys: function () { return mtx('readonly', function (s) { return s.getAllKeys(); }); },
+    del: function (ids) { return mtx('readwrite', function (s) { ids.forEach(function (k) { s.delete(k); }); }); },
+    clear: function () { return mtx('readwrite', function (s) { return s.clear(); }); }
+  };
   window.DB = {
     open: open,
     all: function (s) { return tx(s, 'readonly', function (st) { return st.getAll(); }); },
