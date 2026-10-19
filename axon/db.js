@@ -45,6 +45,60 @@
       });
     });
   }
+  /* Recall schedules live in their own database too: notes are never migrated */
+  var rdb = null;
+  function ropen() {
+    if (rdb) return Promise.resolve(rdb);
+    return new Promise(function (res, rej) {
+      var r = indexedDB.open('axon-recall', 1);
+      r.onupgradeneeded = function () { var d = r.result; if (!d.objectStoreNames.contains('cards')) d.createObjectStore('cards', { keyPath: 'id' }); if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta', { keyPath: 'k' }); };
+      r.onsuccess = function () { rdb = r.result; rdb.onversionchange = function () { rdb.close(); rdb = null; }; res(rdb); };
+      r.onerror = function () { rej(r.error); };
+    });
+  }
+  function rtx(store, mode, fn) {
+    return ropen().then(function (d) {
+      return new Promise(function (res, rej) {
+        var t = d.transaction(store, mode), s = t.objectStore(store), out, r = fn(s);
+        if (r && 'onsuccess' in r) r.onsuccess = function () { out = r.result; };
+        t.oncomplete = function () { res(out); };
+        t.onerror = t.onabort = function () { rej(t.error); };
+      });
+    });
+  }
+  window.RC = {
+    all: function (s) { return rtx(s, 'readonly', function (st) { return st.getAll(); }); },
+    put: function (s, o) { return rtx(s, 'readwrite', function (st) { return st.put(o); }); },
+    del: function (s, ids) { return rtx(s, 'readwrite', function (st) { ids.forEach(function (k) { st.delete(k); }); }); },
+    clear: function (s) { return rtx(s, 'readwrite', function (st) { return st.clear(); }); }
+  };
+  /* Discover keeps its fetched cards and hidden titles in a separate database */
+  var ddb = null;
+  function dopen() {
+    if (ddb) return Promise.resolve(ddb);
+    return new Promise(function (res, rej) {
+      var r = indexedDB.open('axon-discover', 1);
+      r.onupgradeneeded = function () { var d = r.result; if (!d.objectStoreNames.contains('cache')) d.createObjectStore('cache', { keyPath: 'k' }); if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta', { keyPath: 'k' }); };
+      r.onsuccess = function () { ddb = r.result; ddb.onversionchange = function () { ddb.close(); ddb = null; }; res(ddb); };
+      r.onerror = function () { rej(r.error); };
+    });
+  }
+  function dtx(store, mode, fn) {
+    return dopen().then(function (d) {
+      return new Promise(function (res, rej) {
+        var t = d.transaction(store, mode), s = t.objectStore(store), out, r = fn(s);
+        if (r && 'onsuccess' in r) r.onsuccess = function () { out = r.result; };
+        t.oncomplete = function () { res(out); };
+        t.onerror = t.onabort = function () { rej(t.error); };
+      });
+    });
+  }
+  window.DC = {
+    all: function (s) { return dtx(s, 'readonly', function (st) { return st.getAll(); }); },
+    get: function (s, k) { return dtx(s, 'readonly', function (st) { return st.get(k); }); },
+    put: function (s, o) { return dtx(s, 'readwrite', function (st) { return st.put(o); }); },
+    clear: function (s) { return dtx(s, 'readwrite', function (st) { return st.clear(); }); }
+  };
   window.IMG = {
     put: function (o) { return mtx('readwrite', function (s) { return s.put(o); }); },
     get: function (id) { return mtx('readonly', function (s) { return s.get(id); }); },

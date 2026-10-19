@@ -1,13 +1,13 @@
-/* Axon · Northpeak Studios · v1.2.1 */
+/* Axon · Northpeak Studios · v1.3.0 */
 (function () {
   'use strict';
-  var VERSION = '1.2.1';
+  var VERSION = '1.3.0';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
-  var notes = new Map(), folders = new Set(), titleIdx = new Map();
-  var settings = { fs: 17, accent: '#ff6a3d' };
-  var ui = { open: {}, lastNote: null, graphMode: 'global', graphTags: false };
+  var notes = new Map(), folders = new Set(), titleIdx = new Map(), trash = new Map();
+  var settings = { fs: 17, accent: '#ff6a3d', newPerDay: 20, discoverNet: true };
+  var ui = { open: {}, lastNote: null, graphMode: 'global', graphTags: false, sort: 'edited' };
   var ACCENTS = [['Red-orange', '#ff6a3d'], ['Amber', '#f5a524'], ['Lime', '#a3e635'], ['Mint', '#34d399'], ['Sky', '#38bdf8'], ['Violet', '#a78bfa'], ['Pink', '#f472b6']];
   var SIZES = [['S', 15], ['M', 17], ['L', 19], ['XL', 21]];
   var editing = null, graphCtl = null, currentHash = null, scrollMem = {};
@@ -34,7 +34,22 @@
     quote: '<svg viewBox="0 0 24 24"><path d="M5 18V6M10 8h9M10 12h9M10 16h6"/></svg>',
     cal: '<svg class="fi" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>',
     img: '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17l5-4.5 3.5 3 3-2.5L20 17"/></svg>',
-    tagi: '<svg class="fi" viewBox="0 0 24 24"><path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3-8.7 8.7z"/><circle cx="8" cy="8" r="1.4"/></svg>'
+    tagi: '<svg class="fi" viewBox="0 0 24 24"><path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3-8.7 8.7z"/><circle cx="8" cy="8" r="1.4"/></svg>',
+    pin: '<svg viewBox="0 0 24 24"><path d="M9 3.5h6l-1 5.5 3.5 3.5v1.5h-11V12.5L10 9z"/><path d="M12 14v6.5"/></svg>',
+    undo: '<svg viewBox="0 0 24 24"><path d="M9 7L4.5 11.5 9 16"/><path d="M5 11.5h9.5a5 5 0 0 1 0 10H12"/></svg>',
+    redo: '<svg viewBox="0 0 24 24"><path d="M15 7l4.5 4.5L15 16"/><path d="M19 11.5H9.5a5 5 0 0 0 0 10H12"/></svg>',
+    outline: '<svg viewBox="0 0 24 24"><path d="M4 6h16M8 12h12M12 18h8"/></svg>',
+    trash: '<svg viewBox="0 0 24 24"><path d="M4.5 7h15M10 7V4.5h4V7M6.5 7l1 13h9l1-13"/></svg>',
+    recall: '<svg viewBox="0 0 24 24"><rect x="3.5" y="6.5" width="13" height="13" rx="2.5"/><path d="M7.5 3.5h10a3 3 0 0 1 3 3v10"/><path d="M8 13.5l1.8 1.8 3.7-3.8"/></svg>',
+    copy: '<svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/></svg>',
+    tmpl: '<svg viewBox="0 0 24 24"><rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M8 8h8M8 12h8M8 16h4"/></svg>',
+    indent: '<svg viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10M4 9l3 3-3 3"/></svg>',
+    outdent: '<svg viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10M7 9l-3 3 3 3"/></svg>',
+    hl: '<svg viewBox="0 0 24 24"><path d="M9 15l-3 3h5l1-1"/><path d="M9 15l7.5-9.5 3 2.5L12 17z"/></svg>',
+    restore: '<svg viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3L4.5 9"/><path d="M4.5 4.5V9H9"/></svg>',
+    compass: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>',
+    ext: '<svg viewBox="0 0 24 24"><path d="M14 4.5h5.5V10M19.5 4.5L11 13M17 13.5v5a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 4 18.5v-10A1.5 1.5 0 0 1 5.5 7h5"/></svg>',
+    cmd: '<svg viewBox="0 0 24 24"><path d="M9 9V6.5A2.5 2.5 0 1 0 6.5 9H9zm0 0h6m-6 0v6m6-6V6.5A2.5 2.5 0 1 1 17.5 9H15zm0 0v6m0 0h-6m6 0v2.5a2.5 2.5 0 1 0 2.5-2.5H15zm-6 0v2.5A2.5 2.5 0 1 1 6.5 15H9z"/></svg>'
   };
 
   /* ---------- helpers ---------- */
@@ -78,12 +93,22 @@
   function childFolders(p) {
     return Array.from(folders).filter(function (f) { return parentOf(f) === p; }).sort(function (a, b) { return a.localeCompare(b); });
   }
-  function notesIn(p) { return Array.from(notes.values()).filter(function (n) { return n.folder === p; }).sort(function (a, b) { return a.title.localeCompare(b.title); }); }
+  var SORTS = { edited: 'Last edited', created: 'Date created', az: 'Name A\u2013Z' };
+  function sorter(a, b) {
+    if (!!b.pinned !== !!a.pinned) return b.pinned ? 1 : -1;
+    if (ui.sort === 'az') return a.title.localeCompare(b.title, undefined, { numeric: true });
+    if (ui.sort === 'created') return (b.created || 0) - (a.created || 0);
+    return b.updated - a.updated;
+  }
+  function notesIn(p) { return Array.from(notes.values()).filter(function (n) { return n.folder === p; }).sort(sorter); }
+  function pinnedNotes() { return Array.from(notes.values()).filter(function (n) { return n.pinned; }).sort(function (a, b) { return a.title.localeCompare(b.title); }); }
   function recent(k) { return Array.from(notes.values()).sort(function (a, b) { return b.updated - a.updated; }).slice(0, k || 1e9); }
   function snippetHTML(body, max) {
     max = max || 140;
     var hasImg = MD.IMG.test(body || ''); MD.IMG.lastIndex = 0;
-    var lines = String(body || '').replace(/```[\s\S]*?(```|$)/g, '').replace(MD.IMG, '').split('\n').filter(function (l) { return l.trim() && !/^#{1,6}\s/.test(l) && !/^\s*\|?\s*:?-{2,}/.test(l); });
+    var lines = MD.stripFront(body).replace(/```[\s\S]*?(```|$)/g, '').replace(/^\[\^[^\]]+\]:.*$/gm, '').replace(MD.IMG, '').replace(/\{\{c\d*::([^}]*?)(?:::[^}]*)?\}\}/g, '$1').split('\n')
+      .map(function (l) { return l.replace(/^\s*(?:>\s?)+(\[![\w-]+\][+-]?\s*)?/, '').replace(/^\s*!\[\[([^\]|]+).*$/, '$1'); })
+      .filter(function (l) { return l.trim() && !/^#{1,6}\s/.test(l) && !/^\s*\|?\s*:?-{2,}/.test(l) && !/^\s*\|.*\|\s*$/.test(l) && !/^\s*(```|\$\$|---)\s*$/.test(l); });
     var t = lines.join(' ').replace(/\s+/g, ' ').trim();
     if (!t) return '<span style="opacity:.6">' + (hasImg ? 'Image' : 'Empty note') + '</span>';
     return inlineSnippet(t.slice(0, max * 1.6), max);
@@ -172,7 +197,7 @@
   }
   function dropImages(ids) {
     if (!ids.length) return;
-    var used = {}; notes.forEach(function (n) { MD.images(n.body).forEach(function (i) { used[i] = 1; }); });
+    var used = {}; notes.forEach(function (n) { MD.images(n.body).forEach(function (i) { used[i] = 1; }); }); trash.forEach(function (n) { MD.images(n.body).forEach(function (i) { used[i] = 1; }); });
     var gone = ids.filter(function (i) { return !used[i]; });
     if (gone.length) IMG.del(gone).catch(function () {});
     gone.forEach(function (i) { if (imgURL[i]) { URL.revokeObjectURL(imgURL[i]); delete imgURL[i]; } });
@@ -222,7 +247,7 @@
     deliver(new Blob([r.csv], { type: 'text/csv' }), (n ? safeName(n.title) : 'Axon flashcards') + '.csv', 'text/csv', 'Exported ' + r.count + ' card' + (r.count === 1 ? '' : 's') + ' · import the file in Synapse');
   }
   function persist() { try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {} }
-  function saveMeta() { DB.put('meta', { k: 'ui', v: { open: ui.open, lastNote: ui.lastNote, graphMode: ui.graphMode, graphTags: ui.graphTags } }); }
+  function saveMeta() { DB.put('meta', { k: 'ui', v: { open: ui.open, lastNote: ui.lastNote, graphMode: ui.graphMode, graphTags: ui.graphTags, sort: ui.sort } }); }
 
   /* ---------- data ops ---------- */
   function ensureFolder(p) {
@@ -234,6 +259,8 @@
   }
   function putNote(n) {
     var o = { id: n.id, title: n.title, folder: n.folder, body: n.body, created: n.created, updated: n.updated, seed: !!n.seed };
+    if (n.pinned) o.pinned = true;
+    if (n.trashed) o.trashed = n.trashed;
     return DB.put('notes', o);
   }
   function createNote(o) {
@@ -244,7 +271,7 @@
     putNote(n); persist();
     return n;
   }
-  function touch(n) { n.updated = Date.now(); n.seed = false; putNote(n); }
+  function touch(n) { n.updated = Date.now(); n.seed = false; putNote(n); recallSoon(); }
   function renameNote(n, newTitle) {
     newTitle = newTitle.trim().replace(/\s+/g, ' ');
     var err = checkTitle(newTitle, n);
@@ -261,7 +288,30 @@
     putNote(n); rebuildIdx();
     return { changed: changed };
   }
-  function deleteNote(n) { notes.delete(n.id); rebuildIdx(); DB.del('notes', n.id); dropImages(MD.images(n.body)); if (ui.lastNote === n.id) { ui.lastNote = null; saveMeta(); } }
+  /* hard delete: only for empty auto-made daily notes, trash purge and "empty trash" */
+  function deleteNote(n) { notes.delete(n.id); trash.delete(n.id); rebuildIdx(); DB.del('notes', n.id); dropImages(MD.images(n.body)); if (ui.lastNote === n.id) { ui.lastNote = null; saveMeta(); } recallSoon(); }
+  var TRASH_DAYS = 30;
+  function trashNote(n) {
+    notes.delete(n.id); n.trashed = Date.now(); n.pinned = false; trash.set(n.id, n); rebuildIdx(); putNote(n);
+    if (ui.lastNote === n.id) { ui.lastNote = null; saveMeta(); }
+    recallSoon();
+  }
+  function restoreNote(n) {
+    trash.delete(n.id); delete n.trashed;
+    if (byTitle(n.title)) n.title = uniqueTitle(n.title + ' (restored)');
+    if (n.folder) ensureFolder(n.folder);
+    notes.set(n.id, n); rebuildIdx(); putNote(n); recallSoon();
+    return n;
+  }
+  function purgeTrash(all) {
+    var cut = Date.now() - TRASH_DAYS * 864e5, gone = [];
+    trash.forEach(function (n) { if (all || n.trashed < cut) gone.push(n); });
+    if (!gone.length) return 0;
+    gone.forEach(function (n) { trash.delete(n.id); });
+    DB.delMany('notes', gone.map(function (n) { return n.id; }));
+    dropImages([].concat.apply([], gone.map(function (n) { return MD.images(n.body); })));
+    return gone.length;
+  }
   function moveNote(n, folder) { ensureFolder(folder); n.folder = folder; n.updated = Date.now(); n.seed = false; putNote(n); }
   function renameFolder(p, name) {
     var np = (parentOf(p) ? parentOf(p) + '/' : '') + name;
@@ -283,7 +333,7 @@
     DB.delMany('folders', oldF);
     var hit = Array.from(notes.values()).filter(function (n) { return n.folder === p || n.folder.indexOf(p + '/') === 0; });
     if (keepNotes) hit.forEach(function (n) { n.folder = par; putNote(n); });
-    else { hit.forEach(function (n) { notes.delete(n.id); }); DB.delMany('notes', hit.map(function (n) { return n.id; })); rebuildIdx(); dropImages([].concat.apply([], hit.map(function (n) { return MD.images(n.body); }))); }
+    else hit.forEach(trashNote);
     saveMeta();
     return hit.length;
   }
@@ -387,20 +437,31 @@
     if (p[0] === 'search') return { v: 'search', q: decodeURIComponent(p.slice(1).join('/')) };
     if (p[0] === 'settings') return { v: 'settings' };
     if (p[0] === 'today') return { v: 'today' };
+    if (p[0] === 'recall') return { v: 'recall' };
+    if (p[0] === 'review') return { v: 'review', deck: decodeURIComponent(p[1] || 'all'), mode: p[2] || '' };
+    if (p[0] === 'trash') return { v: 'trash' };
+    if (p[0] === 'discover') return { v: 'discover', id: decodeURIComponent(p[1] || '') };
+    if (p[0] === 'guide') return { v: 'guide' };
     return { v: 'vault' };
   }
   function setTab(t) { document.querySelectorAll('.tb').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === t); }); }
+  function setFab(on) { document.body.classList.toggle('nofab', !on); }
 
   function render() {
     if (currentHash !== null) scrollMem[currentHash] = viewEl.scrollTop;
     if (editing) stopEditing(true);
     if (graphCtl) { graphCtl.destroy(); graphCtl = null; }
+    closePeek();
+    document.body.classList.remove('reviewing');
+    if (ds && ds.ctrl) { ds.ctrl.abort(); ds = null; }
+    if (dObs) { dObs.disconnect(); dObs = null; }
     currentHash = location.hash;
     var r = route();
     tidyDaily(r.v === 'note' ? r.id : null);
     viewEl.className = '';
-    var tab = { vault: 'notes', folder: 'notes', note: 'notes', graph: 'graph', search: 'search', settings: 'settings' }[r.v];
+    var tab = { vault: 'notes', folder: 'notes', note: 'notes', graph: 'graph', search: 'notes', settings: 'settings', recall: 'notes', review: 'notes', trash: 'notes', guide: 'settings', discover: 'discover' }[r.v];
     setTab(tab);
+    setFab(/^(vault|folder|note|search)$/.test(r.v));
     if (r.v === 'vault') renderVault();
     else if (r.v === 'folder') renderFolder(r.path);
     else if (r.v === 'note') renderNote(r.id);
@@ -408,6 +469,11 @@
     else if (r.v === 'search') renderSearch(r.q);
     else if (r.v === 'settings') renderSettings();
     else if (r.v === 'today') { openDaily(null, true); return; }
+    else if (r.v === 'recall') renderRecall();
+    else if (r.v === 'review') { renderReview(r.deck, r.mode); return; }
+    else if (r.v === 'trash') renderTrash();
+    else if (r.v === 'discover') renderDiscover(r.id);
+    else if (r.v === 'guide') renderGuide();
     viewEl.scrollTop = scrollMem[currentHash] || 0;
   }
 
@@ -424,14 +490,14 @@
     return h;
   }
   function noteItem(n, showFolder) {
-    return '<button class="nl" data-act="open" data-id="' + n.id + '"><div class="t"><b>' + esc(n.title) + '</b><time>' + ago(n.updated) + '</time></div>' +
+    return '<button class="nl" data-act="open" data-id="' + n.id + '"><div class="t"><b>' + (n.pinned ? '<span class="pinm">' + I.pin + '</span>' : '') + esc(n.title) + '</b><time>' + ago(ui.sort === 'created' ? (n.created || n.updated) : n.updated) + '</time></div>' +
       '<div class="s">' + snippetHTML(n.body) + '</div>' + (showFolder && n.folder ? '<div class="f">' + esc(crumbOf(n.folder)) + '</div>' : '') + '</button>';
   }
   var EMPTY_ART = '<svg class="eart" viewBox="0 0 120 80" aria-hidden="true"><path d="M22 54L52 24M52 24L94 34M52 24L66 62M22 54L66 62" /><circle cx="22" cy="54" r="5"/><circle cx="94" cy="34" r="5"/><circle cx="66" cy="62" r="5"/><circle class="acc" cx="52" cy="24" r="7"/></svg>';
   function emptyHero(sub) {
     return '<div class="ehero">' + EMPTY_ART + '<b>No notes yet</b><p>' + sub + '</p>' +
       '<button class="bignew" data-act="newempty">' + I.plus + '<span>New note</span></button>' +
-      '<div class="esub"><button class="pill" data-act="today">Today\u2019s note</button><button class="pill" data-act="newfolder" data-path="">New folder</button><button class="pill" data-act="import">Import .md files</button></div></div>';
+      '<div class="esub"><button class="pill" data-act="fromtmpl">From a template</button><button class="pill" data-act="today">Today\u2019s note</button><button class="pill" data-act="newfolder" data-path="">New folder</button><button class="pill" data-act="import">Import .md files</button></div></div>';
   }
   function todayRow() {
     var t = ymd(new Date()), has = !!byTitle(t);
@@ -442,26 +508,35 @@
     if (!notes.size) {
       var e = '<div class="page"><div class="eyebrow">Vault</div><h1 class="h1">Notes</h1>';
       if (folders.size) e += '<div class="sec"><span>Folders</span></div><div class="rows">' + folderRows('', 0) + '</div>';
-      e += emptyHero('Write your first note. Link ideas with <span class="kbd">[[</span> and watch your graph grow. Everything stays on this device and works offline.');
+      e += emptyHero('Write your first note. Type <span class="kbd">/</span> for blocks and <span class="kbd">[[</span> to link ideas. Everything stays on this device.');
+      if (trash.size) e += '<div class="rows" style="margin-top:20px">' + trashRow() + '</div>';
       e += '<input type="file" id="file" accept=".md,.markdown,.txt,.zip,.jpg,.jpeg,.png,.webp,.gif,text/markdown,text/plain,application/zip" multiple hidden></div>';
       viewEl.innerHTML = e;
       $('#file').addEventListener('change', function (ev) { importFiles(Array.from(ev.target.files || [])); ev.target.value = ''; });
       return;
     }
-    var h = '<div class="page"><div class="eyebrow">Vault · ' + notes.size + ' note' + (notes.size === 1 ? '' : 's') + '</div><h1 class="h1">Notes</h1>' +
-      '<button class="searchbox" data-act="gosearch" style="width:100%;text-align:left">' + I.search + '<span style="flex:1;font-size:17px">Search ' + notes.size + ' note' + (notes.size === 1 ? '' : 's') + '</span></button>' +
-      '<div class="rows" style="margin-top:14px">' + todayRow() + '</div>' +
+    var pins = pinnedNotes(), rs = recallStats();
+    var h = '<div class="pullhint" id="pullhint">Release to jump to a note</div><div class="page"><div class="eyebrow">Vault · ' + notes.size + ' note' + (notes.size === 1 ? '' : 's') + '</div><h1 class="h1">Notes</h1>' +
+      '<button class="searchbox" data-act="qs" style="width:100%;text-align:left">' + I.search + '<span style="flex:1;font-size:17px">Jump to a note or command</span></button>' +
+      '<div class="rows" style="margin-top:14px">' + todayRow() +
+      (rs.total ? '<button class="row today" data-act="gorecall">' + I.recall.replace('<svg', '<svg class="fi"') + '<span class="nm">Recall</span><span class="ct">' + (rs.due ? '<i class="duen">' + rs.due + ' due</i>' : 'all caught up') + '</span><span class="chev">' + I.chev + '</span></button>' : '') + '</div>' +
+      (pins.length ? '<div class="sec"><span>Pinned</span></div><div class="rows">' + pins.map(function (n) { return '<button class="row" data-act="open" data-id="' + n.id + '">' + I.pin.replace('<svg', '<svg class="fi pinfi"') + '<span class="nm">' + esc(n.title) + '</span><span class="chev">' + I.chev + '</span></button>'; }).join('') + '</div>' : '') +
       '<div class="sec"><span>Folders</span><span><button class="ib ico" aria-label="New folder" data-act="newfolder" data-path="" style="width:44px;height:36px;margin-right:-10px">' + I.newfolder + '</button></span></div><div class="rows">' + folderRows('', 0);
     rootNotes.forEach(function (n) {
       h += '<button class="row" data-act="open" data-id="' + n.id + '">' + I.doc + '<span class="nm">' + esc(n.title) + '</span><span class="chev">' + I.chev + '</span></button>';
     });
     h += '</div>';
+    if (!rootNotes.length && !folders.size) h += '<div class="hint1">Folders keep things tidy. Tap the folder icon to add one.</div>';
     var tc = tagCounts();
     if (Object.keys(tc).length) h += '<div class="sec"><span>Tags</span></div>' + tagChips(tc, 10);
     h += '<div class="sec"><span>Recent</span><button data-act="all">See all</button></div>';
     recent(6).forEach(function (n) { h += noteItem(n, false); });
+    if (trash.size) h += '<div class="rows" style="margin-top:22px">' + trashRow() + '</div>';
+    h += '<div class="hint1">Press and hold a note to pin, rename, move or duplicate it.</div>';
     viewEl.innerHTML = h + '</div>';
   }
+  function trashRow() { return '<button class="row" data-act="gotrash">' + I.trash.replace('<svg', '<svg class="fi"') + '<span class="nm">Trash</span><span class="ct">' + trash.size + '</span><span class="chev">' + I.chev + '</span></button>'; }
+  function sortChip() { return '<button class="chip sortc" data-act="sort">' + I.outline + '<span>' + SORTS[ui.sort] + '</span></button>'; }
 
   /* ---------- folder ---------- */
   function renderFolder(p) {
@@ -471,38 +546,43 @@
     var backLabel = all || !parentOf(p) ? 'Notes' : folderName(parentOf(p));
     var h = '<div class="page"><div class="nav"><button class="back" data-act="back" data-to="' + (all || !parentOf(p) ? '#/' : '#/f/' + encodeURIComponent(parentOf(p))) + '">' + I.back + '<span>' + esc(backLabel) + '</span></button><div class="acts">' +
       (all ? '' : '<button class="ib" aria-label="New note here" data-act="newhere" data-path="' + esc(p) + '">' + I.newnote + '</button><button class="ib" aria-label="Folder options" data-act="foldermore" data-path="' + esc(p) + '">' + I.more + '</button>') +
-      '</div></div><div class="crumb">' + (all ? 'sorted by last edit' : esc(crumbOf(p))) + '</div><h1 class="h1" style="margin-top:4px">' + esc(title) + '</h1>';
+      '</div></div><div class="crumb">' + (all ? 'every note' : esc(crumbOf(p))) + '</div><h1 class="h1" style="margin-top:4px">' + esc(title) + '</h1>' +
+      (all || notesIn(p).length > 1 ? '<div class="sortrow">' + sortChip() + '</div>' : '');
     if (all) {
-      var r = recent();
+      var r = Array.from(notes.values()).sort(sorter);
       r.forEach(function (n) { h += noteItem(n, true); });
       if (!r.length) h += '<div class="empty"><b>No notes yet</b>Tap + to write one.</div>';
     } else {
       var subs = childFolders(p), ns = notesIn(p);
-      if (p === DAILY) ns.sort(function (a, b) { return isDaily(b) - isDaily(a) || b.title.localeCompare(a.title); });
+      if (p === DAILY && ui.sort !== 'az') ns.sort(function (a, b) { return !!b.pinned - !!a.pinned || isDaily(b) - isDaily(a) || b.title.localeCompare(a.title); });
       if (subs.length) { h += '<div class="rows">'; subs.forEach(function (f) { h += '<button class="row" data-act="folder" data-path="' + esc(f) + '">' + I.folder + '<span class="nm">' + esc(folderName(f)) + '</span><span class="ct">' + countIn(f) + '</span><span class="chev">' + I.chev + '</span></button>'; }); h += '</div>'; }
       ns.forEach(function (n) { h += noteItem(n, false); });
-      if (!subs.length && !ns.length) h += '<div class="empty"><b>Empty folder</b>Add a note with the button up top.</div>';
+      if (!subs.length && !ns.length) h += '<div class="empty"><b>Empty folder</b>' + (p === TEMPLATES ? 'Notes you put here show up in \u201cNew from template\u201d.' : 'Tap + to add a note here.') + '</div>';
     }
     viewEl.innerHTML = h + '</div>';
   }
 
   /* ---------- note ---------- */
   function resolver(t) { return !!byTitle(t); }
+  function embedder(t) { var x = byTitle(t); return x ? x.body : null; }
+  function mdOpt() { return { resolve: resolver, embed: embedder }; }
+  function readMin(w) { return Math.max(1, Math.round(w / 220)); }
   function renderNote(id, opts) {
     var n = notes.get(id);
     if (!n) { toast('That note no longer exists'); go('#/', true); return; }
     opts = opts || {};
     ui.lastNote = n.id; saveMeta();
-    var tags = MD.tags(n.body), bl = backlinks(n), out = outNotes(n), nc = MD.cards(n.body).length;
+    var hasFront = !!MD.front(n.body), tags = hasFront ? [] : MD.tags(n.body), bl = backlinks(n), out = outNotes(n), nc = MD.recall(n.body).length, wc = words(n.body);
     var backTo = n.folder ? '#/f/' + encodeURIComponent(n.folder) : '#/';
-    var h = '<div class="page"><div class="nav"><button class="back" data-act="back" data-to="' + backTo + '">' + I.back + '<span>' + esc(n.folder ? folderName(n.folder) : 'Notes') + '</span></button><div class="acts">' +
+    var h = '<div class="page"><div class="nav stick"><button class="back" data-act="back" data-to="' + backTo + '">' + I.back + '<span>' + esc(n.folder ? folderName(n.folder) : 'Notes') + '</span></button><div class="acts">' +
       '<button class="ib" aria-label="Edit" data-act="edit">' + I.edit + '</button>' +
-      '<button class="ib" aria-label="Local graph" data-act="localgraph" data-id="' + n.id + '">' + I.graph + '</button>' +
+      '<button class="ib" aria-label="Outline" data-act="outline">' + I.outline + '</button>' +
+      '<button class="ib" aria-label="Discover for this note" data-act="dnote" data-id="' + n.id + '">' + I.compass + '</button>' +
       '<button class="ib" aria-label="Note options" data-act="notemore" data-id="' + n.id + '">' + I.more + '</button></div></div>' +
       '<div class="crumb">' + esc(crumbOf(n.folder)) + '</div><h1 class="ntitle">' + esc(n.title) + '</h1>' + dayNav(n) +
       '<div class="meta">' + tags.map(function (t) { return '<span class="tag" data-tag="' + esc(t) + '">#' + esc(t) + '</span>'; }).join('') +
-      '<span>' + (tags.length ? '· ' : '') + 'edited ' + agoLong(n.updated) + ' · ' + words(n.body) + ' words' + (nc ? ' · </span><button class="cardct" data-act="cards" data-id="' + n.id + '">' + nc + ' card' + (nc === 1 ? '' : 's') + '</button>' : '</span>') + '</div>' +
-      '<article class="prose" id="prose">' + (n.body.trim() ? MD.render(n.body, { resolve: resolver }) : '<p class="empty-note">Empty note. Tap the pencil to write.</p>') + '</article>' +
+      '<span>' + (tags.length ? '· ' : '') + (n.pinned ? 'pinned · ' : '') + 'edited ' + agoLong(n.updated) + ' · ' + wc + ' word' + (wc === 1 ? '' : 's') + (wc > 150 ? ' · ' + readMin(wc) + ' min read' : '') + (nc ? ' · </span><button class="cardct" data-act="cards" data-id="' + n.id + '">' + I.recall + nc + ' card' + (nc === 1 ? '' : 's') + '</button>' : '</span>') + '</div>' +
+      '<article class="prose" id="prose">' + (n.body.trim() ? MD.render(n.body, mdOpt()) : '<button class="empty-note" data-act="edit">Empty note. Tap here to start writing \u2014 type / for blocks.</button>') + '</article>' +
       '<section class="bl" id="backlinks"><h3><span>' + bl.length + ' backlink' + (bl.length === 1 ? '' : 's') + '</span><span>' + out.length + ' outgoing</span></h3>' +
       (bl.length ? bl.map(function (o) { return '<button class="bi" data-act="open" data-id="' + o.id + '"><b>' + esc(o.title) + '</b><span>' + backlinkSnippet(o.body, n.title) + '</span></button>'; }).join('') :
         '<div class="none">No notes link here yet. Link it from another note with [[' + esc(n.title) + ']].</div>') + '</section></div>';
@@ -530,30 +610,82 @@
   }
 
   /* ---------- editor ---------- */
-  var kb = null, ac = null, saveT = null;
-  function startEditing(n, focusTitle) {
+  var kb = null, ac = null, saveT = null, hist = { s: [], i: 0, t: 0, force: false, co: false };
+  function startEditing(n, focusTitle, at) {
     editing = { n: n, startTitle: n.title }; lastSaved[n.id] = n.body;
     document.body.classList.add('editing');
-    var backTo = n.folder ? '#/f/' + encodeURIComponent(n.folder) : '#/';
-    viewEl.innerHTML = '<div class="page"><div class="nav"><button class="back" data-act="donebtn">' + I.back + '<span>' + esc(n.folder ? folderName(n.folder) : 'Notes') + '</span></button><div class="acts">' +
+    setFab(false);
+    viewEl.innerHTML = '<div class="page"><div class="nav stick"><button class="back" data-act="donebtn">' + I.back + '<span>' + esc(n.folder ? folderName(n.folder) : 'Notes') + '</span></button><div class="acts">' +
+      '<button class="ib" aria-label="Outline" data-act="outline">' + I.outline + '</button>' +
       '<button class="ib on" aria-label="Preview" data-act="donebtn">' + I.eye + '</button></div></div>' +
       '<div class="crumb">' + esc(crumbOf(n.folder)) + '</div>' +
       '<input class="ntitle" id="ttl" aria-label="Note title" autocomplete="off" spellcheck="false" enterkeyhint="next">' +
-      '<textarea class="editor" id="ed" aria-label="Note text" placeholder="Start writing. Type [[ to link a note." spellcheck="true" autocapitalize="sentences"></textarea></div>';
+      (n.body.trim() ? '' : '<div class="tchips" id="tchips"><span>Start from</span>' + allTemplates().slice(0, 6).map(function (t, i) { return '<button class="chip" data-act="usetmpl" data-i="' + i + '">' + esc(t.name) + '</button>'; }).join('') + '</div>') +
+      '<textarea class="editor" id="ed" aria-label="Note text" placeholder="Start writing. Type / for blocks, [[ to link a note." spellcheck="true" autocapitalize="sentences"></textarea></div>';
     var ttl = $('#ttl'), ed = $('#ed');
     ttl.value = n.title; ed.value = n.body;
+    hist = { s: [{ v: n.body, a: n.body.length, b: n.body.length }], i: 0, t: 0, force: false, co: false };
     autoGrow(ed);
     ttl.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); commitTitle(); ed.focus(); } });
     ttl.addEventListener('blur', commitTitle);
-    ed.addEventListener('input', function () { autoGrow(ed); n.body = ed.value; scheduleSave(); updateAC(); });
-    ed.addEventListener('click', updateAC);
-    ed.addEventListener('keyup', function (e) { if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].indexOf(e.key) >= 0 && !(ac && /Arrow(Up|Down)/.test(e.key))) updateAC(); });
+    ed.addEventListener('input', function () {
+      autoGrow(ed); n.body = ed.value; scheduleSave(); recordHist(ed); updateAC(); updateSlash();
+      var tc = $('#tchips'); if (tc && ed.value) tc.remove();
+    });
+    ed.addEventListener('click', function () { updateAC(); updateSlash(); });
+    ed.addEventListener('keyup', function (e) { if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].indexOf(e.key) >= 0 && !((ac || slashEl) && /Arrow(Up|Down)/.test(e.key))) { updateAC(); updateSlash(); } });
     ed.addEventListener('keydown', acKeys);
+    if ('onbeforeinput' in ed) ed.addEventListener('beforeinput', function (e) { if ((e.inputType === 'insertLineBreak' || e.inputType === 'insertParagraph') && !e.isComposing && continueList(ed)) e.preventDefault(); });
+    else ed.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey && !e.defaultPrevented && !e.isComposing && continueList(ed)) e.preventDefault(); });
     buildKB(ed);
-    if (focusTitle) { ttl.focus(); ttl.select(); }
-    else { ed.focus(); try { ed.setSelectionRange(ed.value.length, ed.value.length); } catch (e) {} }
+    if (focusTitle) { ttl.focus(); ttl.select(); return; }
+    var lines = ed.value.split('\n'), L = at && at.line !== undefined ? Math.min(at.line, lines.length - 1) : -1;
+    var caret = ed.value.length;
+    if (L >= 0) { caret = 0; for (var i = 0; i <= L; i++) caret += lines[i].length + (i < L ? 1 : 0); }
+    try { ed.focus({ preventScroll: true }); } catch (e) { ed.focus(); }
+    try { ed.setSelectionRange(caret, caret); } catch (e) {}
+    hist.s[0].a = hist.s[0].b = caret;
+    if (L >= 0) {
+      var tops = lineTops(ed), vr = viewEl.getBoundingClientRect(), edTop = ed.getBoundingClientRect().top - vr.top + viewEl.scrollTop;
+      viewEl.scrollTop = Math.max(0, edTop + (tops[L] || 0) - (at.offset !== undefined ? at.offset : vr.height * 0.3));
+    }
   }
   function autoGrow(ed) { ed.style.height = 'auto'; ed.style.height = Math.max(ed.scrollHeight, window.innerHeight * 0.55) + 'px'; }
+  /* y position of each source line inside the textarea, via a hidden mirror */
+  function lineTops(ed) {
+    var cs = getComputedStyle(ed), m = document.createElement('div');
+    ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'paddingTop', 'paddingLeft', 'paddingRight', 'tabSize', 'wordSpacing'].forEach(function (k) { m.style[k] = cs[k]; });
+    m.style.cssText += ';position:absolute;left:-9999px;top:0;visibility:hidden;white-space:pre-wrap;overflow-wrap:break-word;word-wrap:break-word;box-sizing:border-box;width:' + ed.clientWidth + 'px';
+    var lines = ed.value.split('\n');
+    m.innerHTML = lines.map(function (l) { return '<div>' + (l ? esc(l) : '\u200b') + '</div>'; }).join('');
+    document.body.appendChild(m);
+    var out = Array.prototype.map.call(m.children, function (d) { return d.offsetTop; });
+    m.remove();
+    return out;
+  }
+  function editorTopLine() {
+    var ed = $('#ed'); if (!ed) return null;
+    var vr = viewEl.getBoundingClientRect(), er = ed.getBoundingClientRect(), nv = $('.nav.stick'), y0 = (nv ? nv.getBoundingClientRect().bottom : vr.top) - er.top + 8;
+    if (y0 <= 0) return { line: 0, offset: er.top - vr.top };
+    var tops = lineTops(ed), L = 0;
+    for (var i = 0; i < tops.length; i++) { if (tops[i] <= y0) L = i; else break; }
+    return { line: L, offset: er.top - vr.top + tops[L] };
+  }
+  function alignPreview(pos) {
+    var prose = $('#prose'); if (!prose || !pos) return;
+    var best = null;
+    prose.querySelectorAll(':scope > [data-l]').forEach(function (el) { if (+el.dataset.l <= pos.line) best = el; });
+    if (!best || pos.line === 0) return;
+    var vr = viewEl.getBoundingClientRect();
+    viewEl.scrollTop += best.getBoundingClientRect().top - vr.top - pos.offset;
+  }
+  function previewTopBlock() {
+    var prose = $('#prose'); if (!prose) return null;
+    var vr = viewEl.getBoundingClientRect(), pick = null, nv = $('.nav.stick'), top = nv ? nv.getBoundingClientRect().bottom : vr.top;
+    var els = prose.querySelectorAll(':scope > [data-l]');
+    for (var i = 0; i < els.length; i++) { var r = els[i].getBoundingClientRect(); if (r.bottom > top + 12) { pick = { line: +els[i].dataset.l, offset: r.top - vr.top }; break; } }
+    return viewEl.scrollTop < 40 ? null : pick;
+  }
   function scheduleSave() {
     clearTimeout(saveT);
     saveT = setTimeout(function () { if (editing) touchIfChanged(editing.n); }, 350);
@@ -570,6 +702,7 @@
   }
   function stopEditing(silent) {
     if (!editing) return;
+    var pos = silent ? null : editorTopLine();
     commitTitle();
     var n = editing.n, ed = $('#ed');
     clearTimeout(saveT);
@@ -577,31 +710,80 @@
     if (ed) touchIfChanged(n);
     editing = null;
     document.body.classList.remove('editing');
-    hideAC();
+    hideAC(); hideSlash();
     if (kb) { kb.remove(); kb = null; }
-    if (!silent) renderNote(n.id);
+    /* a brand-new note you leave blank and unnamed isn't kept */
+    if (freshNote[n.id]) {
+      delete freshNote[n.id];
+      if (!n.body.trim() && /^Untitled( \d+)?$/.test(n.title) && notes.has(n.id)) {
+        deleteNote(n);
+        if (!silent) { toast('Empty note discarded'); back('#/'); }
+        return;
+      }
+    }
+    if (!silent) { renderNote(n.id); setFab(true); viewEl.scrollTop = 0; alignPreview(pos); }
   }
-  var lastSaved = {};
+  var lastSaved = {}, freshNote = {};
   function touchIfChanged(n) { if (lastSaved[n.id] !== n.body) { lastSaved[n.id] = n.body; touch(n); } }
+
+  /* undo / redo: our own history so it works the same on every phone */
+  function recordHist(ed) {
+    var h = hist, now = Date.now(), cur = { v: ed.value, a: ed.selectionStart, b: ed.selectionEnd };
+    if (h.s[h.i] && h.s[h.i].v === cur.v) { h.force = false; return; }
+    if (!h.force && h.co && now - h.t < 900 && h.i > 0) h.s[h.i] = cur;
+    else { h.s = h.s.slice(0, h.i + 1); h.s.push(cur); if (h.s.length > 300) h.s.shift(); h.i = h.s.length - 1; }
+    h.co = !h.force; h.force = false; h.t = now; updUR();
+  }
+  function applyHist(ed, st) {
+    ed.value = st.v; editing.n.body = st.v; autoGrow(ed); scheduleSave();
+    try { ed.focus({ preventScroll: true }); } catch (e) { ed.focus(); }
+    try { ed.setSelectionRange(st.a, st.b); } catch (e) {}
+    hist.co = false; hideAC(); hideSlash(); updUR();
+  }
+  function undo(ed) { if (hist.i > 0) { hist.i--; applyHist(ed, hist.s[hist.i]); } else toast('Nothing to undo'); }
+  function redo(ed) { if (hist.i < hist.s.length - 1) { hist.i++; applyHist(ed, hist.s[hist.i]); } else toast('Nothing to redo'); }
+  function updUR() {
+    if (!kb) return;
+    var u = kb.querySelector('[data-k=undo]'), r = kb.querySelector('[data-k=redo]');
+    if (u) u.classList.toggle('dis', hist.i <= 0);
+    if (r) r.classList.toggle('dis', hist.i >= hist.s.length - 1);
+  }
+  /* return on a list line continues the list; return on an empty item ends it */
+  function continueList(ed) {
+    if (acState || slashState) return false;
+    var v = ed.value, s = ed.selectionStart; if (s !== ed.selectionEnd) return false;
+    var ls = v.lastIndexOf('\n', s - 1) + 1, le = v.indexOf('\n', s); if (le < 0) le = v.length;
+    var line = v.slice(ls, le), m = /^(\s*)((?:[-*+]|(\d+)([.)]))\s+(\[[ xX]\]\s+)?|>\s?)(.*)$/.exec(line);
+    if (!m || s - ls < m[1].length + m[2].length) return false;
+    if (/^\s*>\s?\[!/.test(line) && s === le) { insertText(ed, '\n> ', s, s); return true; }
+    if (!m[6].trim() && s === le) {
+      if (m[1].length >= 2) { insertText(ed, line.slice(2), ls, le); ed.setSelectionRange(le - 2, le - 2); return true; }
+      insertText(ed, '', ls, le); ed.setSelectionRange(ls, ls); return true;
+    }
+    var next = m[1] + (m[3] ? (+m[3] + 1) + m[4] + ' ' : m[2].charAt(0) === '>' ? '> ' : m[2].replace(/\[[xX]\]/, '[ ]').replace(/\s+$/, '') + ' ');
+    if (m[5] && !m[3]) next = m[1] + m[2].charAt(0) + ' [ ] ';
+    insertText(ed, '\n' + next, s, s);
+    return true;
+  }
 
   function buildKB(ed) {
     if (kb) kb.remove();
     kb = document.createElement('div'); kb.className = 'kb';
-    var btns = [['link', '[['], ['img', I.img], ['h', '#'], ['b', '<b style="font-family:var(--sans)">B</b>'], ['i', '<i style="font-family:var(--serif)">I</i>'], ['ul', I.list], ['task', I.check], ['code', '`'], ['quote', I.quote]];
-    kb.innerHTML = btns.map(function (b) { return '<button data-k="' + b[0] + '" aria-label="' + b[0] + '">' + b[1] + '</button>'; }).join('') + '<button class="done" data-k="done">Done</button>';
-    kb.addEventListener('pointerdown', function (e) {
+    var btns = [['plus', I.plus, 'Insert block'], ['undo', I.undo, 'Undo'], ['redo', I.redo, 'Redo'], ['link', '[[', 'Link a note'], ['img', I.img, 'Add image'], ['h', '#', 'Heading'],
+      ['b', '<b style="font-family:var(--sans)">B</b>', 'Bold'], ['i', '<i style="font-family:var(--serif)">I</i>', 'Italic'], ['hl', I.hl, 'Highlight'], ['task', I.check, 'Checklist'], ['ul', I.list, 'Bullet list'],
+      ['outdent', I.outdent, 'Outdent'], ['indent', I.indent, 'Indent'], ['quote', I.quote, 'Quote'], ['code', '`', 'Code'], ['card', '::', 'Flashcard']];
+    kb.innerHTML = '<div class="kbs">' + btns.map(function (b) { return '<button data-k="' + b[0] + '" aria-label="' + b[2] + '"' + (b[0] === 'plus' ? ' class="kplus"' : '') + '>' + b[1] + '</button>'; }).join('') + '</div><button class="done" data-k="done">Done</button>';
+    /* pointerdown keeps the keyboard up; the action runs on a real tap so the row can scroll */
+    kb.addEventListener('pointerdown', function (e) { if (e.target.closest('button')) e.preventDefault(); });
+    kb.addEventListener('mousedown', function (e) { if (e.target.closest('button')) e.preventDefault(); });
+    kb.addEventListener('click', function (e) {
       var b = e.target.closest('button'); if (!b) return;
       e.preventDefault();
-      if (b.dataset.k === 'img') return;
+      if (b.dataset.k === 'img') { pickImage(ed); return; }
       kbAction(b.dataset.k, ed);
     });
-    /* the photo picker needs a real tap (click), not pointerdown */
-    kb.addEventListener('click', function (e) {
-      var b = e.target.closest('button'); if (!b || b.dataset.k !== 'img') return;
-      e.preventDefault(); pickImage(ed);
-    });
     document.body.appendChild(kb);
-    placeKB();
+    placeKB(); updUR();
   }
   function placeKB() {
     if (!kb) return;
@@ -610,15 +792,18 @@
     kb.style.bottom = off + 'px';
     kb.style.paddingBottom = off > 60 ? '6px' : '';
     if (ac) placeAC();
+    if (slashEl) placeSlash();
   }
   if (window.visualViewport) { visualViewport.addEventListener('resize', placeKB); visualViewport.addEventListener('scroll', placeKB); }
 
   function insertText(ed, text, selStart, selEnd) {
+    hist.force = true;
     ed.focus();
     if (selStart !== undefined) ed.setSelectionRange(selStart, selEnd);
     var ok = false;
-    try { ok = document.execCommand('insertText', false, text); } catch (e) { ok = false; }
+    try { ok = text ? document.execCommand('insertText', false, text) : (ed.selectionStart !== ed.selectionEnd ? document.execCommand('delete') : true); } catch (e) { ok = false; }
     if (!ok) { ed.setRangeText(text, ed.selectionStart, ed.selectionEnd, 'end'); ed.dispatchEvent(new Event('input')); }
+    if (selStart !== undefined && !text) { try { ed.setSelectionRange(selStart, selStart); } catch (e) {} }
   }
   function wrap(ed, a, b) {
     var s = ed.selectionStart, e = ed.selectionEnd, sel = ed.value.slice(s, e);
@@ -659,6 +844,9 @@
   }
   function kbAction(k, ed) {
     if (k === 'done') { stopEditing(false); return; }
+    if (k === 'plus') { openSlash(ed); return; }
+    if (k === 'undo') return undo(ed);
+    if (k === 'redo') return redo(ed);
     if (k === 'link') {
       var s = ed.selectionStart, e = ed.selectionEnd;
       if (e > s) wrap(ed, '[[', ']]');
@@ -667,14 +855,136 @@
     }
     if (k === 'b') return wrap(ed, '**', '**');
     if (k === 'i') return wrap(ed, '*', '*');
+    if (k === 'hl') return wrap(ed, '==', '==');
+    if (k === 'card') { var c = ed.selectionStart; insertText(ed, ' :: ', c, ed.selectionEnd); return; }
     if (k === 'code') {
       var sel = ed.value.slice(ed.selectionStart, ed.selectionEnd);
       return sel.indexOf('\n') >= 0 ? wrap(ed, '```\n', '\n```') : wrap(ed, '`', '`');
     }
+    if (k === 'indent') return keepCaret(ed, function () { linePrefix(ed, function (l) { return '  ' + l; }); }, 2);
+    if (k === 'outdent') return keepCaret(ed, function () { linePrefix(ed, function (l) { return l.replace(/^ {1,2}|^\t/, ''); }); }, -2);
     if (k === 'h') return linePrefix(ed, function (l) { var m = /^(#{1,6})\s/.exec(l); if (!m) return '# ' + l; if (m[1].length >= 3) return l.replace(/^#{1,6}\s/, ''); return '#' + l; });
     if (k === 'ul') return linePrefix(ed, function (l) { return /^\s*[-*+]\s(?!\[)/.test(l) ? l.replace(/^(\s*)[-*+]\s/, '$1') : l.replace(/^(\s*)(?:[-*+]\s\[[ xX]\]\s)?/, '$1- '); });
     if (k === 'task') return linePrefix(ed, function (l) { return /^\s*[-*+]\s\[[ xX]\]\s/.test(l) ? l.replace(/^(\s*)[-*+]\s\[[ xX]\]\s/, '$1') : l.replace(/^(\s*)(?:[-*+]\s)?/, '$1- [ ] '); });
     if (k === 'quote') return linePrefix(ed, function (l) { return /^>\s?/.test(l) ? l.replace(/^>\s?/, '') : '> ' + l; });
+  }
+  function keepCaret(ed, fn, d) {
+    var s = ed.selectionStart, e = ed.selectionEnd, v0 = ed.value.length;
+    fn();
+    if (s === e) { var c = Math.max(0, s + (ed.value.length - v0)); ed.setSelectionRange(c, c); }
+  }
+
+  /* slash menu: type "/" (or tap +) to insert any block */
+  var SLASH = [
+    ['h1', 'Heading 1', 'title big', 'H1', 'line', '# '], ['h2', 'Heading 2', 'subtitle', 'H2', 'line', '## '], ['h3', 'Heading 3', 'small', 'H3', 'line', '### '],
+    ['todo', 'Checklist', 'todo task checkbox', '\u2610', 'line', '- [ ] '], ['bullet', 'Bullet list', 'ul unordered', '\u2022', 'line', '- '], ['num', 'Numbered list', 'ol ordered 1', '1.', 'line', '1. '],
+    ['quote', 'Quote', 'blockquote', '\u201d', 'line', '> '],
+    ['info', 'Callout \u00b7 info', 'note callout box', 'i', 'block', '> [!info] \u0001Info\u0002\n> '], ['tip', 'Callout \u00b7 tip', 'hint idea callout', '\u2713', 'block', '> [!tip] \u0001Tip\u0002\n> '],
+    ['warning', 'Callout \u00b7 warning', 'caution callout', '!', 'block', '> [!warning] \u0001Warning\u0002\n> '], ['danger', 'Callout \u00b7 danger', 'error callout', '\u00d7', 'block', '> [!danger] \u0001Danger\u0002\n> '],
+    ['toggle', 'Toggle', 'collapse fold details hide', '\u25b8', 'block', '> [!toggle]- \u0001Toggle title\u0002\n> Hidden text'],
+    ['card', 'Flashcard', 'recall question answer quiz', '::', 'line', '\u0001Question\u0002 :: Answer'], ['cloze', 'Cloze card', 'recall fill blank hide', '{ }', 'inline', '{{c::\u0001hidden words\u0002}}'],
+    ['table', 'Table', 'grid columns', '\u25a6', 'block', '| \u0001Column\u0002 | Column |\n| --- | --- |\n|  |  |'], ['code', 'Code block', 'snippet program', '</>', 'block', '```\n\u0001\u0002\n```'],
+    ['divider', 'Divider', 'hr line rule separator', '\u2014', 'block', '---'], ['image', 'Image', 'photo picture', '\u25a3', 'image'],
+    ['highlight', 'Highlight', 'mark marker yellow', '==', 'inline', '==\u0001text\u0002=='], ['link', 'Link to note', 'wikilink [[', '[[', 'link'], ['embed', 'Embed note', 'transclude show inline', '![[', 'embed'],
+    ['math', 'Math', 'equation formula latex', '\u2211', 'inline', '$\u0001x^2\u0002$'], ['footnote', 'Footnote', 'reference note', '\u00b9', 'footnote'],
+    ['date', 'Date', 'today day', '\u25f7', 'date'], ['time', 'Time', 'now clock', '\u25f4', 'time'], ['daylink', 'Link to today', 'daily journal', '[[d', 'daylink'],
+    ['props', 'Properties', 'front matter tags date yaml', '\u2261', 'props'], ['template', 'Template', 'insert starter', '\u25a4', 'template']
+  ];
+  var slashState = null, slashEl = null;
+  function slashMatches(q) {
+    q = q.toLowerCase();
+    if (!q) return SLASH.slice();
+    var a = [], b = [];
+    SLASH.forEach(function (it) { var l = it[1].toLowerCase(); if (l.indexOf(q) === 0 || it[0].indexOf(q) === 0) a.push(it); else if (l.indexOf(q) >= 0 || it[2].indexOf(q) >= 0) b.push(it); });
+    return a.concat(b);
+  }
+  function updateSlash() {
+    var ed = $('#ed'); if (!ed || !editing || acState) return hideSlash();
+    var pos = ed.selectionStart;
+    if (slashState && slashState.plus) return hideSlash();
+    if (pos !== ed.selectionEnd) return hideSlash();
+    var v = ed.value, ls = v.lastIndexOf('\n', pos - 1) + 1, before = v.slice(ls, pos), m = /(^|\s)\/([A-Za-z0-9-]{0,16})$/.exec(before);
+    if (!m) return hideSlash();
+    var items = slashMatches(m[2]);
+    if (!items.length) return hideSlash();
+    slashState = { start: pos - m[2].length - 1, pos: pos, q: m[2], items: items, sel: 0 };
+    drawSlash();
+  }
+  function openSlash(ed) {
+    hideAC();
+    var p = ed.selectionStart;
+    slashState = { start: p, pos: ed.selectionEnd, q: '', items: SLASH.slice(), sel: 0, plus: true };
+    drawSlash();
+  }
+  function drawSlash() {
+    if (!slashEl) {
+      slashEl = document.createElement('div'); slashEl.className = 'ac slash'; document.body.appendChild(slashEl);
+      slashEl.addEventListener('pointerdown', function (e) { if (e.target.closest('button')) e.preventDefault(); });
+      slashEl.addEventListener('mousedown', function (e) { if (e.target.closest('button')) e.preventDefault(); });
+      slashEl.addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; e.preventDefault(); if (b.dataset.x) { hideSlash(); return; } pickSlash(+b.dataset.i); });
+    }
+    var st = slashState;
+    slashEl.innerHTML = '<div class="hd"><span>' + (st.q ? 'Insert \u00b7 \u201c' + esc(st.q) + '\u201d' : 'Insert block') + '</span><button data-x="1" aria-label="Close">' + I.x + '</button></div>' + st.items.map(function (it, i) {
+      return '<button data-i="' + i + '" class="' + (i === st.sel ? 'sel' : '') + '"><span class="sg">' + esc(it[3]) + '</span>' + esc(it[1]) + '</button>';
+    }).join('');
+    placeSlash();
+    var sel = slashEl.querySelector('button.sel'); if (sel && sel.scrollIntoView && st.sel > 3) sel.scrollIntoView({ block: 'nearest' });
+  }
+  function placeSlash() {
+    if (!slashEl || !kb) return;
+    var b = parseFloat(kb.style.bottom) || 0, vv = window.visualViewport, vh = vv ? vv.height : window.innerHeight;
+    slashEl.style.bottom = (b + kb.offsetHeight + 8) + 'px';
+    slashEl.style.maxHeight = Math.max(160, Math.min(330, vh - kb.offsetHeight - 70)) + 'px';
+  }
+  function hideSlash() { slashState = null; if (slashEl) { slashEl.remove(); slashEl = null; } }
+  function snip(ed, a, b, text) {
+    var s1 = text.indexOf('\u0001'), s2 = text.indexOf('\u0002');
+    var clean = text.replace(/[\u0001\u0002]/g, '');
+    insertText(ed, clean, a, b);
+    if (s1 >= 0) { var e2 = s2 > s1 ? s2 - 1 : s1; ed.setSelectionRange(a + s1, a + e2); }
+  }
+  function pickSlash(i) {
+    var ed = $('#ed'); if (!ed || !slashState) return;
+    var st = slashState, it = st.items[i]; if (!it) return;
+    hideSlash();
+    var v = ed.value, a = st.start, b = st.plus ? st.pos : st.pos;
+    var ls = v.lastIndexOf('\n', a - 1) + 1, le = v.indexOf('\n', b); if (le < 0) le = v.length;
+    var before = v.slice(ls, a), after = v.slice(b, le), kind = it[4];
+    if (kind === 'line') {
+      var content = before.replace(/^\s*(?:#{1,6}\s+|[-*+]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+|>\s?)/, '');
+      var ind = (/^\s*/.exec(before) || [''])[0];
+      if (it[0] === 'card' && (content.trim() || after.trim())) { snip(ed, a, b, ' :: \u0001\u0002'); return; }
+      if (it[5].indexOf('\u0001') >= 0) snip(ed, ls, le, ind + it[5] + after);
+      else snip(ed, ls, le, ind + it[5] + content + '\u0001' + after);
+      return;
+    }
+    if (kind === 'block') {
+      var p1 = before.trim() ? '\n' : (ls > 1 && v[ls - 2] !== '\n' && v[ls - 2] !== undefined ? '\n' : ''), p2 = after.trim() ? '\n' : '\n';
+      snip(ed, a, b, p1 + it[5] + p2); return;
+    }
+    if (kind === 'inline') { snip(ed, a, b, it[5]); return; }
+    insertText(ed, '', a, b);
+    var c = ed.selectionStart;
+    if (kind === 'image') { pickImage(ed); return; }
+    if (kind === 'link') { insertText(ed, '[[', c, c); updateAC(); return; }
+    if (kind === 'embed') { var pe = before.trim() ? '\n' : ''; insertText(ed, pe + '![[', c, c); updateAC(); return; }
+    if (kind === 'date') { insertText(ed, ymd(new Date()), c, c); return; }
+    if (kind === 'time') { var d = new Date(); insertText(ed, String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'), c, c); return; }
+    if (kind === 'daylink') { insertText(ed, '[[' + ymd(new Date()) + ']]', c, c); return; }
+    if (kind === 'footnote') {
+      var used = {}, re = /\[\^(\d+)\]/g, mm; while ((mm = re.exec(ed.value))) used[mm[1]] = 1;
+      var k = 1; while (used[k]) k++;
+      insertText(ed, '[^' + k + ']', c, c);
+      var tail = ed.value, nl = /\n$/.test(tail) ? (/\n\n$/.test(tail) ? '' : '\n') : '\n\n';
+      insertText(ed, nl + '[^' + k + ']: ', tail.length, tail.length);
+      return;
+    }
+    if (kind === 'props') {
+      if (MD.front(ed.value)) { toast('This note already has properties at the top'); ed.setSelectionRange(4, 4); return; }
+      snip(ed, 0, 0, '---\ntags: \u0001\u0002\ndate: ' + ymd(new Date()) + '\n---\n');
+      return;
+    }
+    if (kind === 'template') { chooseTemplate().then(function (t) { var e2 = $('#ed'); if (!t || !e2) return; var cc = Math.min(c, e2.value.length); insertText(e2, fillTmpl(t.body, editing ? editing.n.title : ''), cc, cc); }); return; }
   }
 
   /* wikilink autocomplete */
@@ -694,6 +1004,7 @@
     if (q.trim() && !byTitle(q) && !checkTitle(q)) items.push({ title: q.trim(), create: true });
     if (!items.length) return hideAC();
     acState = { start: pos - q.length, pos: pos, items: items, sel: 0 };
+    hideSlash();
     drawAC();
   }
   function fuzzy(q, t) { var i = 0; for (var j = 0; j < t.length && i < q.length; j++) if (t[j] === q[i]) i++; return i === q.length; }
@@ -718,6 +1029,14 @@
     hideAC();
   }
   function acKeys(e) {
+    if (slashState && !acState) {
+      var S = slashState;
+      if (e.key === 'ArrowDown') { e.preventDefault(); S.sel = (S.sel + 1) % S.items.length; drawSlash(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); S.sel = (S.sel - 1 + S.items.length) % S.items.length; drawSlash(); }
+      else if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); pickSlash(S.sel); }
+      else if (e.key === 'Escape') { hideSlash(); }
+      return;
+    }
     if (!acState) return;
     if (e.key === 'ArrowDown') { e.preventDefault(); acState.sel = (acState.sel + 1) % acState.items.length; drawAC(); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); acState.sel = (acState.sel - 1 + acState.items.length) % acState.items.length; drawAC(); }
@@ -848,7 +1167,7 @@
   }
   function hl(text, q) { var i = text.toLowerCase().indexOf(q.toLowerCase()); if (i < 0) return esc(text); return esc(text.slice(0, i)) + '<mark>' + esc(text.slice(i, i + q.length)) + '</mark>' + esc(text.slice(i + q.length)); }
   function cleanText(body) {
-    return String(body || '').replace(/```[\s\S]*?(```|$)/g, ' ').replace(MD.IMG, ' ').replace(new RegExp(MD.WL.source, 'g'), function (m, t, h, a) { return (a || t).trim(); })
+    return MD.stripFront(body).replace(/```[\s\S]*?(```|$)/g, ' ').replace(MD.IMG, ' ').replace(new RegExp(MD.WL.source, 'g'), function (m, t, h, a) { return (a || t).trim(); })
       .replace(/\[([^\]\n]+)\]\([^)]+\)/g, '$1').replace(/^\s*#{1,6}\s+/gm, '').replace(/^\s*>\s?(\[!\w+\]\s*)?/gm, '')
       .replace(/^\s*([-*+]|\d+[.)])\s+(\[[ xX]\]\s+)?/gm, '').replace(/^\s*\|?\s*:?-{2,}.*$/gm, '').replace(/\|/g, ' ').replace(/[*_~=`]/g, '').replace(/\s*\n\s*/g, ' · ').replace(/^ · | · $/g, '');
   }
@@ -873,7 +1192,18 @@
       '<button class="item" data-act="allcards"><span>Export flashcards<small>' + (function () { var c = 0, m = 0; notes.forEach(function (n) { var k = MD.cards(n.body).length; c += k; if (k) m++; }); return c ? c + ' card' + (c === 1 ? '' : 's') + ' from ' + m + ' note' + (m === 1 ? '' : 's') + ' · a CSV that Synapse imports' : 'Lines like question :: answer become cards for Synapse'; })() + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<button class="item" data-act="import"><span>Import notes<small>Pick .md files or a .zip of them</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<button class="item" data-act="newfolder" data-path=""><span>New folder</span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
+      '<button class="item" data-act="gotrash"><span>Trash<small>' + (trash.size ? trash.size + ' note' + (trash.size === 1 ? '' : 's') + ' \u00b7 kept ' + TRASH_DAYS + ' days, then removed' : 'Deleted notes wait here ' + TRASH_DAYS + ' days') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
             '<button class="item danger" data-act="wipe"><span>Delete all notes</span></button></div>' +
+      '<div class="sec"><span>Discover</span></div><div class="group">' +
+      '<div class="item"><span>Discover uses the internet<small>Looks up your note topics on Wikipedia while Discover is open. Only the search words are sent.</small></span><div class="seg">' + [['1', 'On'], ['0', 'Off']].map(function (s) { return '<button class="' + ((settings.discoverNet !== false) === (s[0] === '1') ? 'on' : '') + '" data-act="dnet" data-v="' + s[0] + '" style="font-family:var(--sans);font-size:13px">' + s[1] + '</button>'; }).join('') + '</div></div>' +
+      '<button class="item" data-act="dclear"><span>Clear Discover history<small>Forget saved cards and \u201cnot for me\u201d picks</small></span></button></div>' +
+      '<div class="sec"><span>Recall</span></div><div class="group">' +
+      '<div class="item"><span>New cards a day</span><div class="seg">' + [[10, '10'], [20, '20'], [50, '50'], [9999, 'All']].map(function (s) { return '<button class="' + ((settings.newPerDay || 20) === s[0] ? 'on' : '') + '" data-act="newper" data-v="' + s[0] + '" style="font-family:var(--sans);font-size:13px">' + s[1] + '</button>'; }).join('') + '</div></div>' +
+      '<button class="item" data-act="gorecall"><span>Open Recall<small>' + (function () { var s = recallStats(); return s.total ? s.total + ' card' + (s.total === 1 ? '' : 's') + ' \u00b7 ' + s.due + ' due today' : 'Lines like question :: answer or {{c::cloze}} become review cards'; })() + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
+      '<button class="item danger" data-act="resetrecall"><span>Reset Recall progress</span></button></div>' +
+      '<div class="sec"><span>Help</span></div><div class="group">' +
+      '<button class="item" data-act="guide"><span>Formatting guide<small>Every block you can put in a note, and the shortcuts</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
+      '<div class="item"><span>Templates<small>Make a folder called \u201cTemplates\u201d. Notes in it appear in New from template. {{date}}, {{time}} and {{title}} fill in for you.</small></span></div></div>' +
       '<div class="sec"><span>About</span></div><div class="group">' +
       '<div class="item"><span>Storage<small>Notes live only on this device and work offline. Export now and then to keep a backup.</small></span></div>' +
       (isStandalone() ? '' : '<div class="item"><span>Install on iPhone<small>In Safari tap Share, then Add to Home Screen.</small></span></div>') +
@@ -1012,6 +1342,7 @@
       folder = r.v === 'folder' && r.path !== '*' ? r.path : (r.v === 'note' && notes.get(r.id) ? notes.get(r.id).folder : '');
     }
     var n = createNote({ title: uniqueTitle('Untitled'), folder: folder, body: '' });
+    freshNote[n.id] = 1;
     go('#/n/' + n.id);
     startEditing(n, true);
   }
@@ -1025,26 +1356,34 @@
     toast('Folder \u201c' + name + '\u201d created');
     render();
   }
-  async function noteMenu(n) {
+  async function noteMenu(n, preset) {
     var nc = MD.cards(n.body).length;
-    var a = await sheet({ title: n.title, actions: [{ label: 'Rename', value: 'rename' }, { label: 'Move to folder', value: 'move' }].concat(nc ? [{ label: 'Export ' + nc + ' flashcard' + (nc === 1 ? '' : 's'), value: 'cards' }] : []).concat([{ label: 'Delete note', value: 'delete', danger: true }]) });
+    var a = preset || await sheet({ title: n.title, left: true, actions: [{ label: n.pinned ? 'Unpin' : 'Pin to top', value: 'pin', icon: I.pin }, { label: 'Rename', value: 'rename', icon: I.edit }, { label: 'Move to folder', value: 'move', icon: I.folder.replace(' class="fi"', '') }, { label: 'Duplicate', value: 'dup', icon: I.copy }]
+      .concat(inTemplates(n) ? [] : [{ label: 'Save as template', value: 'tmpl', icon: I.tmpl }])
+      .concat(nc ? [{ label: 'Review ' + nc + ' card' + (nc === 1 ? '' : 's') + ' now', value: 'review', icon: I.recall }, { label: 'Export ' + nc + ' card' + (nc === 1 ? '' : 's') + ' (CSV for Synapse)', value: 'cards', icon: I.copy }] : [])
+      .concat([{ label: 'Local graph', value: 'lg', icon: I.graph }, { label: 'Move to Trash', value: 'delete', danger: true, icon: I.trash }]) });
     if (a === 'cards') { exportCards(n); return; }
+    if (a === 'pin') { togglePin(n); renderNote(n.id); return; }
+    if (a === 'dup') { var c = await duplicateNote(n); go('#/n/' + c.id); return; }
+    if (a === 'review') { go('#/review/' + encodeURIComponent(n.id)); return; }
+    if (a === 'lg') { ui.lastNote = n.id; ui.graphMode = 'local'; saveMeta(); go('#/graph'); return; }
+    if (a === 'tmpl') { var t = createNote({ title: uniqueTitle(n.title + ' template'), folder: TEMPLATES, body: n.body }); toast('Saved to Templates as \u201c' + t.title + '\u201d'); return; }
     if (a === 'rename') {
       var v = await dialog({ title: 'Rename note', message: 'Links to this note will update too.', input: true, value: n.title, ok: 'Rename', validate: function (v) { return checkTitle(v, n); } });
-      if (v && v !== n.title) { var r = renameNote(n, v); toast(r.changed ? 'Renamed · updated links in ' + r.changed + ' note' + (r.changed === 1 ? '' : 's') : 'Renamed'); renderNote(n.id); }
+      if (v && v !== n.title) { var r = renameNote(n, v); toast(r.changed ? 'Renamed · updated links in ' + r.changed + ' note' + (r.changed === 1 ? '' : 's') : 'Renamed'); if (route().v === 'note') renderNote(n.id); }
     } else if (a === 'move') {
       var opts = [{ label: '/  Vault (no folder)', value: '\u0000' }].concat(Array.from(folders).sort().map(function (f) { return { label: f.split('/').join(' / '), value: f }; }));
       var f = await sheet({ title: 'Move \u201c' + n.title + '\u201d', actions: opts, left: true });
-      if (f !== null && f !== undefined) { moveNote(n, f === '\u0000' ? '' : f); toast('Moved'); renderNote(n.id); }
+      if (f !== null && f !== undefined) { moveNote(n, f === '\u0000' ? '' : f); toast('Moved'); if (route().v === 'note') renderNote(n.id); }
     } else if (a === 'delete') {
-      var bl = backlinks(n).length;
-      var ok = await dialog({ title: 'Delete \u201c' + n.title + '\u201d?', message: bl ? bl + ' note' + (bl === 1 ? ' links' : 's link') + ' here; those links will show as unresolved.' : 'This can\u2019t be undone.', ok: 'Delete', danger: true });
-      if (ok) { var to = n.folder ? '#/f/' + encodeURIComponent(n.folder) : '#/'; deleteNote(n); toast('Deleted'); go(to, true); }
+      var to = n.folder && folders.has(n.folder) ? '#/f/' + encodeURIComponent(n.folder) : '#/';
+      askTrash(n, function () { go(to, true); });
     }
   }
   async function folderMenu(p) {
-    var a = await sheet({ title: folderName(p), actions: [{ label: 'New note here', value: 'note' }, { label: 'New folder inside', value: 'sub' }, { label: 'Rename folder', value: 'rename' }, { label: 'Delete folder', value: 'delete', danger: true }] });
+    var a = await sheet({ title: folderName(p), actions: [{ label: 'New note here', value: 'note' }, { label: 'New from template', value: 'tmpl' }, { label: 'New folder inside', value: 'sub' }, { label: 'Rename folder', value: 'rename' }, { label: 'Delete folder', value: 'delete', danger: true }] });
     if (a === 'note') newNote(p);
+    else if (a === 'tmpl') newFromTemplate(p);
     else if (a === 'sub') newFolder(p);
     else if (a === 'rename') {
       var v = await dialog({ title: 'Rename folder', input: true, value: folderName(p), ok: 'Rename',
@@ -1053,12 +1392,593 @@
     } else if (a === 'delete') {
       var c = countIn(p);
       if (!c) { deleteFolder(p, false); toast('Folder deleted'); go(parentOf(p) ? '#/f/' + encodeURIComponent(parentOf(p)) : '#/', true); return; }
-      var m = await sheet({ title: 'Delete \u201c' + folderName(p) + '\u201d?', message: 'It holds ' + c + ' note' + (c === 1 ? '' : 's') + '.', actions: [{ label: 'Delete folder and ' + c + ' note' + (c === 1 ? '' : 's'), value: 'all', danger: true }, { label: 'Delete folder, keep notes', value: 'keep' }] });
+      var m = await sheet({ title: 'Delete \u201c' + folderName(p) + '\u201d?', message: 'It holds ' + c + ' note' + (c === 1 ? '' : 's') + '.', actions: [{ label: 'Delete folder, notes to Trash', value: 'all', danger: true }, { label: 'Delete folder, keep notes', value: 'keep' }] });
       if (!m) return;
       deleteFolder(p, m === 'keep');
-      toast(m === 'keep' ? 'Folder deleted · notes moved up' : 'Deleted folder and ' + c + ' note' + (c === 1 ? '' : 's'));
+      toast(m === 'keep' ? 'Folder deleted · notes moved up' : 'Folder deleted · ' + c + ' note' + (c === 1 ? '' : 's') + ' moved to Trash');
       go(parentOf(p) ? '#/f/' + encodeURIComponent(parentOf(p)) : '#/', true);
     }
+  }
+
+  /* ---------- templates ---------- */
+  var TEMPLATES = 'Templates';
+  var BUILTIN = [
+    { name: 'Study notes', body: '---\ntags: [study]\ndate: {{date}}\n---\n## Key ideas\n- \n\n## Details\n\n\n## Cards\n> [!tip] Type / then Flashcard or Cloze card. Each one becomes a Recall card.\n\n## Questions I still have\n- [ ] \n' },
+    { name: 'Daily journal', body: '## Top 3 today\n- [ ] \n- [ ] \n- [ ] \n\n## Notes\n\n\n## Grateful for\n- \n\n> [!toggle]- Tomorrow\n> \n' },
+    { name: 'Meeting', body: '---\ndate: {{date}}\n---\n**When:** {{date}} {{time}}\n**Who:** \n\n## Agenda\n1. \n\n## Notes\n\n\n## Action items\n- [ ] \n' },
+    { name: 'Project', body: '---\ntags: [project]\nstatus: planning\n---\n> [!info] Goal\n> What does done look like?\n\n## Tasks\n- [ ] \n\n## Ideas\n- \n\n## Links\n- \n' }
+  ];
+  function allTemplates() {
+    var mine = Array.from(notes.values()).filter(function (n) { return n.folder === TEMPLATES || n.folder.indexOf(TEMPLATES + '/') === 0; })
+      .sort(function (a, b) { return a.title.localeCompare(b.title); }).map(function (n) { return { name: n.title, body: n.body, mine: true }; });
+    return mine.concat(BUILTIN);
+  }
+  function fillTmpl(body, title) {
+    var d = new Date();
+    return String(body).replace(/\{\{date\}\}/g, ymd(d)).replace(/\{\{time\}\}/g, String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0')).replace(/\{\{title\}\}/g, title || '');
+  }
+  function chooseTemplate() {
+    var list = allTemplates();
+    return sheet({ title: 'Templates', message: list.some(function (t) { return t.mine; }) ? '' : 'Tip: notes you put in a \u201cTemplates\u201d folder show up here too.', left: true,
+      actions: list.map(function (t, i) { return { label: t.name + (t.mine ? '' : ' \u00b7 starter'), value: i, icon: I.tmpl }; }) }).then(function (i) { return i === null || i === undefined ? null : list[i]; });
+  }
+  async function newFromTemplate(folder) {
+    var t = await chooseTemplate(); if (!t) return;
+    if (folder === undefined) { var r = route(); folder = r.v === 'folder' && r.path !== '*' && r.path !== TEMPLATES ? r.path : ''; }
+    var title = uniqueTitle(t.mine ? t.name : 'Untitled');
+    var n = createNote({ title: title, folder: folder, body: fillTmpl(t.body, title) });
+    go('#/n/' + n.id); startEditing(n, true);
+  }
+
+  /* ---------- Recall: spaced repetition built from your notes ---------- */
+  var rc = new Map(), rcMeta = { day: '', newToday: 0, log: {} }, recallT = null;
+  function recallSoon() { clearTimeout(recallT); recallT = setTimeout(updateBadge, 600); }
+  function dayStart(d) { var x = new Date(d || Date.now()); x.setHours(0, 0, 0, 0); return x.getTime(); }
+  function addDays(t, k) { var x = new Date(t); x.setDate(x.getDate() + k); return x.getTime(); }
+  function inTemplates(n) { return n.folder === TEMPLATES || n.folder.indexOf(TEMPLATES + '/') === 0; }
+  function liveCards(onlyNote) {
+    var out = [];
+    notes.forEach(function (n) {
+      if (inTemplates(n) || (onlyNote && n.id !== onlyNote)) return;
+      MD.recall(n.body).forEach(function (c) { c.id = n.id + '|' + c.key; c.note = n; c.s = rc.get(c.id) || null; out.push(c); });
+    });
+    return out;
+  }
+  function rollDay() { var t = ymd(new Date()); if (rcMeta.day !== t) { rcMeta.day = t; rcMeta.newToday = 0; } }
+  function isDue(c, now) { return c.s && c.s.due <= now; }
+  function recallStats(onlyNote) {
+    rollDay();
+    var now = Date.now(), cards = liveCards(onlyNote), due = 0, fresh = 0, tomorrow = 0, mature = 0, eod = addDays(dayStart(), 1), eot = addDays(dayStart(), 2);
+    cards.forEach(function (c) {
+      if (!c.s) fresh++;
+      else if (c.s.due <= now) due++;
+      else if (c.s.due < eot) tomorrow++;
+      if (c.s && c.s.ivl >= 21) mature++;
+    });
+    var newLeft = Math.max(0, (settings.newPerDay || 20) - rcMeta.newToday);
+    return { total: cards.length, reviews: due, fresh: fresh, newNow: Math.min(fresh, onlyNote ? fresh : newLeft), due: due + Math.min(fresh, onlyNote ? fresh : newLeft), tomorrow: tomorrow, mature: mature, cards: cards };
+  }
+  function streak() {
+    var d = new Date(), k = 0;
+    if (!rcMeta.log[ymd(d)]) d.setDate(d.getDate() - 1);
+    while (rcMeta.log[ymd(d)]) { k++; d.setDate(d.getDate() - 1); }
+    return k;
+  }
+  function updateBadge() {
+    var b = $('#rbadge'); if (!b) return;
+    var s = recallStats();
+    b.textContent = s.due > 99 ? '99+' : s.due; b.hidden = !s.due;
+  }
+  /* SM-2 style scheduling: Again / Good / Easy */
+  function schedule(c, g, dry) {
+    var s = c.s ? Object.assign({}, c.s) : { id: c.id, noteId: c.note.id, ivl: 0, ease: 2.5, reps: 0, lapses: 0, state: 'new', created: Date.now() };
+    var now = Date.now(), today = dayStart();
+    if (g === 'again') {
+      var wasRev = s.state === 'review';
+      if (wasRev) { s.lapses++; s.ease = Math.max(1.3, s.ease - 0.2); s.ivl = Math.max(1, Math.round(s.ivl * 0.4)); }
+      s.state = 'learn'; s.due = now + (wasRev ? 600e3 : 60e3);
+    } else {
+      if (s.state === 'review') {
+        s.ivl = g === 'easy' ? Math.max(s.ivl + 2, Math.round(s.ivl * s.ease * 1.3)) : Math.max(s.ivl + 1, Math.round(s.ivl * s.ease));
+      } else {
+        s.ivl = g === 'easy' ? Math.max(4, s.ivl) : Math.max(1, s.ivl);
+      }
+      if (g === 'easy') s.ease = Math.min(3.2, s.ease + 0.15);
+      s.ivl = Math.min(s.ivl, 3650);
+      s.state = 'review'; s.due = addDays(today, s.ivl);
+    }
+    s.reps++; s.last = now;
+    if (!dry) { rc.set(s.id, s); RC.put('cards', s).catch(function () {}); }
+    return s;
+  }
+  function ivlLabel(c, g) {
+    var s = schedule(c, g, true), ms = s.due - Date.now();
+    if (g === 'again') return ms < 120e3 ? '1 min' : '10 min';
+    var d = s.ivl;
+    return d < 30 ? d + 'd' : d < 365 ? Math.round(d / 30) + 'mo' : (Math.round(d / 36.5) / 10) + 'y';
+  }
+  function saveRcMeta() { RC.put('meta', { k: 'stats', v: rcMeta }).catch(function () {}); }
+  async function cleanRecall() {
+    /* drop schedules whose card is gone from its note (kept while the note sits in Trash) */
+    var live = {}; liveCards().forEach(function (c) { live[c.id] = 1; });
+    var gone = []; rc.forEach(function (s, id) { if (!live[id] && !trash.has(s.noteId)) gone.push(id); });
+    if (gone.length) { gone.forEach(function (id) { rc.delete(id); }); try { await RC.del('cards', gone); } catch (e) {} }
+  }
+
+  function renderRecall() {
+    var s = recallStats(), st = streak();
+    var h = '<div class="page"><div class="nav"><button class="back" data-act="back" data-to="#/">' + I.back + '<span>Notes</span></button><div class="acts"></div></div><div class="eyebrow">Spaced repetition</div><h1 class="h1">Recall</h1>';
+    if (!s.total) {
+      h += '<div class="rhero empty1"><div class="rart">' + I.recall + '</div><b>Your notes can quiz you</b><p>Write a line like <span class="kbd">question :: answer</span> or hide words with <span class="kbd">{{c::cloze}}</span> in any note. It shows up here as a card, and Axon brings it back right before you\u2019d forget it.</p>' +
+        '<button class="bignew" data-act="recalldemo">' + I.plus + '<span>Write my first card</span></button></div>';
+      viewEl.innerHTML = h + '</div>'; return;
+    }
+    h += '<div class="rhero"><div class="rnum">' + s.due + '</div><div class="rlab">' + (s.due ? 'card' + (s.due === 1 ? '' : 's') + ' to review today' : 'All caught up for today') + '</div>' +
+      '<div class="rsub">' + (s.reviews ? s.reviews + ' review' + (s.reviews === 1 ? '' : 's') : '') + (s.reviews && s.newNow ? ' \u00b7 ' : '') + (s.newNow ? s.newNow + ' new' : '') + (!s.due ? (s.tomorrow ? s.tomorrow + ' due tomorrow' : 'Nothing due tomorrow either') : '') + '</div>' +
+      (s.due ? '<button class="bignew" data-act="review" data-deck="all">' + I.recall + '<span>Start review</span></button>' : '<button class="bignew ghost" data-act="practice" data-deck="all">Practice anyway</button>') + '</div>' +
+      '<div class="rstats"><div><b>' + st + '</b><span>day streak</span></div><div><b>' + s.total + '</b><span>cards</span></div><div><b>' + s.mature + '</b><span>mastered</span></div></div>' + forecast(s.cards);
+    var byNote = {};
+    s.cards.forEach(function (c) { var k = c.note.id; (byNote[k] = byNote[k] || { n: c.note, total: 0, due: 0, fresh: 0 }).total++; if (!c.s) byNote[k].fresh++; else if (isDue(c, Date.now())) byNote[k].due++; });
+    var decks = Object.keys(byNote).map(function (k) { return byNote[k]; }).sort(function (a, b) { return (b.due + b.fresh) - (a.due + a.fresh) || a.n.title.localeCompare(b.n.title); });
+    h += '<div class="sec"><span>Decks \u00b7 one per note</span></div><div class="rows">' + decks.map(function (d) {
+      var dd = d.due + d.fresh;
+      return '<button class="row deck" data-act="deck" data-id="' + d.n.id + '">' + I.doc + '<span class="nm">' + esc(d.n.title) + '</span><span class="ct">' + (dd ? '<i class="duen">' + dd + '</i> / ' : '') + d.total + '</span><span class="chev">' + I.chev + '</span></button>';
+    }).join('') + '</div>' +
+      '<div class="hint1">New cards per day: ' + (settings.newPerDay >= 9999 ? 'no limit' : settings.newPerDay) + ' \u00b7 change it in Settings. Edit a card\u2019s answer anytime \u2014 it keeps its progress.</div></div>';
+    viewEl.innerHTML = h;
+  }
+  function forecast(cards) {
+    var t0 = dayStart(), days = [0, 0, 0, 0, 0, 0, 0], now = Date.now();
+    cards.forEach(function (c) { if (!c.s) return; var k = c.s.due <= now ? 0 : Math.floor((dayStart(c.s.due) - t0) / 864e5); if (k >= 0 && k < 7) days[k]++; });
+    var mx = Math.max.apply(null, days), d = new Date();
+    if (!mx) return '';
+    return '<div class="fc"><div class="fct">Next 7 days</div><div class="fcb">' + days.map(function (v, i) {
+      var x = new Date(d); x.setDate(d.getDate() + i);
+      return '<div><i style="height:' + Math.max(3, Math.round(v / mx * 44)) + 'px"' + (v ? '' : ' class="z"') + '></i><span>' + (i === 0 ? 'Today' : x.toLocaleDateString(undefined, { weekday: 'narrow' })) + '</span><em>' + (v || '') + '</em></div>';
+    }).join('') + '</div></div>';
+  }
+  var rv = null;
+  function renderReview(deck, mode) {
+    document.body.classList.add('reviewing');
+    var only = deck && deck !== 'all' ? deck : null, now = Date.now();
+    if (!rv || rv.deck !== deck || rv.mode !== mode || rv.done) {
+      rollDay();
+      var cards = liveCards(only), q;
+      if (mode === 'practice') q = cards.slice().sort(function () { return Math.random() - 0.5; });
+      else {
+        var newLeft = only ? 1e9 : Math.max(0, (settings.newPerDay || 20) - rcMeta.newToday);
+        var learn = cards.filter(function (c) { return c.s && c.s.state === 'learn' && c.s.due <= now; });
+        var rev = cards.filter(function (c) { return c.s && c.s.state !== 'learn' && c.s.due <= now; }).sort(function (a, b) { return a.s.due - b.s.due; });
+        var fresh = cards.filter(function (c) { return !c.s; }).slice(0, newLeft);
+        q = learn.concat(rev, fresh);
+      }
+      rv = { deck: deck, mode: mode, q: q, total: q.length, n: 0, shown: false, stats: { again: 0, good: 0, easy: 0 }, done: false };
+    }
+    drawReview();
+  }
+  function cardFace(c, back) {
+    var o = mdOpt();
+    if (c.type === 'qa') return { q: MD.inline(c.q, o), a: MD.inline(c.a, o) };
+    return { q: MD.inline(MD.clozeSide(c.text, c.group, false), o), a: MD.inline(MD.clozeSide(c.text, c.group, true), o) };
+  }
+  function drawReview() {
+    var st = rv;
+    if (!st.q.length) {
+      var s = recallStats(), seen = st.stats.again + st.stats.good + st.stats.easy;
+      viewEl.innerHTML = '<div class="rv"><div class="rvtop"><button class="ib" data-act="rvclose" aria-label="Close">' + I.x + '</button><span></span><span></span></div>' +
+        '<div class="rvdone"><div class="rart ok">' + I.check + '</div><b>' + (seen ? 'Session done' : 'Nothing due right now') + '</b><p>' +
+        (seen ? seen + ' card' + (seen === 1 ? '' : 's') + ' reviewed \u00b7 ' + Math.round((st.stats.good + st.stats.easy) / seen * 100) + '% remembered' + (streak() ? ' \u00b7 ' + streak() + '-day streak' : '') : 'You\u2019re all caught up.') +
+        '</p><p class="dim">' + (s.tomorrow ? s.tomorrow + ' card' + (s.tomorrow === 1 ? '' : 's') + ' coming back tomorrow.' : 'Add more cards to your notes anytime.') + '</p>' +
+        '<button class="bignew" data-act="rvclose">Back to Recall</button>' + (st.mode !== 'practice' && st.deck && st.deck !== 'all' ? '<button class="pill" style="margin-top:14px" data-act="practice" data-deck="' + esc(st.deck) + '">Practice all cards in this note</button>' : '') + '</div></div>';
+      st.done = true;
+      return;
+    }
+    var c = st.q[0], f = cardFace(c), pct = st.total ? Math.round(st.n / (st.n + st.q.length) * 100) : 0;
+    var h = '<div class="rv"><div class="rvtop"><button class="ib" data-act="rvclose" aria-label="Close">' + I.x + '</button><div class="rvbar"><i style="width:' + pct + '%"></i></div><span class="rvct">' + st.q.length + ' left</span></div>' +
+      '<button class="rvcard' + (st.shown ? ' shown' : '') + '" data-act="reveal">' +
+      '<span class="rvsrc">' + (st.mode === 'practice' ? 'Practice \u00b7 ' : (!c.s ? '<em>New</em> \u00b7 ' : '')) + esc(c.note.title) + '</span>' +
+      '<span class="rvq prose">' + f.q + '</span>' +
+      (st.shown ? (c.type === 'qa' ? '<span class="rvsep"></span><span class="rva prose">' + f.a + '</span>' : '<span class="rvsep"></span><span class="rva prose">' + f.a + '</span>') : '<span class="rvtap">Tap to reveal</span>') +
+      '</button>' +
+      (st.shown ? '<div class="rvbtns">' + (st.mode === 'practice' ? '<button class="g-again" data-act="rate" data-g="again">Again<small>see it again</small></button><button class="g-good" data-act="rate" data-g="good">Got it<small>next</small></button>' :
+        '<button class="g-again" data-act="rate" data-g="again">Again<small>' + ivlLabel(c, 'again') + '</small></button><button class="g-good" data-act="rate" data-g="good">Good<small>' + ivlLabel(c, 'good') + '</small></button><button class="g-easy" data-act="rate" data-g="easy">Easy<small>' + ivlLabel(c, 'easy') + '</small></button>') + '</div>'
+        : '<div class="rvbtns one"><button class="g-show" data-act="reveal">Show answer</button></div>') +
+      '<button class="rvopen" data-act="open" data-id="' + c.note.id + '">Open \u201c' + esc(c.note.title) + '\u201d</button></div>';
+    viewEl.innerHTML = h;
+    hydrateImgs();
+  }
+  function rate(g) {
+    var st = rv; if (!st || !st.q.length) return;
+    var c = st.q.shift();
+    st.stats[g === 'easy' ? 'easy' : g === 'good' ? 'good' : 'again']++;
+    if (st.mode !== 'practice') {
+      rollDay();
+      if (!c.s) { rcMeta.newToday++; }
+      c.s = schedule(c, g);
+      var td = ymd(new Date()); rcMeta.log[td] = (rcMeta.log[td] || 0) + 1;
+      var keys = Object.keys(rcMeta.log).sort(); if (keys.length > 400) delete rcMeta.log[keys[0]];
+      saveRcMeta();
+    }
+    if (g === 'again') st.q.splice(Math.min(3, st.q.length), 0, c); else st.n++;
+    st.shown = false;
+    drawReview(); updateBadge();
+  }
+
+  /* ---------- Discover: a feed of things related to what you write ---------- */
+  var DSTOP = {};
+  ('a about above after again against all also am an and any are as at be because been before being below between both but by can could did do does doing down during each few for from further had has have having he her here hers him his how i if in into is it its itself just like me more most my no nor not now of off on once only or other our out over own same she should so some such than that the their them then there these they this those through to too under until up very was we were what when where which while who whom why will with would you your yours yes ok okay one two three four five first second next last new note notes untitled today tomorrow yesterday thing things stuff really very much many make made get got go going went see seen use used using need needs want wants know think way ways lot lots good great bad better best also maybe still well even every something anything nothing everything someone people person time times day days week weeks year years part parts kind type types example examples etc ' +
+    'key ideas details cards questions question answer answers agenda tasks task ideas idea links link todo to-do summary info tip warning danger toggle discovered action items action grateful top today journal meeting project goal status planning study notes main overview intro introduction conclusion review homework class chapter page pages section misc random draft quote').split(' ').forEach(function (w) { if (w) DSTOP[w] = 1; });
+  ['key ideas', 'top 3 today', 'grateful for', 'action items', 'questions i still have', 'to do', 'my notes', 'big heading'].forEach(function (w) { DSTOP[w] = 1; });
+  var BLOCK_Q = /\b(sex|sexy|sexual\w*|porn\w*|nude\w*|nudity|naked|erotic\w*|fetish\w*|hentai|xxx|orgasm\w*|masturbat\w*|prostitut\w*|escort\w*|onlyfans|stripper\w*|strip club|genital\w*|penis|vagina\w*|incest|rape\w*|bdsm|playboy|brothel\w*|nsfw|lingerie|camgirl\w*)\b/i;
+  var BLOCK_X = /\b(porn\w*|pornograph\w*|nude\w*|erotic\w*|hentai|xxx|fetish\w*|orgasm\w*|masturbat\w*|prostitut\w*|onlyfans|incest|bdsm|nsfw|stripper\w*|sex work\w*|sex act\w*|sexual intercourse)\b/i;
+  var dHidden = {}, dSaved = {}, dLoaded = false, ds = null, dShuffle = false;
+  async function loadDMeta() {
+    if (dLoaded) return; dLoaded = true;
+    try { var m = await DC.all('meta'); m.forEach(function (x) { if (x.k === 'hidden') dHidden = x.v || {}; if (x.k === 'saved') dSaved = x.v || {}; }); } catch (e) {}
+  }
+  function stripDiscovered(body) { return String(body).replace(/^##\s+Discovered\s*$[\s\S]*?(?=^#{1,2}\s|(?![\s\S]))/m, ''); }
+  function discoverTopics(onlyId) {
+    var map = {}, now = Date.now();
+    function add(term, w, n) {
+      var t = String(term || '').replace(/[*_=`~\[\]#>|{}]/g, ' ').replace(/\s+/g, ' ').trim().replace(/^[^\w(]+|[^\w)]+$/g, '');
+      if (t.length < 3 || t.length > 60 || /^\d/.test(t) || t.split(' ').length > 6) return;
+      var k = t.toLowerCase();
+      if (DSTOP[k] || BLOCK_Q.test(t) || /^(untitled|\d{4}-\d{2}-\d{2})/.test(k)) return;
+      var e = map[k] || (map[k] = { k: k, label: t, score: 0, notes: {} });
+      if (/[A-Z]/.test(t) && !/[A-Z]/.test(e.label)) e.label = t;
+      e.score += w; e.notes[n.id] = (e.notes[n.id] || 0) + w;
+    }
+    var list = onlyId ? [notes.get(onlyId)].filter(Boolean) : Array.from(notes.values()).filter(function (n) { return !inTemplates(n); });
+    list.forEach(function (n) {
+      var nw = onlyId ? 1 : 1 + 2 * Math.exp(-(now - n.updated) / (10 * 864e5));
+      var body = stripDiscovered(n.body);
+      if (!isDaily(n)) add(n.title, 3 * nw, n);
+      MD.headings(body).forEach(function (h) { add(h.text, 2.5 * nw, n); });
+      MD.links(body).forEach(function (l) { if (!dayOf(l.target)) add(l.target, 2.5 * nw, n); });
+      MD.tags(body).forEach(function (t) { if (t.length > 3) add(t.replace(/[-_\/]+/g, ' '), 1.4 * nw, n); });
+      var m, re = /\*\*([^*\n]{3,60})\*\*|==([^=\n]{3,60})==/g;
+      while ((m = re.exec(body))) add(m[1] || m[2], (m[1] ? 2 : 1.5) * nw, n);
+      var plain = MD.plain(body.replace(/\{\{c\d*::([^}]*?)(?:::[^}]*)?\}\}/g, '$1').replace(/ :: /g, '. ')), freq = {};
+      plain.split(/[.!?:;]\s+|\n+/).forEach(function (sent) {
+        var ws = sent.split(/\s+/), run = [];
+        function flushRun(i) { if (run.length && (run.length > 1 || run[0].i > 0 || /^[A-Z]{2,}/.test(run[0].w))) add(run.map(function (x) { return x.w; }).join(' '), (run.length > 1 ? 1.4 : 1) * nw, n); run = []; }
+        ws.forEach(function (w, i) {
+          var c = w.replace(/^[^\w]+|[^\w]+$/g, '');
+          if (/^([A-Z][a-z][\w'-]*|[A-Z]{2,6}\d?)$/.test(c) && !DSTOP[c.toLowerCase()]) run.push({ w: c, i: i });
+          else if (run.length && /^(of|the|de|and)$/.test(c) && ws[i + 1] && /^[A-Z]/.test(ws[i + 1])) run.push({ w: c, i: i });
+          else flushRun(i);
+          var lw = c.toLowerCase(); if (lw.length >= 6 && !DSTOP[lw] && /^[a-z]+$/.test(lw)) freq[lw] = (freq[lw] || 0) + 1;
+        });
+        flushRun(ws.length);
+      });
+      Object.keys(freq).forEach(function (w) { if (freq[w] >= 3) add(w, 0.35 * freq[w] * nw, n); });
+    });
+    return Object.keys(map).map(function (k) {
+      var e = map[k], best = null, bw = -1;
+      Object.keys(e.notes).forEach(function (id) { if (e.notes[id] > bw) { bw = e.notes[id]; best = id; } });
+      e.src = best;
+      var sn = notes.get(best);
+      /* a lone word ("neuro", "Pathways") is vague on its own: search it next to its note's title */
+      e.q = (e.label.indexOf(' ') < 0 && sn && !isDaily(sn) && norm(sn.title) !== e.k && norm(sn.title).indexOf(e.k) < 0 && e.k.indexOf(norm(sn.title)) < 0) ? e.label + ' ' + sn.title : e.label;
+      return e;
+    }).sort(function (a, b) { return b.score - a.score; }).filter(function (e, i, all) {
+      /* "neuro" next to "Neurons" adds nothing but noise */
+      if (e.k.indexOf(' ') >= 0) return true;
+      for (var j = 0; j < all.length; j++) if (all[j].k !== e.k && all[j].k.indexOf(e.k) >= 0 && all[j].score >= e.score * 0.4) return false;
+      return true;
+    }).slice(0, 40);
+  }
+  var WIKI = 'https://en.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&origin=*&prop=extracts|pageimages|pageprops|info&exintro=1&explaintext=1&exsentences=4&exlimit=4&piprop=thumbnail&pithumbsize=640&ppprop=disambiguation&inprop=url&generator=search&gsrlimit=4&gsrsearch=';
+  async function wikiFetch(q) {
+    var key = 'q:' + q.toLowerCase(), hit = null;
+    try { hit = await DC.get('cache', key); } catch (e) {}
+    if (hit && Date.now() - hit.t < 7 * 864e5) return hit.pages;
+    if (settings.discoverNet === false || !navigator.onLine || ds.req >= ds.budget) { if (!navigator.onLine || settings.discoverNet === false) ds.offline = true; return hit ? hit.pages : null; }
+    ds.req++;
+    try {
+      var r = await fetch(WIKI + encodeURIComponent(q), { signal: ds.ctrl.signal, credentials: 'omit', referrerPolicy: 'no-referrer' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      var j = await r.json(), pages = ((j.query && j.query.pages) || []).sort(function (a, b) { return (a.index || 0) - (b.index || 0); }).map(function (p) {
+        return { title: p.title, extract: p.extract || '', thumb: p.thumbnail ? p.thumbnail.source : '', url: p.fullurl || ('https://en.wikipedia.org/wiki/' + encodeURIComponent(p.title.replace(/ /g, '_'))), dis: !!(p.pageprops && 'disambiguation' in p.pageprops) };
+      });
+      DC.put('cache', { k: key, t: Date.now(), pages: pages }).catch(function () {});
+      return pages;
+    } catch (e) {
+      if (e.name === 'AbortError') throw e;
+      ds.offline = true;
+      return hit ? hit.pages : null;
+    }
+  }
+  function cleanExtract(x) {
+    var s = String(x || '').replace(/\s*\([^()]*\)/g, function (m) { return m.length > 70 ? '' : m; }).replace(/\s+/g, ' ').trim();
+    if (s.length > 460) { var cut = s.slice(0, 460), i = cut.lastIndexOf('. '); s = (i > 160 ? cut.slice(0, i + 1) : cut + '\u2026'); }
+    return s;
+  }
+  var POP = /\b(album|studio album|song|single by|band|rapper|singer|songwriter|film|movie|television series|tv series|sitcom|video game|novel by|mixtape|extended play|virtual youtuber|youtuber|vtuber|chatbot|streamer|influencer|soundtrack|episode|record label|music video|anime|manga|wrestler|footballer|politician|businessman|actor|actress|company|brand|fashion)\b/i;
+  function cardOK(p, t) {
+    if (!p || p.dis || dHidden[p.title] || ds.seen[p.title]) return false;
+    if (t) {
+      var first = (p.extract.match(/^[^.]*\./) || [p.extract.slice(0, 200)])[0];
+      if (POP.test(first) && norm(p.title) !== t.k) return false;
+      var words = (t.q || t.label).toLowerCase().split(/[^a-z0-9]+/).filter(function (w) { return w.length >= 4; }).map(function (w) { return w.slice(0, 5); });
+      var hay = (p.title + ' ' + p.extract.slice(0, 400)).toLowerCase();
+      if (words.length && !words.some(function (w) { return hay.indexOf(w) >= 0; })) return false;
+    }
+    if (!p.extract || p.extract.length < 80 || / may (also )?refer to:?$/.test(p.extract.trim()) || /may refer to/.test(p.extract.slice(0, 160))) return false;
+    if (BLOCK_Q.test(p.title) || BLOCK_X.test(p.extract)) return false;
+    return true;
+  }
+  async function renderDiscover(onlyId) {
+    if (onlyId && !notes.get(onlyId)) { go('#/discover', true); return; }
+    await loadDMeta();
+    if (route().v !== 'discover') return;
+    var only = onlyId ? notes.get(onlyId) : null, topics = discoverTopics(onlyId);
+    if (dShuffle) { dShuffle = false; var head = topics.slice(0, 24); for (var si = head.length - 1; si > 0; si--) { var sj = Math.floor(Math.random() * (si + 1)); var sx = head[si]; head[si] = head[sj]; head[sj] = sx; } topics = head.concat(topics.slice(24)); }
+    if (ds && ds.ctrl) ds.ctrl.abort();
+    ds = { only: onlyId || '', topics: topics, ti: 0, seen: {}, req: 0, budget: 10, batch: 0, offline: false, loading: false, ctrl: new AbortController(), count: 0, last: [] };
+    viewEl.classList.add('dview');
+    var h = '<div class="dhead">' + (only ? '<button class="back" data-act="back" data-to="#/n/' + only.id + '">' + I.back + '</button>' : '') + '<div class="dht"><div class="eyebrow">' + (only ? 'For this note' : 'From your notes') + '</div><h1 class="h1">Discover</h1></div>' +
+      (topics.length ? '<button class="ib" aria-label="Shuffle" data-act="dshuffle">' + I.restore + '</button>' : '') + '</div>';
+    if (only) h += '<div class="dfor">' + I.doc + '<span>' + esc(only.title) + '</span><button data-act="dall">All notes</button></div>';
+    if (!topics.length) {
+      h += '<div class="ehero dempty"><div class="rart">' + I.compass + '</div><b>Nothing to discover yet</b><p>' + (only ? 'This note is a bit short. Add headings, [[links]], #tags or **bold** terms and Discover finds stuff about them.' : 'Write a few notes and Discover finds stuff about them.') + '</p>' +
+        (only ? '<button class="bignew" data-act="dall">Discover from all notes</button>' : '<button class="bignew" data-act="newempty">' + I.plus + '<span>New note</span></button>') + '</div>';
+      viewEl.innerHTML = h; return;
+    }
+    h += '<div class="dtopics">' + topics.slice(0, 8).map(function (t) { return '<span>' + esc(t.label) + '</span>'; }).join('') + '</div><div class="dfeed" id="dfeed"><div class="dcard dskel"><div class="dimg"></div><div class="dbody"><i></i><i></i><i></i></div></div></div><div id="dmore"></div>';
+    viewEl.innerHTML = h;
+    loadBatch();
+  }
+  async function loadBatch() {
+    var st = ds; if (!st || st.loading) return;
+    st.loading = true; st.req = 0;
+    if (!navigator.onLine) st.offline = true;
+    var feed = $('#dfeed'), more = $('#dmore');
+    if (more) more.innerHTML = st.count ? '<div class="dload">Finding more\u2026</div>' : '';
+    var picks = st.topics.slice(st.ti, st.ti + 6); st.ti += picks.length;
+    var groups = [];
+    try {
+      var results = await Promise.all(picks.map(function (t, i) {
+        return new Promise(function (r) { setTimeout(r, i * 120); }).then(function () { return wikiFetch(t.q || t.label); }).then(function (pages) { return { t: t, pages: pages || [] }; });
+      }));
+      results.forEach(function (res) {
+        var g = [];
+        res.pages.forEach(function (p) { if (g.length < 2 && cardOK(p, res.t)) { st.seen[p.title] = 1; g.push({ p: p, t: res.t, rel: '' }); } });
+        if (g.length) groups.push(g);
+      });
+      /* one "more like this" hop from the strongest new article for variety */
+      var seed = groups[0] && groups[0][0];
+      if (seed && st.req < st.budget) {
+        var ml = await wikiFetch('morelike:' + seed.p.title);
+        var g2 = [];
+        (ml || []).forEach(function (p) { var f = (p && p.extract.match(/^[^.]*\./) || [''])[0]; if (g2.length < 2 && cardOK(p) && !POP.test(f)) { st.seen[p.title] = 1; g2.push({ p: p, t: seed.t, rel: seed.p.title }); } });
+        if (g2.length) groups.splice(1, 0, g2);
+      }
+    } catch (e) { if (e.name === 'AbortError') return; }
+    if (st !== ds || route().v !== 'discover') return;
+    var cards = [], k = 0;
+    while (groups.some(function (g) { return g.length; })) { groups.forEach(function (g) { if (g.length) cards.push(g.shift()); }); if (++k > 20) break; }
+    var sk = feed && feed.querySelector('.dskel'); if (sk) sk.remove();
+    if (feed) {
+      feed.insertAdjacentHTML('beforeend', cards.map(dcardHTML).join(''));
+      feed.querySelectorAll('img[data-thumb]:not([data-bound])').forEach(function (im) {
+        im.dataset.bound = 1;
+        im.addEventListener('error', function () { var d = im.parentNode; d.classList.add('ph'); d.innerHTML = '<span>' + esc((d.dataset.l || '?').charAt(0)) + '</span>'; });
+      });
+    }
+    st.count += cards.length; st.batch++; st.loading = false;
+    if (!more) return;
+    if (!st.count) {
+      more.innerHTML = st.offline ? '<div class="ehero dempty"><div class="rart">' + I.compass + '</div><b>' + (settings.discoverNet === false ? 'Discover is offline' : 'You\u2019re offline') + '</b><p>' + (settings.discoverNet === false ? 'Turn on \u201cDiscover uses the internet\u201d in Settings to find new things. Cards you\u2019ve already loaded show up here.' : 'Nothing saved for these topics yet. Connect to the internet and Discover finds things about your notes.') + '</p><button class="pill" data-act="dretry">Try again</button></div>'
+        : (st.ti < st.topics.length ? '' : '<div class="ehero dempty"><b>Nothing new right now</b><p>Write about something new, or tap shuffle.</p></div>');
+      if (!st.offline && st.ti < st.topics.length) loadBatch();
+      return;
+    }
+    more.innerHTML = st.ti < st.topics.length ? '<button class="pill dmorebtn" data-act="dmore">Show more</button>' : '<div class="dend">You\u2019ve reached the end \u00b7 write more and come back</div>';
+    if (st.offline && st.count) more.insertAdjacentHTML('afterbegin', '<div class="doff">Offline \u00b7 showing saved cards</div>');
+    watchMore();
+  }
+  var dObs = null;
+  function watchMore() {
+    if (dObs) dObs.disconnect();
+    var b = $('.dmorebtn'); if (!b || !('IntersectionObserver' in window)) return;
+    dObs = new IntersectionObserver(function (en) { if (en[0].isIntersecting && ds && ds.batch < 4 && !ds.loading) { dObs.disconnect(); loadBatch(); } }, { root: viewEl, rootMargin: '0px 0px 600px 0px' });
+    dObs.observe(b);
+  }
+  function dcardHTML(c) {
+    var p = c.p, src = notes.get(c.t.src), saved = dSaved[p.title];
+    return '<article class="dcard" data-title="' + esc(p.title) + '" data-url="' + esc(p.url) + '" data-src="' + esc(c.t.src || '') + '">' +
+      '<div class="dimg' + (p.thumb ? '' : ' ph') + '" data-l="' + esc(p.title) + '">' + (p.thumb ? '<img data-thumb="1" src="' + esc(p.thumb) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '<span>' + esc(p.title.charAt(0)) + '</span>') + '</div>' +
+      '<div class="dbody"><button class="dwhy" data-act="dsrc" data-id="' + esc(c.t.src || '') + '">' + (c.rel ? 'More like <b>' + esc(c.rel) + '</b>' : 'Because you wrote about <b>' + esc(c.t.label) + '</b>') + (src && norm(src.title) !== norm(c.rel || c.t.label) ? '<span> \u00b7 ' + esc(src.title) + '</span>' : '') + '</button>' +
+      '<h2 class="dt">' + esc(p.title) + '</h2><p class="dx">' + esc(cleanExtract(p.extract)) + '</p>' +
+      '<div class="dacts"><button class="dsave' + (saved ? ' on' : '') + '" data-act="dsave">' + I.pin.replace('<svg', '<svg class="di"') + '<span>' + (saved ? 'Saved' : 'Save') + '</span></button>' +
+      '<button data-act="dopen">' + I.ext + '<span>Open</span></button><button class="dno" data-act="dhide" aria-label="Not interested">' + I.x + '<span>Hide</span></button></div>' +
+      '<div class="dsrc">Wikipedia</div></div></article>';
+  }
+  function insertDiscovered(body, line) {
+    var lines = String(body).replace(/\s+$/, '').split('\n'), at = -1;
+    for (var i = 0; i < lines.length; i++) if (/^##\s+Discovered\s*$/.test(lines[i])) { at = i; break; }
+    if (at < 0) return lines.join('\n') + '\n\n## Discovered\n' + line + '\n';
+    var end = lines.length;
+    for (var j = at + 1; j < lines.length; j++) if (/^#{1,2}\s/.test(lines[j])) { end = j; break; }
+    while (end > at + 1 && !lines[end - 1].trim()) end--;
+    lines.splice(end, 0, line);
+    return lines.join('\n') + '\n';
+  }
+  async function discoverSave(card) {
+    var title = card.dataset.title, url = card.dataset.url, n = notes.get(ds && ds.only ? ds.only : card.dataset.src) || notes.get(card.dataset.src);
+    if (!n) { toast('That note is gone'); return; }
+    if (n.body.indexOf(url) >= 0) { toast('Already saved in \u201c' + n.title + '\u201d'); return; }
+    var x = cleanExtract(card.querySelector('.dx').textContent), first = (x.match(/^.*?[.!?](\s|$)/) || [x])[0].trim();
+    if (first.length > 220) first = first.slice(0, 217) + '\u2026';
+    n.body = insertDiscovered(n.body, '- [' + title.replace(/[\[\]]/g, '') + '](' + url + ') \u2014 ' + first);
+    touch(n);
+    dSaved[title] = n.id; DC.put('meta', { k: 'saved', v: dSaved }).catch(function () {});
+    var b = card.querySelector('.dsave'); if (b) { b.classList.add('on'); b.querySelector('span').textContent = 'Saved'; }
+    toast('Saved to \u201c' + n.title + '\u201d');
+  }
+  function discoverHide(card) {
+    dHidden[card.dataset.title] = Date.now(); DC.put('meta', { k: 'hidden', v: dHidden }).catch(function () {});
+    card.style.height = card.offsetHeight + 'px';
+    requestAnimationFrame(function () { card.classList.add('gone'); });
+    setTimeout(function () { card.remove(); if (!document.querySelector('.dcard') && ds) loadBatch(); }, 260);
+    toast('Got it \u2014 you won\u2019t see that one again');
+  }
+
+  /* ---------- quick switcher / command palette ---------- */
+  var COMMANDS = [
+    ['New note', 'create add write', function () { newNote(); }], ['New note from template', 'template starter', function () { newFromTemplate(); }],
+    ['Today\u2019s note', 'daily journal date', function () { openDaily(); }], ['Start Recall review', 'quiz flashcards study cards', function () { go('#/review/all'); }],
+    ['Open Recall', 'cards spaced repetition', function () { go('#/recall'); }], ['Discover', 'feed explore wikipedia learn', function () { go('#/discover'); }], ['Graph', 'map links', function () { go('#/graph'); }],
+    ['Search text', 'find full', function (q) { go('#/search/' + encodeURIComponent(q || '')); }], ['All notes', 'list every', function () { go('#/f/*'); }],
+    ['New folder', 'directory', function () { newFolder(''); }], ['Trash', 'deleted restore bin', function () { go('#/trash'); }],
+    ['Formatting guide', 'help markdown how syntax', function () { go('#/guide'); }], ['Settings', 'preferences accent text size', function () { go('#/settings'); }],
+    ['Export vault (.zip)', 'backup download', function () { exportVault(); }], ['Export flashcards (CSV for Synapse)', 'synapse anki csv', function () { exportCards(null); }]
+  ];
+  var qsOpen = false;
+  function openSwitcher() {
+    if (qsOpen) return; qsOpen = true;
+    var scrim = document.createElement('div'); scrim.className = 'scrim';
+    var box = document.createElement('div'); box.className = 'qs'; box.setAttribute('role', 'dialog');
+    box.innerHTML = '<label class="qsin">' + I.search + '<input id="qsq" type="text" placeholder="Jump to a note, or type a command" autocomplete="off" autocapitalize="none" spellcheck="false" enterkeyhint="go"><button class="qsx" aria-label="Close">Cancel</button></label><div class="qsl" id="qsl"></div>';
+    layer.appendChild(scrim); layer.appendChild(box);
+    var inp = $('#qsq', box), list = $('#qsl', box), items = [], sel = 0;
+    function close() { if (!qsOpen) return; qsOpen = false; inp.blur(); scrim.classList.remove('show'); box.classList.remove('show'); setTimeout(function () { scrim.remove(); box.remove(); }, 200); }
+    function draw() {
+      var q = inp.value.trim(), nq = norm(q.replace(/^>\s*/, '')), cmdOnly = /^>/.test(q);
+      var ns = cmdOnly ? [] : Array.from(notes.values()).map(function (n) {
+        var t = norm(n.title), sc = !nq ? 1 : t === nq ? 100 : t.indexOf(nq) === 0 ? 60 : t.indexOf(nq) >= 0 ? 30 : fuzzy(nq, t) ? 8 : 0;
+        return { n: n, sc: sc ? sc + (n.pinned ? 3 : 0) + n.updated / 1e14 : 0 };
+      }).filter(function (x) { return x.sc > 0; }).sort(function (a, b) { return b.sc - a.sc; }).slice(0, nq ? 8 : 6);
+      var cs = COMMANDS.filter(function (c) { return !nq || norm(c[0]).indexOf(nq) >= 0 || c[1].indexOf(nq) >= 0 || fuzzy(nq, norm(c[0])); }).slice(0, nq ? 6 : 5);
+      items = ns.map(function (x) { return { t: 'n', n: x.n }; });
+      if (q && !cmdOnly && !byTitle(q) && !checkTitle(q)) items.push({ t: 'create', q: q });
+      if (q && !cmdOnly) items.push({ t: 'search', q: q });
+      items = items.concat(cs.map(function (c) { return { t: 'c', c: c }; }));
+      sel = 0;
+      var h = '', lastT = '';
+      items.forEach(function (it, i) {
+        var grp = it.t === 'n' ? (nq ? 'Notes' : 'Recent') : it.t === 'c' ? 'Commands' : 'Notes';
+        if (grp !== lastT) { h += '<div class="qsh">' + grp + '</div>'; lastT = grp; }
+        if (it.t === 'n') h += '<button data-i="' + i + '">' + (it.n.pinned ? I.pin : I.doc) + '<span class="qt">' + esc(it.n.title) + '</span><small>' + esc(it.n.folder ? it.n.folder.toLowerCase() : '') + '</small></button>';
+        else if (it.t === 'create') h += '<button data-i="' + i + '">' + I.plus + '<span class="qt">New note \u201c' + esc(it.q) + '\u201d</span></button>';
+        else if (it.t === 'search') h += '<button data-i="' + i + '">' + I.search + '<span class="qt">Search text for \u201c' + esc(it.q) + '\u201d</span></button>';
+        else h += '<button data-i="' + i + '">' + I.cmd + '<span class="qt">' + esc(it.c[0]) + '</span></button>';
+      });
+      list.innerHTML = h || '<div class="qsh">Nothing matches</div>';
+      hl1();
+    }
+    function hl1() { list.querySelectorAll('button').forEach(function (b) { b.classList.toggle('sel', +b.dataset.i === sel); }); }
+    function pick(i) {
+      var it = items[i]; if (!it) return;
+      close();
+      if (it.t === 'n') go('#/n/' + it.n.id);
+      else if (it.t === 'create') { var n = createNote({ title: it.q.trim().replace(/\s+/g, ' '), folder: '', body: '' }); go('#/n/' + n.id); startEditing(n, false); }
+      else if (it.t === 'search') go('#/search/' + encodeURIComponent(it.q));
+      else it.c[2](inp.value.trim());
+    }
+    inp.addEventListener('input', draw);
+    inp.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); sel = Math.min(items.length - 1, sel + 1); hl1(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); sel = Math.max(0, sel - 1); hl1(); }
+      else if (e.key === 'Enter') { e.preventDefault(); pick(sel); }
+      else if (e.key === 'Escape') close();
+    });
+    list.addEventListener('pointerdown', function (e) { if (e.target.closest('button')) e.preventDefault(); });
+    list.addEventListener('click', function (e) { var b = e.target.closest('button[data-i]'); if (b) pick(+b.dataset.i); });
+    $('.qsx', box).addEventListener('click', close);
+    scrim.addEventListener('click', close);
+    draw();
+    inp.focus();
+    requestAnimationFrame(function () { scrim.classList.add('show'); box.classList.add('show'); });
+  }
+
+  /* ---------- trash ---------- */
+  function renderTrash() {
+    var list = Array.from(trash.values()).sort(function (a, b) { return b.trashed - a.trashed; });
+    var h = '<div class="page"><div class="nav"><button class="back" data-act="back" data-to="#/">' + I.back + '<span>Notes</span></button><div class="acts">' +
+      (list.length ? '<button class="pill" data-act="emptytrash" style="margin-right:8px">Empty</button>' : '') + '</div></div><h1 class="h1">Trash</h1>';
+    if (!list.length) h += '<div class="empty"><b>Trash is empty</b>Deleted notes wait here for ' + TRASH_DAYS + ' days, so you can bring them back.</div>';
+    else {
+      h += '<div class="hint1" style="margin-top:-6px">Tap a note to restore it. Notes are removed for good after ' + TRASH_DAYS + ' days.</div>';
+      list.forEach(function (n) {
+        var left = Math.max(1, Math.ceil((n.trashed + TRASH_DAYS * 864e5 - Date.now()) / 864e5));
+        h += '<button class="nl" data-act="trashitem" data-id="' + n.id + '"><div class="t"><b>' + esc(n.title) + '</b><time>' + left + 'd left</time></div><div class="s">' + snippetHTML(n.body) + '</div>' + (n.folder ? '<div class="f">' + esc(crumbOf(n.folder)) + '</div>' : '') + '</button>';
+      });
+    }
+    viewEl.innerHTML = h + '</div>';
+  }
+
+  /* ---------- formatting guide (rendered, never saved as a note) ---------- */
+  var GUIDE = '## Fast ways in\n- Type **/** anywhere to insert a block, or tap **+** on the toolbar.\n- **[[** links a note. **![[Note]]** shows another note right inside this one.\n- Press and hold a note in a list for pin, rename, move, duplicate and delete.\n- Pull down on the Notes screen (or tap the search bar) to jump anywhere.\n- Double-tap any paragraph to edit right there.\n\n## Text\n**bold**, *italic*, ~~strike~~, ==highlight==, `code`, [^1] footnotes, $E = mc^2$ math.\n\n## Lists\n- [ ] Checklist item\n  - [x] Nested item (indent with the \u2192 button)\n1. Numbered\n\n## Callouts and toggles\n> [!info] Info\n> Also tip, warning, danger, question and example.\n\n> [!toggle]- Tap to open a toggle\n> Hidden until you need it.\n\n## Recall cards\nWhat does ATP stand for :: adenosine triphosphate\nThe {{c::hippocampus}} helps form new memories.\n\n## Properties\nStart a note with a block like this to get a chip row:\n```yaml\n---\ntags: [biology, exam]\ndate: 2026-10-19\n---\n```\n\n[^1]: Footnotes collect at the bottom of the note.';
+  function renderGuide() {
+    viewEl.innerHTML = '<div class="page"><div class="nav"><button class="back" data-act="back" data-to="#/settings">' + I.back + '<span>Settings</span></button><div class="acts"></div></div><div class="eyebrow">Axon</div><h1 class="h1">Formatting guide</h1><article class="prose">' + MD.render(GUIDE, { resolve: function () { return true; } }) + '</article></div>';
+  }
+
+  /* ---------- outline + stats ---------- */
+  async function showOutline() {
+    var n = editing ? editing.n : notes.get(route().id); if (!n) return;
+    var ed = $('#ed'); if (ed) n.body = ed.value;
+    var hs = MD.headings(n.body), plain = MD.plain(n.body), w = words(n.body), ch = plain.replace(/\s/g, '').length;
+    var a = await sheet({ title: n.title, message: w + ' words \u00b7 ' + ch.toLocaleString() + ' characters \u00b7 ' + readMin(w) + ' min read', left: true,
+      actions: hs.length ? hs.map(function (x) { return { label: '\u2003'.repeat(Math.max(0, x.level - 1)) + x.text.replace(/[*_=`~]/g, ''), value: x }; }) : [{ label: 'No headings yet \u2014 add one with / then Heading', value: '' }] });
+    if (!a) return;
+    if (editing && (ed = $('#ed'))) {
+      var lines = ed.value.split('\n'), c = 0; for (var i = 0; i < a.line; i++) c += lines[i].length + 1;
+      var tops = lineTops(ed), vr = viewEl.getBoundingClientRect(), edTop = ed.getBoundingClientRect().top - vr.top + viewEl.scrollTop;
+      viewEl.scrollTop = edTop + (tops[a.line] || 0) - 60;
+      try { ed.focus({ preventScroll: true }); } catch (e) {} ed.setSelectionRange(c + lines[a.line].length, c + lines[a.line].length);
+    } else {
+      var el = document.getElementById('h-' + a.slug); if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+  }
+
+  /* ---------- link peek (press and hold a [[link]]) ---------- */
+  var peekEl = null;
+  function closePeek() { if (peekEl) { var p = peekEl; peekEl = null; p.classList.remove('show'); setTimeout(function () { p.remove(); }, 180); } }
+  function showPeek(title, heading) {
+    closePeek();
+    var n = byTitle(title);
+    peekEl = document.createElement('div'); peekEl.className = 'peek';
+    peekEl.innerHTML = '<div class="pk">' + (n ? '<div class="pkh"><b>' + esc(n.title) + '</b><span>' + esc(n.folder ? crumbOf(n.folder) : '/') + ' \u00b7 ' + agoLong(n.updated) + '</span></div><div class="prose pkb">' + (n.body.trim() ? MD.render(n.body, { resolve: resolver, embed: embedder, ro: true, _depth: 1 }) : '<p class="empty-note">Empty note</p>') + '</div><div class="pkf"><button data-pk="close">Close</button><button class="acc" data-pk="open">Open note</button></div>'
+      : '<div class="pkh"><b>' + esc(title) + '</b><span>No note with this name yet</span></div><div class="pkf"><button data-pk="close">Close</button><button class="acc" data-pk="open">Create it</button></div>') + '</div>';
+    document.body.appendChild(peekEl);
+    hydrateImgs(peekEl);
+    requestAnimationFrame(function () { if (peekEl) peekEl.classList.add('show'); });
+    peekEl.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-pk]');
+      if (!b) { if (e.target === peekEl) closePeek(); return; }
+      var r = route(), from = r.v === 'note' ? notes.get(r.id) : null;
+      closePeek();
+      if (b.dataset.pk === 'open') openLink(title, heading, from);
+    });
+  }
+
+  /* ---------- note actions (menu + press and hold) ---------- */
+  async function duplicateNote(n) {
+    var c = createNote({ title: uniqueTitle(n.title + ' copy'), folder: n.folder, body: n.body });
+    toast('Duplicated'); return c;
+  }
+  function togglePin(n) { n.pinned = !n.pinned; putNote(n); toast(n.pinned ? 'Pinned to the top' : 'Unpinned'); }
+  async function askTrash(n, after) {
+    var bl = backlinks(n).length;
+    trashNote(n);
+    toast('Moved to Trash' + (bl ? ' \u00b7 ' + bl + ' link' + (bl === 1 ? '' : 's') + ' now unresolved' : ''));
+    if (after) after();
+  }
+  async function rowMenu(n) {
+    var nc = MD.recall(n.body).length;
+    var a = await sheet({ title: n.title, actions: [
+      { label: n.pinned ? 'Unpin' : 'Pin to top', value: 'pin', icon: I.pin }, { label: 'Rename', value: 'rename', icon: I.edit },
+      { label: 'Move to folder', value: 'move', icon: I.folder.replace(' class="fi"', '') }, { label: 'Duplicate', value: 'dup', icon: I.copy }]
+      .concat(nc ? [{ label: 'Review ' + nc + ' card' + (nc === 1 ? '' : 's'), value: 'review', icon: I.recall }] : [])
+      .concat([{ label: 'Move to Trash', value: 'delete', danger: true, icon: I.trash }]), left: true });
+    if (!a) return;
+    if (a === 'pin') { togglePin(n); render(); }
+    else if (a === 'dup') { await duplicateNote(n); render(); }
+    else if (a === 'review') go('#/review/' + encodeURIComponent(n.id));
+    else if (a === 'delete') { askTrash(n); render(); }
+    else if (a === 'rename' || a === 'move') { await noteMenu(n, a); if (route().v !== 'note') render(); }
   }
 
   var act = {
@@ -1073,7 +1993,12 @@
     newempty: function () { newNote(''); },
     foldermore: function (el) { folderMenu(el.dataset.path); },
     notemore: function (el) { var n = notes.get(el.dataset.id); if (n) noteMenu(n); },
-    edit: function () { var r = route(); var n = notes.get(r.id); if (n) startEditing(n, false); },
+    edit: function () {
+      var r = route(); var n = notes.get(r.id); if (!n) return;
+      var p = previewTopBlock(), pr = $('#prose');
+      if (!p && pr && pr.getBoundingClientRect().bottom > viewEl.getBoundingClientRect().bottom + 40) p = { line: 0, offset: pr.getBoundingClientRect().top - viewEl.getBoundingClientRect().top };
+      startEditing(n, false, p || undefined);
+    },
     donebtn: function () { stopEditing(false); },
     localgraph: function (el) { ui.lastNote = el.dataset.id; ui.graphMode = 'local'; saveMeta(); go('#/graph'); },
     gmode: function (el) {
@@ -1088,8 +2013,70 @@
     glocal: function (el) { ui.lastNote = el.dataset.id; ui.graphMode = 'local'; saveMeta(); render(); },
     stag: function (el) { var i = $('#sq'); if (i && el.dataset.on) { i.value = ''; i.dispatchEvent(new Event('input')); return; } if (!i) { go('#/search/' + encodeURIComponent('#' + el.dataset.tag)); return; } i.value = '#' + el.dataset.tag; i.dispatchEvent(new Event('input')); },
     today: function () { openDaily(); },
+    qs: function () { openSwitcher(); },
+    dnote: function (el) { go('#/discover/' + encodeURIComponent(el.dataset.id)); },
+    dall: function () { go('#/discover', true); },
+    dshuffle: function () { dShuffle = true; render(); },
+    dmore: function () { loadBatch(); },
+    dretry: function () { render(); },
+    dsrc: function (el) { if (el.dataset.id && notes.get(el.dataset.id)) go('#/n/' + el.dataset.id); },
+    dsave: function (el) { var c = el.closest('.dcard'); if (c) discoverSave(c); },
+    dopen: function (el) { var c = el.closest('.dcard'); if (c) window.open(c.dataset.url, '_blank', 'noopener'); },
+    dhide: function (el) { var c = el.closest('.dcard'); if (c) discoverHide(c); },
+    dclear: async function () {
+      var ok = await dialog({ title: 'Clear Discover history?', message: 'Hidden cards come back and the offline copy is cleared. Your notes don\u2019t change.', ok: 'Clear' });
+      if (!ok) return; dHidden = {}; dSaved = {}; try { await DC.clear('cache'); await DC.clear('meta'); } catch (e) {} toast('Discover history cleared');
+    },
+    dnet: function (el) { settings.discoverNet = el.dataset.v === '1'; saveSettings(); renderSettings(); },
+    gorecall: function () { go('#/recall'); },
+    gotrash: function () { go('#/trash'); },
+    fromtmpl: function () { newFromTemplate(''); },
+    usetmpl: function (el) {
+      var t = allTemplates()[+el.dataset.i], ed = $('#ed'); if (!t || !ed || !editing) return;
+      insertText(ed, fillTmpl(t.body, editing.n.title), 0, ed.value.length);
+      var tc = $('#tchips'); if (tc) tc.remove();
+      var v = ed.value, m = /\n(- \[ \] |- |1\. )(?=\n|$)/.exec(v), c = m ? m.index + m[0].length : v.length;
+      ed.setSelectionRange(c, c);
+    },
+    outline: function () { showOutline(); },
+    sort: async function () {
+      var v = await sheet({ title: 'Sort notes by', actions: Object.keys(SORTS).map(function (k) { return { label: (ui.sort === k ? '\u2713 ' : '') + SORTS[k], value: k }; }) });
+      if (v) { ui.sort = v; saveMeta(); var st = viewEl.scrollTop; render(); viewEl.scrollTop = st; }
+    },
+    review: function (el) { rv = null; go('#/review/' + encodeURIComponent(el.dataset.deck || 'all')); },
+    practice: function (el) { rv = null; go('#/review/' + encodeURIComponent(el.dataset.deck || 'all') + '/practice', route().v === 'review'); },
+    deck: function (el) { rv = null; var s = recallStats(el.dataset.id); go('#/review/' + encodeURIComponent(el.dataset.id) + (s.due ? '' : '/practice')); },
+    reveal: function () { if (rv && rv.q.length && !rv.shown) { rv.shown = true; drawReview(); } },
+    rate: function (el) { rate(el.dataset.g); },
+    rvclose: function () { rv = null; go('#/recall', true); },
+    recalldemo: function () {
+      var n = createNote({ title: uniqueTitle('My first cards'), folder: '', body: 'What does Axon do with this line :: it turns it into a Recall card\nThe {{c::hippocampus}} helps turn experiences into memories.\n' });
+      go('#/n/' + n.id); startEditing(n, false);
+    },
+    trashitem: async function (el) {
+      var n = trash.get(el.dataset.id); if (!n) return;
+      var a = await sheet({ title: n.title, actions: [{ label: 'Restore', value: 'restore', icon: I.restore }, { label: 'Delete forever', value: 'kill', danger: true, icon: I.trash }] });
+      if (a === 'restore') { restoreNote(n); toast('Restored \u201c' + n.title + '\u201d'); renderTrash(); }
+      else if (a === 'kill') { var ok = await dialog({ title: 'Delete forever?', message: '\u201c' + n.title + '\u201d can\u2019t be brought back after this.', ok: 'Delete', danger: true }); if (ok) { deleteNote(n); toast('Deleted for good'); renderTrash(); } }
+    },
+    emptytrash: async function () {
+      var ok = await dialog({ title: 'Empty Trash?', message: trash.size + ' note' + (trash.size === 1 ? '' : 's') + ' will be deleted for good.', ok: 'Empty Trash', danger: true });
+      if (ok) { var k = purgeTrash(true); toast('Deleted ' + k + ' note' + (k === 1 ? '' : 's') + ' for good'); renderTrash(); }
+    },
+    guide: function () { go('#/guide'); },
+    newper: function (el) { settings.newPerDay = +el.dataset.v; saveSettings(); renderSettings(); },
+    resetrecall: async function () {
+      var ok = await dialog({ title: 'Reset Recall progress?', message: 'Your notes stay. Every card starts over as new.', ok: 'Reset', danger: true });
+      if (ok) { rc.clear(); rcMeta = { day: '', newToday: 0, log: {} }; try { await RC.clear('cards'); await RC.clear('meta'); } catch (e) {} toast('Recall progress reset'); renderSettings(); }
+    },
     day: function (el) { openDaily(el.dataset.day); },
-    cards: function (el) { var n = notes.get(el.dataset.id); if (n) exportCards(n); },
+    cards: async function (el) {
+      var n = notes.get(el.dataset.id); if (!n) return;
+      var s = recallStats(n.id);
+      var a = await sheet({ title: s.total + ' Recall card' + (s.total === 1 ? '' : 's'), message: (s.due ? s.due + ' to review now' : 'None due right now') + ' \u00b7 lines with :: or {{c::}} in this note', actions: [{ label: s.due ? 'Review ' + s.due + ' now' : 'Practice all ' + s.total, value: 'rev', icon: I.recall }, { label: 'Export CSV for Synapse', value: 'csv', icon: I.copy }] });
+      if (a === 'rev') { rv = null; go('#/review/' + encodeURIComponent(n.id) + (s.due ? '' : '/practice')); }
+      else if (a === 'csv') exportCards(n);
+    },
     allcards: function () { exportCards(null); },
     sclear: function () { var i = $('#sq'); i.value = ''; i.dispatchEvent(new Event('input')); i.focus(); },
     screate: function (el) { var t = el.dataset.q.replace(/[\[\]|#^\\\/:]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120); if (!t) return; var n = createNote({ title: uniqueTitle(t), folder: '', body: '' }); go('#/n/' + n.id); startEditing(n, false); },
@@ -1098,17 +2085,85 @@
     export: exportVault,
     import: function () { $('#file').click(); },
     wipe: async function () {
-      var ok = await dialog({ title: 'Delete all ' + notes.size + ' notes?', message: 'Every note and folder on this device will be erased. Export first if you want a copy.', ok: 'Delete all', danger: true });
+      var ok = await dialog({ title: 'Delete all ' + notes.size + ' notes?', message: 'Every note, folder and the Trash on this device will be erased for good. Export first if you want a copy.', ok: 'Delete all', danger: true });
       if (!ok) return;
-      notes.clear(); folders.clear(); rebuildIdx(); ui.lastNote = null; ui.open = {};
+      notes.clear(); folders.clear(); trash.clear(); rebuildIdx(); ui.lastNote = null; ui.open = {};
       await DB.clear('notes'); await DB.clear('folders'); saveMeta();
+      rc.clear(); try { await RC.clear('cards'); } catch (e) {}
       try { await IMG.clear(); } catch (e) {}
       Object.keys(imgURL).forEach(function (i) { URL.revokeObjectURL(imgURL[i]); delete imgURL[i]; });
       toast('Vault erased'); renderSettings();
     }
   };
 
+  /* press and hold: notes -> actions, [[links]] -> preview */
+  var lp = null, lpFired = 0;
+  function lpTarget(t) { return t.closest('a.wl:not([data-noop])') || t.closest('[data-act=open][data-id]'); }
+  viewEl.addEventListener('pointerdown', function (e) {
+    if (editing || e.button > 0) return;
+    var t = lpTarget(e.target); if (!t) return;
+    var x = e.clientX, y = e.clientY;
+    clearTimeout(lp && lp.timer);
+    lp = { t: t, x: x, y: y, timer: setTimeout(function () { lpFire(t); }, 480) };
+  });
+  function lpCancel() { if (lp) { clearTimeout(lp.timer); lp = null; } }
+  viewEl.addEventListener('pointermove', function (e) { if (lp && (Math.abs(e.clientX - lp.x) > 9 || Math.abs(e.clientY - lp.y) > 9)) lpCancel(); });
+  viewEl.addEventListener('pointerup', lpCancel);
+  viewEl.addEventListener('pointercancel', lpCancel);
+  viewEl.addEventListener('scroll', lpCancel, { passive: true });
+  viewEl.addEventListener('contextmenu', function (e) { var t = lpTarget(e.target); if (!t || editing) return; e.preventDefault(); lpCancel(); lpFire(t); });
+  function lpFire(t) {
+    lp = null; lpFired = Date.now();
+    if (navigator.vibrate) try { navigator.vibrate(8); } catch (e) {}
+    if (t.matches('a.wl')) { showPeek(t.dataset.wl, t.dataset.h); return; }
+    var n = notes.get(t.dataset.id); if (n) rowMenu(n);
+  }
+  /* double-tap a block in a note to edit right there */
+  var lastTap = null;
+  function tapEdit(e) {
+    var prose = e.target.closest('#prose'); if (!prose || editing) return false;
+    if (e.target.closest('a,button,input,label,summary,.cb')) return false;
+    var blk = e.target.closest('#prose > [data-l]'); if (!blk) return false;
+    var now = Date.now();
+    if (lastTap && now - lastTap.t < 380 && lastTap.el === blk) {
+      lastTap = null;
+      var n = notes.get(route().id); if (!n) return false;
+      var off = blk.getBoundingClientRect().top - viewEl.getBoundingClientRect().top;
+      var L = +blk.dataset.l, lines = n.body.split('\n');
+      var endL = blk.tagName === 'P' ? Math.min(lines.length - 1, L + blk.querySelectorAll(':scope > br').length) : L;
+      startEditing(n, false, { line: blk.tagName === 'P' ? endL : L, offset: off + (blk.tagName === 'P' ? blk.offsetHeight - 24 : 0) });
+      return true;
+    }
+    lastTap = { t: now, el: blk };
+    return false;
+  }
+  /* pull down on Notes to open the quick switcher */
+  var pull = null;
+  viewEl.addEventListener('touchstart', function (e) { if (route().v !== 'vault' || editing || viewEl.scrollTop > 0 || e.touches.length > 1) { pull = null; return; } pull = { y: e.touches[0].clientY, d: 0 }; }, { passive: true });
+  viewEl.addEventListener('touchmove', function (e) {
+    if (!pull) return;
+    pull.d = e.touches[0].clientY - pull.y;
+    var ph = $('#pullhint'); if (ph) { ph.style.opacity = Math.min(1, Math.max(0, (pull.d - 20) / 60)); ph.classList.toggle('ready', pull.d > 80); }
+  }, { passive: true });
+  viewEl.addEventListener('touchend', function () {
+    if (!pull) return;
+    var d = pull.d; pull = null;
+    var ph = $('#pullhint'); if (ph) { ph.style.opacity = 0; ph.classList.remove('ready'); }
+    if (d > 80 && viewEl.scrollTop <= 0) openSwitcher();
+  });
+  document.addEventListener('keydown', function (e) {
+    if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); openSwitcher(); return; }
+    if (route().v === 'review' && rv && rv.q.length && !qsOpen && !e.metaKey && !e.ctrlKey) {
+      if ((e.key === ' ' || e.key === 'Enter') && !rv.shown) { e.preventDefault(); rv.shown = true; drawReview(); }
+      else if (rv.shown && /^[123]$/.test(e.key)) { e.preventDefault(); rate(rv.mode === 'practice' ? (e.key === '1' ? 'again' : 'good') : ['again', 'good', 'easy'][+e.key - 1]); }
+    }
+  });
+
   viewEl.addEventListener('click', function (e) {
+    if (Date.now() - lpFired < 700) { e.preventDefault(); e.stopPropagation(); return; }
+    var fn = e.target.closest('a[data-fn]');
+    if (fn) { e.preventDefault(); var t = document.getElementById('fn-' + MD.slug(fn.dataset.fn)); if (t) t.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+    if (tapEdit(e)) return;
     var wl = e.target.closest('a.wl');
     if (wl) {
       e.preventDefault();
@@ -1135,12 +2190,22 @@
   document.querySelectorAll('.tb').forEach(function (b) {
     b.addEventListener('click', function () {
       var t = b.dataset.tab;
-      var target = { notes: '#/', graph: '#/graph', search: '#/search', settings: '#/settings' }[t];
+      var target = { notes: '#/', graph: '#/graph', search: '#/search', settings: '#/settings', discover: '#/discover' }[t];
       if (t === 'notes' && route().v === 'vault') { viewEl.scrollTo({ top: 0, behavior: 'smooth' }); return; }
       go(target);
     });
   });
-  $('#fab').addEventListener('click', function () { newNote(); });
+  (function () {
+    var fab = $('#fab'), t = null, fired = 0;
+    fab.addEventListener('pointerdown', function () { clearTimeout(t); t = setTimeout(async function () {
+      fired = Date.now();
+      var a = await sheet({ actions: [{ label: 'New note', value: 'n', icon: I.newnote }, { label: 'New from template', value: 't', icon: I.tmpl }, { label: 'Today\u2019s note', value: 'd', icon: I.cal.replace(' class="fi"', '') }, { label: 'New folder', value: 'f', icon: I.newfolder }], left: true });
+      if (a === 'n') newNote(); else if (a === 't') newFromTemplate(); else if (a === 'd') openDaily(); else if (a === 'f') newFolder('');
+    }, 450); });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) { fab.addEventListener(ev, function () { clearTimeout(t); }); });
+    fab.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    fab.addEventListener('click', function () { if (Date.now() - fired < 800) return; newNote(); });
+  })();
   document.addEventListener('visibilitychange', function () { if (document.hidden && editing) { var ed = $('#ed'); if (ed) editing.n.body = ed.value; touchIfChanged(editing.n); } });
   window.addEventListener('pagehide', function () { if (editing) { var ed = $('#ed'); if (ed) editing.n.body = ed.value; touchIfChanged(editing.n); } });
 
@@ -1149,7 +2214,7 @@
     try {
       await DB.open();
       var ns = await DB.all('notes'), fs = await DB.all('folders'), meta = await DB.all('meta');
-      ns.forEach(function (n) { notes.set(n.id, n); });
+      ns.forEach(function (n) { if (n.trashed) trash.set(n.id, n); else notes.set(n.id, n); });
       fs.forEach(function (f) { folders.add(f.path); });
       var m = {}; meta.forEach(function (x) { m[x.k] = x.v; });
       if (m.settings) settings = Object.assign(settings, m.settings);
@@ -1161,12 +2226,19 @@
       viewEl.innerHTML = '<div class="empty"><b>Storage is blocked</b>Axon keeps notes in this browser\u2019s storage. Private browsing can block it. (' + esc(err && err.message || err) + ')</div>';
       return;
     }
+    try { purgeTrash(false); } catch (e) {}
+    try {
+      (await RC.all('cards')).forEach(function (s) { rc.set(s.id, s); });
+      var rm = await RC.all('meta'); rm.forEach(function (x) { if (x.k === 'stats' && x.v) rcMeta = Object.assign(rcMeta, x.v); });
+      rcMeta.log = rcMeta.log || {};
+      cleanRecall();
+    } catch (e) {}
     applySettings();
     render();
     if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       navigator.serviceWorker.register('sw.js').catch(function () {});
     }
   }
-  window.__axon = { notes: notes, folders: folders, byTitle: byTitle, backlinks: backlinks, renameNote: renameNote, exportFiles: function () { return notes; }, Zip: Zip, importFiles: importFiles };
+  window.__axon = { notes: notes, folders: folders, trash: trash, rc: rc, recallStats: recallStats, byTitle: byTitle, backlinks: backlinks, renameNote: renameNote, exportFiles: function () { return notes; }, Zip: Zip, importFiles: importFiles };
   boot();
 })();

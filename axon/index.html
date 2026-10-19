@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Axon · Northpeak Studios</title>
-<meta name="description" content="Axon by Northpeak Studios: a local-first markdown notes app with wikilinks, backlinks and a graph of your ideas. Works offline.">
+<meta name="description" content="Axon by Northpeak Studios: a local-first markdown notes app with wikilinks, backlinks, a graph of your ideas and Recall review cards. Works offline.">
 <meta name="theme-color" content="#0b0b0c">
 <meta name="color-scheme" content="dark">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -19,26 +19,26 @@
 <meta property="og:title" content="Axon · Northpeak Studios">
 <meta property="og:description" content="Local-first notes with wikilinks, backlinks and a graph view. Works offline.">
 <meta property="og:image" content="https://northpeakstudios.github.io/axon/icons/icon-512.png">
-<link rel="stylesheet" href="app.css?v=5">
+<link rel="stylesheet" href="app.css?v=6">
 </head>
 <body>
 <div id="app">
   <main id="view" aria-live="polite"></main>
   <nav id="tabbar" aria-label="Main">
     <button data-tab="notes" class="tb"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg><span>Notes</span></button>
-    <button data-tab="graph" class="tb"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="6" r="2.4"/><circle cx="12" cy="18" r="2.4"/><path d="M8.2 7.2l2.7 8.6M15.8 7.2l-2.7 8.6M8.4 6h7.2"/></svg><span>Graph</span></button>
+    <button data-tab="discover" class="tb"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg><span>Discover</span></button>
     <button id="fab" aria-label="New note"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
-    <button data-tab="search" class="tb"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><span>Search</span></button>
+    <button data-tab="graph" class="tb"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="6" r="2.4"/><circle cx="12" cy="18" r="2.4"/><path d="M8.2 7.2l2.7 8.6M15.8 7.2l-2.7 8.6M8.4 6h7.2"/></svg><span>Graph</span></button>
     <button data-tab="settings" class="tb"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg><span>Settings</span></button>
   </nav>
 </div>
 <div id="layer"></div>
 <div id="toast" role="status"></div>
 <noscript><p style="color:#eee;padding:40px;font-family:serif">Axon needs JavaScript to run.</p></noscript>
-<script src="md.js?v=5"></script>
-<script src="zip.js?v=5"></script>
-<script src="db.js?v=5"></script>
-<script src="graph.js?v=7"></script>
-<script src="app.js?v=5"></script>
+<script src="md.js?v=6"></script>
+<script src="zip.js?v=6"></script>
+<script src="db.js?v=6"></script>
+<script src="graph.js?v=8"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
