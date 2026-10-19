@@ -1,7 +1,7 @@
 /* Axon · Northpeak Studios · v1.0 */
 (function () {
   'use strict';
-  var VERSION = '1.0';
+  var VERSION = '1.1';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -165,7 +165,7 @@
     return { changed: changed };
   }
   function deleteNote(n) { notes.delete(n.id); rebuildIdx(); DB.del('notes', n.id); if (ui.lastNote === n.id) { ui.lastNote = null; saveMeta(); } }
-  function moveNote(n, folder) { ensureFolder(folder); n.folder = folder; n.updated = Date.now(); putNote(n); }
+  function moveNote(n, folder) { ensureFolder(folder); n.folder = folder; n.updated = Date.now(); n.seed = false; putNote(n); }
   function renameFolder(p, name) {
     var np = (parentOf(p) ? parentOf(p) + '/' : '') + name;
     var oldF = Array.from(folders).filter(function (f) { return f === p || f.indexOf(p + '/') === 0; });
@@ -190,27 +190,21 @@
     saveMeta();
     return hit.length;
   }
-  function seedVault() {
-    var S = window.AXON_SEED, now = Date.now();
-    var order = ['Dopamine pathways', 'Action potentials', 'Basal ganglia', 'Study plan', 'Welcome to Axon'];
-    S.folders.forEach(ensureFolder);
-    S.notes.forEach(function (s, i) {
-      var r = order.indexOf(s.title);
-      var t = r >= 0 ? now - [2, 60, 180, 600, 1440][r] * 60000 : now - (2 + i) * 86400000 - i * 3600000;
-      createNote({ title: s.title, folder: s.folder, body: s.body, created: t, updated: t, seed: true });
+  /* Earlier versions shipped example notes. On update, remove the ones never edited,
+     plus any of their folders left empty. Anything written or edited stays. */
+  var OLD_STARTER = { notes: {"Welcome to Axon": "", "Dopamine pathways": "Neuropharm/Dopamine", "Mesolimbic pathway": "Neuropharm/Dopamine", "Mesocortical pathway": "Neuropharm/Dopamine", "Nigrostriatal pathway": "Neuropharm/Dopamine", "Basal ganglia": "Neuroanatomy", "Substantia nigra": "Neuroanatomy", "Prefrontal cortex": "Neuroanatomy", "Parkinson's disease": "Clinical cases", "Action potentials": "Neurophysiology", "Ion channels": "Neuropharm/Receptors & channels", "Myelin": "Neurophysiology", "Synapses": "Neurophysiology", "Neurotransmitters": "Neuropharm", "Receptors": "Neuropharm/Receptors & channels", "Study plan": "Daily notes"}, folders: ["Neuroanatomy", "Neurophysiology", "Neuropharm", "Neuropharm/Dopamine", "Neuropharm/Receptors & channels", "Clinical cases", "Daily notes"] };
+  function removeOldStarter() {
+    var hit = Array.from(notes.values()).filter(function (n) {
+      return n.seed && Object.prototype.hasOwnProperty.call(OLD_STARTER.notes, n.title) && OLD_STARTER.notes[n.title] === n.folder;
     });
-  }
-  function clearSeed() {
-    var hit = Array.from(notes.values()).filter(function (n) { return n.seed; });
     hit.forEach(function (n) { notes.delete(n.id); });
-    DB.delMany('notes', hit.map(function (n) { return n.id; }));
+    if (hit.length) DB.delMany('notes', hit.map(function (n) { return n.id; }));
     rebuildIdx();
-    var seedF = window.AXON_SEED.folders.slice().sort(function (a, b) { return b.length - a.length; });
     var gone = [];
-    seedF.forEach(function (f) {
+    OLD_STARTER.folders.slice().sort(function (a, b) { return b.length - a.length; }).forEach(function (f) {
       if (folders.has(f) && countIn(f) === 0 && childFolders(f).length === 0) { folders.delete(f); delete ui.open[f]; gone.push(f); }
     });
-    DB.delMany('folders', gone);
+    if (gone.length) DB.delMany('folders', gone);
     if (ui.lastNote && !notes.has(ui.lastNote)) ui.lastNote = null;
     saveMeta();
     return hit.length;
@@ -333,20 +327,32 @@
     return '<button class="nl" data-act="open" data-id="' + n.id + '"><div class="t"><b>' + esc(n.title) + '</b><time>' + ago(n.updated) + '</time></div>' +
       '<div class="s">' + snippetHTML(n.body) + '</div>' + (showFolder && n.folder ? '<div class="f">' + esc(crumbOf(n.folder)) + '</div>' : '') + '</button>';
   }
+  var EMPTY_ART = '<svg class="eart" viewBox="0 0 120 80" aria-hidden="true"><path d="M22 54L52 24M52 24L94 34M52 24L66 62M22 54L66 62" /><circle cx="22" cy="54" r="5"/><circle cx="94" cy="34" r="5"/><circle cx="66" cy="62" r="5"/><circle class="acc" cx="52" cy="24" r="7"/></svg>';
+  function emptyHero(sub) {
+    return '<div class="ehero">' + EMPTY_ART + '<b>No notes yet</b><p>' + sub + '</p>' +
+      '<button class="bignew" data-act="newempty">' + I.plus + '<span>New note</span></button>' +
+      '<div class="esub"><button class="pill" data-act="newfolder" data-path="">New folder</button><button class="pill" data-act="import">Import .md files</button></div></div>';
+  }
   function renderVault() {
     var rootNotes = notesIn('');
+    if (!notes.size) {
+      var e = '<div class="page"><div class="eyebrow">Vault</div><h1 class="h1">Notes</h1>';
+      if (folders.size) e += '<div class="sec"><span>Folders</span></div><div class="rows">' + folderRows('', 0) + '</div>';
+      e += emptyHero('Write your first note. Link ideas with <span class="kbd">[[</span> and watch your graph grow. Everything stays on this device and works offline.');
+      e += '<input type="file" id="file" accept=".md,.markdown,.txt,.zip,text/markdown,text/plain,application/zip" multiple hidden></div>';
+      viewEl.innerHTML = e;
+      $('#file').addEventListener('change', function (ev) { importFiles(Array.from(ev.target.files || [])); ev.target.value = ''; });
+      return;
+    }
     var h = '<div class="page"><div class="eyebrow">Vault · ' + notes.size + ' note' + (notes.size === 1 ? '' : 's') + '</div><h1 class="h1">Notes</h1>' +
-      '<button class="searchbox" data-act="gosearch" style="width:100%;text-align:left">' + I.search + '<span style="flex:1;font-size:17px">Search ' + notes.size + ' notes</span></button>' +
+      '<button class="searchbox" data-act="gosearch" style="width:100%;text-align:left">' + I.search + '<span style="flex:1;font-size:17px">Search ' + notes.size + ' note' + (notes.size === 1 ? '' : 's') + '</span></button>' +
       '<div class="sec"><span>Folders</span><span><button class="ib ico" aria-label="New folder" data-act="newfolder" data-path="" style="width:44px;height:36px;margin-right:-10px">' + I.newfolder + '</button></span></div><div class="rows">' + folderRows('', 0);
     rootNotes.forEach(function (n) {
       h += '<button class="row" data-act="open" data-id="' + n.id + '">' + I.doc + '<span class="nm">' + esc(n.title) + '</span><span class="chev">' + I.chev + '</span></button>';
     });
-    if (!folders.size && !rootNotes.length) h += '<div class="empty"><b>An empty vault</b>Tap + to write your first note.</div>';
     h += '</div>';
-    if (notes.size) {
-      h += '<div class="sec"><span>Recent</span><button data-act="all">See all</button></div>';
-      recent(6).forEach(function (n) { h += noteItem(n, false); });
-    }
+    h += '<div class="sec"><span>Recent</span><button data-act="all">See all</button></div>';
+    recent(6).forEach(function (n) { h += noteItem(n, false); });
     viewEl.innerHTML = h + '</div>';
   }
 
@@ -616,8 +622,8 @@
       '<div class="chips"><button class="chip' + (ui.graphMode === 'global' ? ' on' : '') + '" data-act="gmode" data-m="global">Global</button>' +
       '<button class="chip' + (ui.graphMode === 'local' ? ' on' : '') + '" data-act="gmode" data-m="local">Local · depth 2</button>' +
       '<button class="chip' + (ui.graphTags ? ' on' : '') + '" data-act="gtags">Tags</button></div></div>' +
-      '<div class="gtools"><button class="ib" aria-label="Fit" data-act="gfit">' + I.fit + '</button><button class="ib" aria-label="Zoom in" data-act="gzin">' + I.zin + '</button><button class="ib" aria-label="Zoom out" data-act="gzout">' + I.zout + '</button></div>' +
-      '<div class="ghint" id="ghint">' + (data.nodes.length ? 'Tap a node · tap again to open · pinch to zoom' : 'No notes yet. Tap + to write one.') + '</div>' +
+      (data.nodes.length ? '<div class="gtools"><button class="ib" aria-label="Fit" data-act="gfit">' + I.fit + '</button><button class="ib" aria-label="Zoom in" data-act="gzin">' + I.zin + '</button><button class="ib" aria-label="Zoom out" data-act="gzout">' + I.zout + '</button></div>' : '') +
+      (data.nodes.length ? '<div class="ghint" id="ghint">Tap a node · tap again to open · pinch to zoom</div>' : '<div class="gempty">' + EMPTY_ART + '<b>Nothing to map yet</b><p>Each note becomes a dot, and every <span class="kbd">[[link]]</span> draws a line between them.</p><button class="bignew" data-act="newempty">' + I.plus + '<span>New note</span></button></div>') +
       '<div class="gsheet" id="gsheet"></div></div>';
     viewEl.innerHTML = h;
     var canvas = $('#gc');
@@ -661,6 +667,11 @@
     var box = $('#sres'), clr = $('.searchbox .clear'); if (!box) return;
     if (clr) clr.style.display = q ? '' : 'none';
     q = q.trim();
+    if (!notes.size) {
+      box.innerHTML = '<div class="empty"><b>No notes to search yet</b>' + (q ? 'Nothing matches \u201c' + esc(q.slice(0, 40)) + '\u201d.' : 'Once you write notes, find them here by title, text or #tag.') +
+        '<div style="margin-top:16px">' + (q && !/^#/.test(q) ? '<button class="pill acc" data-act="screate" data-q="' + esc(q) + '">Create \u201c' + esc(q.slice(0, 40)) + '\u201d</button>' : '<button class="pill acc" data-act="newempty">New note</button>') + '</div></div>';
+      return;
+    }
     if (!q) {
       var tc = {}; notes.forEach(function (n) { MD.tags(n.body).forEach(function (t) { tc[t] = (tc[t] || 0) + 1; }); });
       var tags = Object.keys(tc).sort(function (a, b) { return tc[b] - tc[a] || a.localeCompare(b); });
@@ -705,7 +716,6 @@
   /* ---------- settings ---------- */
   function isStandalone() { return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; }
   function renderSettings() {
-    var seeds = 0; notes.forEach(function (n) { if (n.seed) seeds++; });
     var h = '<div class="page"><div class="eyebrow">Axon</div><h1 class="h1">Settings</h1>' +
       '<div class="sec"><span>Reading</span></div><div class="group">' +
       '<div class="item"><span>Text size</span><div class="seg">' + SIZES.map(function (s) { return '<button class="' + (settings.fs === s[1] ? 'on' : '') + '" data-act="fs" data-v="' + s[1] + '" style="font-size:' + (s[1] - 3) + 'px">' + s[0] + '</button>'; }).join('') + '</div></div>' +
@@ -716,9 +726,7 @@
       '<button class="item" data-act="export"><span>Export vault<small>All ' + notes.size + ' notes as .md files in a .zip</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<button class="item" data-act="import"><span>Import notes<small>Pick .md files or a .zip of them</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<button class="item" data-act="newfolder" data-path=""><span>New folder</span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
-      (seeds ? '<button class="item" data-act="clearseed"><span>Clear starter notes<small>Removes the ' + seeds + ' example notes. Ones you edited stay.</small></span></button>'
-        : '<button class="item" data-act="addseed"><span>Add starter notes<small>Bring back the example neuro notes</small></span></button>') +
-      '<button class="item danger" data-act="wipe"><span>Delete all notes</span></button></div>' +
+            '<button class="item danger" data-act="wipe"><span>Delete all notes</span></button></div>' +
       '<div class="sec"><span>About</span></div><div class="group">' +
       '<div class="item"><span>Storage<small>Notes live only on this device and work offline. Export now and then to keep a backup.</small></span></div>' +
       (isStandalone() ? '' : '<div class="item"><span>Install on iPhone<small>In Safari tap Share, then Add to Home Screen.</small></span></div>') +
@@ -861,6 +869,7 @@
     back: function (el) { back(el.dataset.to); },
     newfolder: function (el) { newFolder(el.dataset.path || ''); },
     newhere: function (el) { newNote(el.dataset.path); },
+    newempty: function () { newNote(''); },
     foldermore: function (el) { folderMenu(el.dataset.path); },
     notemore: function (el) { var n = notes.get(el.dataset.id); if (n) noteMenu(n); },
     edit: function () { var r = route(); var n = notes.get(r.id); if (n) startEditing(n, false); },
@@ -883,17 +892,6 @@
     accent: function (el) { settings.accent = el.dataset.v; saveSettings(); renderSettings(); },
     export: exportVault,
     import: function () { $('#file').click(); },
-    clearseed: async function () {
-      var ok = await dialog({ title: 'Clear starter notes?', message: 'This removes the example notes and their empty folders. Notes you wrote or edited stay.', ok: 'Clear', danger: true });
-      if (!ok) return; var c = clearSeed(); toast('Cleared ' + c + ' starter note' + (c === 1 ? '' : 's')); renderSettings();
-    },
-    addseed: function () {
-      var added = 0;
-      window.AXON_SEED.folders.forEach(ensureFolder);
-      var now = Date.now();
-      window.AXON_SEED.notes.forEach(function (s, i) { if (!byTitle(s.title)) { createNote({ title: s.title, folder: s.folder, body: s.body, seed: true, created: now - i * 60000, updated: now - i * 60000 }); added++; } });
-      toast(added ? 'Added ' + added + ' starter notes' : 'Starter notes are already here'); renderSettings();
-    },
     wipe: async function () {
       var ok = await dialog({ title: 'Delete all ' + notes.size + ' notes?', message: 'Every note and folder on this device will be erased. Export first if you want a copy.', ok: 'Delete all', danger: true });
       if (!ok) return;
@@ -950,7 +948,8 @@
       if (m.settings) settings = Object.assign(settings, m.settings);
       if (m.ui) ui = Object.assign(ui, m.ui);
       rebuildIdx();
-      if (!m.seeded) { seedVault(); DB.put('meta', { k: 'seeded', v: Date.now() }); }
+      if (m.seeded && !m.starterRemoved) { removeOldStarter(); }
+      if (!m.starterRemoved) DB.put('meta', { k: 'starterRemoved', v: Date.now() });
     } catch (err) {
       viewEl.innerHTML = '<div class="empty"><b>Storage is blocked</b>Axon keeps notes in this browser\u2019s storage. Private browsing can block it. (' + esc(err && err.message || err) + ')</div>';
       return;
