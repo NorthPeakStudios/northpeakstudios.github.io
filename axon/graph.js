@@ -39,7 +39,8 @@
       });
       var fresh = nodes.some(function (n) { return n.isNew; });
       alpha = fresh ? 1 : 0.3;
-      for (var i = 0; i < (fresh ? 700 : 30); i++) tick();
+      var budget = fresh ? (nodes.length <= 250 ? 900 : nodes.length <= 600 ? 300 : 120) : 30;
+      for (var i = 0; i < budget && alpha > 0.004; i++) tick();
       settledFit = false;
       resize();
       fit(false);
