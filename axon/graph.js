@@ -10,7 +10,7 @@
     var view = { x: 0, y: 0, k: 1 };
     var nodes = [], links = [], byId = {}, adj = {};
     var selected = opt.selected || null, current = opt.current || null;
-    var alpha = 1, raf = 0, dead = false;
+    var alpha = 1, raf = 0, dead = false, userMoved = false, settledFit = false;
     var accent = opt.accent || '#ff6a3d';
 
     function setData(data) {
@@ -39,7 +39,8 @@
       });
       var fresh = nodes.some(function (n) { return n.isNew; });
       alpha = fresh ? 1 : 0.3;
-      for (var i = 0; i < (fresh ? 400 : 30); i++) tick();
+      for (var i = 0; i < (fresh ? 700 : 30); i++) tick();
+      settledFit = false;
       resize();
       fit(false);
       kick();
@@ -47,7 +48,7 @@
 
     function tick() {
       var n = nodes.length, i, j, a, b, dx, dy, d2, d, f;
-      var rep = 6500, L = 105, ks = 0.035, g = 0.0075;
+      var rep = 9000, L = 120, ks = 0.03, g = 0.006;
       for (i = 0; i < n; i++) {
         a = nodes[i];
         for (j = i + 1; j < n; j++) {
@@ -55,7 +56,7 @@
           dx = a.x - b.x; dy = a.y - b.y; d2 = dx * dx + dy * dy;
           if (d2 < 1) { dx = (Math.random() - .5); dy = (Math.random() - .5); d2 = 1; }
           if (d2 > 250000) continue;
-          d = Math.sqrt(d2); f = (rep / d2 + (d < 80 ? (80 - d) * 0.6 : 0)) * alpha;
+          d = Math.sqrt(d2); f = (rep / d2 + (d < 120 ? (120 - d) * 0.35 : 0)) * alpha;
           a.vx += dx / d * f; a.vy += dy / d * f; b.vx -= dx / d * f; b.vy -= dy / d * f;
         }
       }
@@ -75,7 +76,7 @@
         a.x += a.vx; a.y += a.vy;
         memory[a.id] = { x: a.x, y: a.y };
       }
-      alpha *= 0.985;
+      alpha *= 0.993;
     }
 
     function resize() {
@@ -90,7 +91,7 @@
       var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
       nodes.forEach(function (n) { x0 = Math.min(x0, n.x); y0 = Math.min(y0, n.y); x1 = Math.max(x1, n.x); y1 = Math.max(y1, n.y); });
       var top = opt.topInset || 0, bot = opt.bottomInset || 0;
-      var padX = 72, padY = 30, bw = Math.max(1, x1 - x0), bh = Math.max(1, y1 - y0);
+      var padX = 60, padY = 30, bw = Math.max(1, x1 - x0), bh = Math.max(1, y1 - y0);
       var k = Math.min((W - padX * 2) / bw, (H - top - bot - padY * 2 - 16) / bh, 2.2);
       k = Math.max(0.25, k);
       view = { k: k, x: W / 2 - (x0 + bw / 2) * k, y: top + (H - top - bot) / 2 - (y0 + bh / 2) * k - 8 };
@@ -159,6 +160,7 @@
       if (alpha > 0.004 || drag) { tick(); }
       draw();
       if (alpha > 0.004 || drag) raf = requestAnimationFrame(loop);
+      else if (!userMoved && !settledFit) { settledFit = true; fit(false); }
     }
     function kick(a) { if (a) alpha = Math.max(alpha, a); if (!raf) raf = requestAnimationFrame(loop); }
 
@@ -190,20 +192,20 @@
         var d = Math.hypot(a.x - b.x, a.y - b.y), cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
         var k = Math.max(0.2, Math.min(5, pinch.k * d / pinch.d));
         var wx = (pinch.cx - pinch.vx) / pinch.k, wy = (pinch.cy - pinch.vy) / pinch.k;
-        view.k = k; view.x = cx - wx * k; view.y = cy - wy * k;
+        view.k = k; view.x = cx - wx * k; view.y = cy - wy * k; userMoved = true;
         draw(); return;
       }
       if (drag) {
         var dd = Math.hypot(p.x - drag.sx, p.y - drag.sy); moved = Math.max(moved, dd);
         if (moved > 6) {
-          drag.n.fixed = true;
+          drag.n.fixed = true; userMoved = true;
           drag.n.x = (p.x - view.x) / view.k; drag.n.y = (p.y - view.y) / view.k;
           memory[drag.n.id] = { x: drag.n.x, y: drag.n.y };
           kick(0.25);
         }
       } else if (pan) {
         moved = Math.max(moved, Math.hypot(p.x - pan.sx, p.y - pan.sy));
-        view.x = pan.vx + p.x - pan.sx; view.y = pan.vy + p.y - pan.sy;
+        view.x = pan.vx + p.x - pan.sx; view.y = pan.vy + p.y - pan.sy; if (moved > 6) userMoved = true;
         draw();
       }
     });
@@ -233,7 +235,7 @@
       var p = local(e), f = Math.exp(-e.deltaY * 0.0015);
       var k = Math.max(0.2, Math.min(5, view.k * f));
       var wx = (p.x - view.x) / view.k, wy = (p.y - view.y) / view.k;
-      view.k = k; view.x = p.x - wx * k; view.y = p.y - wy * k; draw();
+      view.k = k; view.x = p.x - wx * k; view.y = p.y - wy * k; userMoved = true; draw();
     }, { passive: false });
     function onResize() { resize(); draw(); }
     window.addEventListener('resize', onResize);
@@ -244,7 +246,7 @@
       fit: function () { fit(true); },
       setInsets: function (t, b) { opt.topInset = t; opt.bottomInset = b; fit(false); },
       select: function (id) { selected = id; draw(); },
-      zoom: function (f) { var k = Math.max(0.2, Math.min(5, view.k * f)); var cx = W / 2, cy = H / 2; var wx = (cx - view.x) / view.k, wy = (cy - view.y) / view.k; view.k = k; view.x = cx - wx * k; view.y = cy - wy * k; draw(); },
+      zoom: function (f) { userMoved = true; var k = Math.max(0.2, Math.min(5, view.k * f)); var cx = W / 2, cy = H / 2; var wx = (cx - view.x) / view.k, wy = (cy - view.y) / view.k; view.k = k; view.x = cx - wx * k; view.y = cy - wy * k; draw(); },
       setAccent: function (a) { accent = a; draw(); },
       destroy: function () { dead = true; if (raf) cancelAnimationFrame(raf); window.removeEventListener('resize', onResize); }
     };
