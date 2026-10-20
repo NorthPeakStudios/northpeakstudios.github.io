@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.6.12 */
+/* Axon · Northpeak Studios · v1.6.13 */
 (function () {
   'use strict';
-  var VERSION = '1.6.12';
+  var VERSION = '1.6.13';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -2818,7 +2818,7 @@
         if (it.t === 'n') h += '<button data-i="' + i + '">' + (it.n.pinned ? I.pin : I.doc) + '<span class="qt">' + esc(it.n.title) + '</span><small>' + esc(it.n.folder ? it.n.folder.toLowerCase() : '') + '</small></button>';
         else if (it.t === 'create') h += '<button data-i="' + i + '">' + I.plus + '<span class="qt">New note \u201c' + esc(it.q) + '\u201d</span></button>';
         else if (it.t === 'search') h += '<button data-i="' + i + '">' + I.search + '<span class="qt">Search text for \u201c' + esc(it.q) + '\u201d</span></button>';
-        else if (it.t === 'tmpl') h += '<button data-i="' + i + '">' + I.tmpl + '<span class="qt">New \u201c' + esc(it.tp.name) + '\u201d note</span><small>template</small></button>';
+        else if (it.t === 'tmpl') h += '<button data-i="' + i + '">' + I.tmpl + '<span class="qt">New \u201c' + esc(it.tp.name) + '\u201d note</span><small>' + (isPro() ? 'template' : 'Pro') + '</small></button>';
         else h += '<button data-i="' + i + '">' + I.cmd + '<span class="qt">' + esc(it.c[0]) + '</span></button>';
       });
       list.innerHTML = h || '<div class="qsh">Nothing matches</div>';
