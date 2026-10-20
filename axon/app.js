@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.6.5 */
+/* Axon · Northpeak Studios · v1.6.6 */
 (function () {
   'use strict';
-  var VERSION = '1.6.5';
+  var VERSION = '1.6.6';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -966,10 +966,10 @@
     ttl.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); commitTitle(); ed.focus(); } });
     ttl.addEventListener('blur', commitTitle);
     ed.addEventListener('input', function () {
-      autoGrow(ed); n.body = ed.value; scheduleSave(); recordHist(ed); updateAC(); updateSlash(); updateTableBar();
+      autoGrow(ed); n.body = ed.value; scheduleSave(); recordHist(ed); updateAC(); updateSlash(); updateTableBar(); caretAboveBar();
       var tc = $('#tchips'); if (tc && ed.value) tc.remove();
     });
-    ed.addEventListener('click', function () { updateAC(); updateSlash(); updateTableBar(); });
+    ed.addEventListener('click', function () { updateAC(); updateSlash(); updateTableBar(); caretAboveBar(); });
     ed.addEventListener('keyup', function (e) { if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].indexOf(e.key) >= 0 && !((ac || slashEl) && /Arrow(Up|Down)/.test(e.key))) { updateAC(); updateSlash(); updateTableBar(); } });
     ed.addEventListener('keydown', acKeys);
     if ('onbeforeinput' in ed) ed.addEventListener('beforeinput', function (e) { if ((e.inputType === 'insertLineBreak' || e.inputType === 'insertParagraph') && !e.isComposing && continueList(ed)) e.preventDefault(); });
@@ -986,6 +986,31 @@
       var tops = lineTops(ed), vr = viewEl.getBoundingClientRect(), edTop = ed.getBoundingClientRect().top - vr.top + viewEl.scrollTop;
       viewEl.scrollTop = Math.max(0, edTop + (tops[L] || 0) - (at.offset !== undefined ? at.offset : vr.height * 0.3));
     }
+  }
+  /* keep the line you're typing on above the bottom toolbar (it sits over the end of the editor) */
+  var kcRaf = 0, kcPad = 0;
+  function caretAboveBar() {
+    if (kcRaf) return;
+    kcRaf = requestAnimationFrame(function () {
+      kcRaf = 0;
+      var ed = $('#ed'); if (!ed || !kb || document.activeElement !== ed) return;
+      var lim = kb.getBoundingClientRect().top, er = ed.getBoundingClientRect();
+      [ac, slashEl, tbar].forEach(function (p) { if (p && p.getBoundingClientRect) { var t = p.getBoundingClientRect().top; if (t > 60 && t < lim) lim = t; } });
+      lim -= 12;
+      if (lim <= 40 || er.bottom <= lim) return;
+      var cs = getComputedStyle(ed), m = document.createElement('div'), sp = document.createElement('span');
+      ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'paddingTop', 'paddingLeft', 'paddingRight', 'tabSize', 'wordSpacing'].forEach(function (k) { m.style[k] = cs[k]; });
+      m.style.cssText += ';position:fixed;left:-9999px;top:0;visibility:hidden;white-space:pre-wrap;overflow-wrap:break-word;word-wrap:break-word;box-sizing:border-box;width:' + ed.clientWidth + 'px';
+      m.textContent = ed.value.slice(0, ed.selectionEnd); sp.textContent = '\u200b'; m.appendChild(sp);
+      document.body.appendChild(m);
+      var y = er.top + sp.offsetTop + sp.offsetHeight;
+      m.remove();
+      if (y <= lim) return;
+      var need = Math.ceil(y - lim), room = viewEl.scrollHeight - viewEl.clientHeight - viewEl.scrollTop;
+      /* at the end of a note there's nothing below to scroll into: add room under the editor while editing */
+      if (need > room) { kcPad += need - room + 24; viewEl.style.paddingBottom = 'calc(var(--bpad) + ' + (70 + kcPad) + 'px)'; }
+      viewEl.scrollTop += need;
+    });
   }
   function autoGrow(ed) { ed.style.height = 'auto'; ed.style.height = Math.max(ed.scrollHeight, window.innerHeight * 0.55) + 'px'; }
   /* y position of each source line inside the textarea, via a hidden mirror */
@@ -1039,6 +1064,7 @@
   }
   function stopEditing(silent) {
     if (!editing) return;
+    if (kcPad) { kcPad = 0; viewEl.style.paddingBottom = ''; }
     var pos = silent ? null : editorTopLine();
     commitTitle();
     var n = editing.n, ed = $('#ed');
@@ -1192,7 +1218,7 @@
   /* merge `other` into `into`. Nothing is written until Save; Save keeps the old text of `into` in History first */
   async function openMerge(into, other) {
     if (!into || !other || into === other) return;
-    if (editing) stopEditing(true);
+    if (editing) { stopEditing(true); if (route().v === 'note' && notes.has(route().id)) renderNote(route().id); }
     var A = into.body, B = other.body;
     if (A === B) {
       var y = await dialog({ title: 'These match', message: '\u201c' + other.title + '\u201d has the same text as \u201c' + into.title + '\u201d, so there\u2019s nothing to merge.', ok: 'Delete copy\u2026', cancel: 'OK' });
@@ -1391,7 +1417,7 @@
     if (ac || tbar) placeAC();
     if (slashEl) placeSlash();
   }
-  if (window.visualViewport) { visualViewport.addEventListener('resize', placeKB); visualViewport.addEventListener('scroll', placeKB); }
+  if (window.visualViewport) { visualViewport.addEventListener('resize', function () { placeKB(); caretAboveBar(); }); visualViewport.addEventListener('scroll', placeKB); }
 
   function insertText(ed, text, selStart, selEnd) {
     hist.force = true;
@@ -2320,7 +2346,7 @@
     var out = [];
     notes.forEach(function (n) {
       /* a restored or conflict copy would repeat its cards as new ones; they come back if it's renamed or the original goes */
-      if (inTemplates(n) || (onlyNote && n.id !== onlyNote) || (!onlyNote && copyOrigin(n))) return;
+      if (inTemplates(n) || (onlyNote && n.id !== onlyNote) || (!onlyNote && / \((?:conflict|restored [A-Z][a-z]{2} \d{1,2})\)(?: \d+)?$/.test(n.title) && copyOrigin(n))) return;
       MD.recall(n.body).forEach(function (c) { c.id = n.id + '|' + c.key; c.note = n; c.s = rc.get(c.id) || null; out.push(c); });
     });
     return out;
