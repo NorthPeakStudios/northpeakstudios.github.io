@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.6.8 */
+/* Axon · Northpeak Studios · v1.6.9 */
 (function () {
   'use strict';
-  var VERSION = '1.6.8';
+  var VERSION = '1.6.9';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -708,7 +708,9 @@
   function emptyHero(sub) {
     return '<div class="ehero">' + EMPTY_ART + '<b>No notes yet</b><p>' + sub + '</p>' +
       '<button class="bignew" data-act="newempty">' + I.plus + '<span>New note</span></button>' +
-      '<div class="esub"><button class="pill" data-act="fromtmpl">From a template</button><button class="pill" data-act="today">Today\u2019s note</button><button class="pill" data-act="newfolder" data-path="">New folder</button><button class="pill" data-act="import">Import .md files</button></div></div>';
+      '<div class="esub"><button class="pill" data-act="fromtmpl">From a template</button><button class="pill" data-act="today">Today\u2019s note</button><button class="pill" data-act="newfolder" data-path="">New folder</button><button class="pill" data-act="import">Import .md files</button></div>' +
+      /* a second phone or iPad starts empty: the way to its notes is one tap, not buried in Settings */
+      (window.AXS && !syOn() ? '<button class="esync" data-act="sylogin">Already use Axon on another device?<b>Log in to Cloud sync</b></button>' : '') + '</div>';
   }
   function todayRow() {
     var t = ymd(new Date()), has = !!byTitle(t);
@@ -719,7 +721,7 @@
     if (!notes.size) {
       var e = '<div class="page"><div class="eyebrow">Vault</div><h1 class="h1">Notes</h1>';
       if (folders.size) e += '<div class="sec"><span>Folders</span></div><div class="rows">' + folderRows('', 0) + '</div>';
-      e += emptyHero('Write your first note. Type <span class="kbd">/</span> for blocks and <span class="kbd">[[</span> to link ideas. Everything stays on this device.');
+      e += emptyHero('Write your first note. Type <span class="kbd">/</span> for blocks and <span class="kbd">[[</span> to link ideas. ' + (syOn() ? 'It syncs to your other devices.' : 'Everything stays on this device.'));
       if (trash.size) e += '<div class="rows" style="margin-top:20px">' + trashRow() + '</div>';
       e += '<input type="file" id="file" accept=".md,.markdown,.txt,.zip,.jpg,.jpeg,.png,.webp,.gif,text/markdown,text/plain,application/zip" multiple hidden></div>';
       viewEl.innerHTML = e;
@@ -1886,7 +1888,7 @@
     q = q.trim();
     if (!notes.size) {
       box.innerHTML = '<div class="empty"><b>No notes to search yet</b>' + (q ? 'Nothing matches \u201c' + esc(q.slice(0, 40)) + '\u201d.' : 'Once you write notes, find them here by title, text or #tag.') +
-        '<div style="margin-top:16px">' + (q && !/^#/.test(q) ? '<button class="pill acc" data-act="screate" data-q="' + esc(q) + '">Create \u201c' + esc(q.slice(0, 40)) + '\u201d</button>' : '<button class="pill acc" data-act="newempty">New note</button>') + '</div></div>';
+        '<div style="margin-top:16px">' + (q && !/^#/.test(q) && createName(q) ? '<button class="pill acc" data-act="screate" data-q="' + esc(q) + '">Create \u201c' + esc(createName(q).slice(0, 40)) + '\u201d</button>' : '<button class="pill acc" data-act="newempty">New note</button>') + '</div></div>';
       return;
     }
     if (!q) {
@@ -1923,8 +1925,10 @@
     if (/^#[\w\-\/]+$/.test(q)) { tagRow = '<div style="margin-top:14px">' + tagChips(tagCounts(), 12) + '</div>'; tagRow = tagRow.replace('data-tag="' + esc(q.slice(1).toLowerCase()) + '"', 'data-tag="' + esc(q.slice(1).toLowerCase()) + '" data-on="1"'); }
     box.innerHTML = tagRow + '<div class="sec"><span>' + res.length + ' result' + (res.length === 1 ? '' : 's') + '</span></div>' + (res.length ? res.slice(0, 100).map(function (r) {
       return '<button class="nl" data-act="open" data-id="' + r.n.id + '"><div class="t"><b>' + hl(r.n.title, /^#/.test(q) ? q : (parseQuery(q).plain || q)) + '</b><time>' + ago(r.n.updated) + '</time></div><div class="s" style="white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">' + r.snip + '</div>' + (r.n.folder ? '<div class="f">' + esc(crumbOf(r.n.folder)) + '</div>' : '') + '</button>';
-    }).join('') : '<div class="empty"><b>Nothing found</b><button class="pill acc" data-act="screate" data-q="' + esc(q) + '" style="margin-top:12px">Create \u201c' + esc(q.slice(0, 40)) + '\u201d</button></div>');
+    }).join('') : '<div class="empty"><b>Nothing found</b>' + (createName(q) ? '<button class="pill acc" data-act="screate" data-q="' + esc(q) + '" style="margin-top:12px">Create \u201c' + esc(createName(q).slice(0, 40)) + '\u201d</button>' : '') + '</div>');
   }
+  /* the note name a search would create: the characters names can't use become spaces; search operators and quotes are dropped */
+  function createName(q) { var Q = parseQuery(String(q || '')), t = Q.plain || Q.titles.join(' '); return t.replace(/[\[\]|#^\\\/:"]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120); }
   /* search syntax: words, "exact phrase", #tag or tag:x, folder:x (path:x), title:x, -word to exclude */
   function parseQuery(q) {
     var Q = { terms: [], phrases: [], tags: [], folders: [], titles: [], excl: [], plain: '' }, re = /"([^"]+)"|(\S+)/g, m, plain = [];
@@ -3521,7 +3525,7 @@
     },
     allcards: function () { exportCards(null); },
     sclear: function () { var i = $('#sq'); i.value = ''; i.dispatchEvent(new Event('input')); i.focus(); },
-    screate: function (el) { var t = el.dataset.q.replace(/[\[\]|#^\\\/:]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120); if (!t) return; var n = createNote({ title: uniqueTitle(t), folder: '', body: '' }); go('#/n/' + n.id); startEditing(n, false); },
+    screate: function (el) { var t = createName(el.dataset.q); if (!t) return; var n = createNote({ title: uniqueTitle(t), folder: '', body: '' }); go('#/n/' + n.id); startEditing(n, false); },
     fs: function (el) { settings.fs = +el.dataset.v; saveSettings(); renderSettings(); },
     accent: function (el) { settings.accent = el.dataset.v; saveSettings(); renderSettings(); },
     export: exportVault,
