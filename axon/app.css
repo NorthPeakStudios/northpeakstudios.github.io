@@ -6,7 +6,7 @@
   --sans:-apple-system,BlinkMacSystemFont,system-ui,"Inter","Segoe UI",sans-serif;
   --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
   --fs:17px;
-  --sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);
+  --sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);--vgap:0px;
   --sal:env(safe-area-inset-left,0px);--sar:env(safe-area-inset-right,0px);
   --tabh:64px;
   --padx:max(20px, calc(var(--sal) + 14px));
@@ -20,14 +20,14 @@ input,textarea{font:inherit;color:inherit}
 /* iOS zooms on focus when an editable field is under 16px: keep every field at 16px+ */
 input,textarea,select,[contenteditable]{font-size:max(16px, 1em)}
 svg{display:block}
-#app{position:fixed;inset:0;display:flex;flex-direction:column}
+#app{position:fixed;inset:0;bottom:calc(-1 * var(--vgap));display:flex;flex-direction:column}
 #view{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
   padding:calc(var(--sat) + 14px) var(--padxr) calc(var(--tabh) + var(--sab) + 28px) var(--padx)}
 #view.full{padding:0;overflow:hidden}
 body.editing #view{padding-bottom:calc(var(--sab) + 70px)}
 
 /* tab bar */
-#tabbar{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;align-items:center;justify-content:space-around;
+#tabbar{position:fixed;left:0;right:0;bottom:calc(-1 * var(--vgap));z-index:20;display:flex;align-items:center;justify-content:space-around;
   height:calc(var(--tabh) + var(--sab));padding:0 max(8px,var(--sar)) var(--sab) max(8px,var(--sal));
   background:rgba(11,11,12,.86);-webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%);
   border-top:1px solid var(--line)}
@@ -213,6 +213,7 @@ body.editing .kb{display:flex}
 .chips::-webkit-scrollbar{display:none}
 .qs.tpick small{max-width:46%;font-family:var(--sans);font-size:12px}
 #app{background:var(--bg)}
+.foot .vinfo{display:block;margin-top:6px;font-size:10.5px;color:var(--faint);font-family:var(--mono);letter-spacing:0;line-height:1.5}
 .glegend{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-size:12px;color:var(--dim)}
 .glegend span{display:inline-flex;align-items:center;gap:5px}
 .glegend i{width:8px;height:8px;border-radius:50%;display:inline-block}
@@ -254,7 +255,7 @@ body.editing .kb{display:flex}
 .foot b i{color:var(--accent);font-style:normal}
 
 /* overlay layer */
-#layer{position:fixed;inset:0;z-index:50;pointer-events:none}
+#layer{position:fixed;inset:0;bottom:calc(-1 * var(--vgap));z-index:50;pointer-events:none}
 .scrim{position:absolute;inset:0;background:rgba(0,0,0,.55);opacity:0;transition:opacity .18s;pointer-events:auto}
 .scrim.show{opacity:1}
 .sheet{position:absolute;left:max(10px,var(--sal));right:max(10px,var(--sar));bottom:calc(10px + var(--sab));background:var(--card2);border:1px solid var(--line2);border-radius:18px;
@@ -279,7 +280,7 @@ body.editing .kb{display:flex}
 .dialog .db{display:flex;gap:10px;margin-top:8px}
 .dialog .db button{flex:1;height:44px;border-radius:12px;border:1px solid var(--line2);font-size:16px}
 .dialog .db button.acc{background:var(--accent);border-color:var(--accent);color:#0b0b0c;font-weight:600}
-#toast{position:fixed;left:50%;bottom:calc(var(--tabh) + var(--sab) + 18px);transform:translate(-50%,20px);opacity:0;z-index:60;background:var(--text);color:#0b0b0c;
+#toast{position:fixed;left:50%;bottom:calc(var(--tabh) + var(--sab) + 18px - var(--vgap));transform:translate(-50%,20px);opacity:0;z-index:60;background:var(--text);color:#0b0b0c;
   padding:10px 16px;border-radius:22px;font-size:14px;font-weight:500;transition:.2s;pointer-events:none;max-width:calc(100% - 40px);text-align:center}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 #toast.act{pointer-events:auto;display:flex;align-items:center;gap:14px;text-align:left;width:max-content;max-width:calc(100% - 32px)}

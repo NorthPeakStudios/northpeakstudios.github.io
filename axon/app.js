@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.5.0 */
+/* Axon · Northpeak Studios · v1.5.1 */
 (function () {
   'use strict';
-  var VERSION = '1.5.0';
+  var VERSION = '1.5.1';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -1109,11 +1109,34 @@
     document.body.appendChild(kb);
     placeKB(); updUR();
   }
+  /* iOS home-screen mode can lay the page out shorter than the screen (the bottom of the layout viewport sits above the home indicator);
+     measure the difference and let the shell extend into it so the tab bar reaches the real bottom edge */
+  var vgap = 0;
+  function fitViewport() {
+    var g = 0;
+    try {
+      if (isStandalone() && window.screen && Math.abs(window.orientation || 0) !== 90) {
+        var vv = window.visualViewport, keyboard = vv && window.innerHeight - vv.height > 80;
+        if (!keyboard) g = Math.round(window.screen.height - window.innerHeight);
+        else g = vgap;
+      }
+    } catch (e) { g = 0; }
+    if (!(g > 16 && g < 160)) g = 0;
+    if (g !== vgap) { vgap = g; document.documentElement.style.setProperty('--vgap', g + 'px'); if (kb) placeKB(); }
+  }
+  fitViewport();
+  window.addEventListener('resize', fitViewport);
+  window.addEventListener('orientationchange', function () { setTimeout(fitViewport, 300); });
+  function viewportInfo() {
+    var vv = window.visualViewport, cs = getComputedStyle(document.documentElement);
+    return (window.screen ? screen.width + '\u00d7' + screen.height : '?') + ' screen \u00b7 ' + window.innerWidth + '\u00d7' + window.innerHeight + ' page' + (vv ? ' \u00b7 ' + Math.round(vv.width) + '\u00d7' + Math.round(vv.height) + ' visible' : '') +
+      ' \u00b7 insets ' + cs.getPropertyValue('--sat').trim() + ' / ' + cs.getPropertyValue('--sab').trim() + ' \u00b7 gap ' + vgap + 'px \u00b7 ' + (isStandalone() ? 'home screen' : 'browser') + ' \u00b7 dpr ' + (window.devicePixelRatio || 1);
+  }
   function placeKB() {
     if (!kb) return;
     var vv = window.visualViewport;
     var off = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0;
-    kb.style.bottom = off + 'px';
+    kb.style.bottom = (off > 60 ? off : -vgap) + 'px';
     kb.style.paddingBottom = off > 60 ? '6px' : '';
     if (ac) placeAC();
     if (slashEl) placeSlash();
@@ -1565,7 +1588,7 @@
       '<div class="item"><span>Storage<small>Notes live only on this device and work offline. Each note keeps up to 30 days of earlier versions (note menu \u203a History). Export now and then to keep a backup.</small></span></div>' +
       (isStandalone() ? '' : '<div class="item"><span>Install on iPhone<small>In Safari tap Share, then Add to Home Screen.</small></span></div>') +
       '</div><input type="file" id="file" accept=".md,.markdown,.txt,.zip,.jpg,.jpeg,.png,.webp,.gif,text/markdown,text/plain,application/zip" multiple hidden>' +
-      '<div class="foot"><b>Axon<i>.</i></b>by Northpeak Studios · v' + VERSION + '</div></div>';
+      '<div class="foot"><b>Axon<i>.</i></b>by Northpeak Studios · v' + VERSION + '<span class="vinfo">' + esc(viewportInfo()) + '</span></div></div>';
     viewEl.innerHTML = h;
     $('#file').addEventListener('change', function (e) { importFiles(Array.from(e.target.files || [])); e.target.value = ''; });
   }
