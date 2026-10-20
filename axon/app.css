@@ -6,30 +6,36 @@
   --sans:-apple-system,BlinkMacSystemFont,system-ui,"Inter","Segoe UI",sans-serif;
   --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
   --fs:17px;
-  --sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);--vgap:0px;
+  --sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);
+  /* --bpad: room kept under bottom UI for the home indicator. Some iOS home-screen launches lay the page out
+     one status-bar shorter than the screen; the home indicator then sits in the strip below the page, so no extra room is needed (html.vp-short) */
+  --bpad:var(--sab);
   --sal:env(safe-area-inset-left,0px);--sar:env(safe-area-inset-right,0px);
   --tabh:64px;
   --padx:max(20px, calc(var(--sal) + 14px));
   --padxr:max(20px, calc(var(--sar) + 14px));
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;height:100%;max-width:100%;overflow-x:hidden;background:var(--bg);color:var(--text);overscroll-behavior:none}
-body{font-family:var(--sans);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;overflow:hidden}
+html.vp-short{--bpad:0px}
+/* no overflow clip on the root: a clipped root also clips fixed UI at the layout-viewport edge (the half-cut + button) */
+html,body{margin:0;height:100%;max-width:100%;background:var(--bg);color:var(--text);overscroll-behavior:none}
+body{font-family:var(--sans);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
 button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
 input,textarea{font:inherit;color:inherit}
 /* iOS zooms on focus when an editable field is under 16px: keep every field at 16px+ */
 input,textarea,select,[contenteditable]{font-size:max(16px, 1em)}
 svg{display:block}
-#app{position:fixed;inset:0;bottom:calc(-1 * var(--vgap));display:flex;flex-direction:column}
-#view{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
-  padding:calc(var(--sat) + 14px) var(--padxr) calc(var(--tabh) + var(--sab) + 28px) var(--padx)}
-#view.full{padding:0;overflow:hidden}
-body.editing #view{padding-bottom:calc(var(--sab) + 70px)}
+#app{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column}
+/* the scroller starts below the status bar, so scrolled content is cut cleanly at the safe-area line instead of sliding under the status bar */
+#view{flex:1;min-height:0;margin-top:var(--sat);overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
+  padding:14px var(--padxr) calc(var(--tabh) + var(--bpad) + 28px) var(--padx)}
+#view.full{padding:0;margin-top:0;overflow:hidden}
+body.editing #view{padding-bottom:calc(var(--bpad) + 70px)}
 
 /* tab bar */
-#tabbar{position:fixed;left:0;right:0;bottom:calc(-1 * var(--vgap));z-index:20;display:flex;align-items:center;justify-content:space-around;
-  height:calc(var(--tabh) + var(--sab));padding:0 max(8px,var(--sar)) var(--sab) max(8px,var(--sal));
-  background:rgba(11,11,12,.86);-webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%);
+#tabbar{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;align-items:center;justify-content:space-around;overflow:visible;
+  height:calc(var(--tabh) + var(--bpad));padding:0 max(8px,var(--sar)) var(--bpad) max(8px,var(--sal));
+  background:rgba(11,11,12,.94);-webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%);
   border-top:1px solid var(--line)}
 body.editing #tabbar{display:none}
 .tb{flex:1;max-width:84px;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--faint);font-size:11px;padding-top:4px}
@@ -154,7 +160,7 @@ a.wl.unresolved{opacity:.6;text-decoration:underline dotted;text-underline-offse
 .bl .none{padding:4px 16px 14px;color:var(--faint);font-size:14px}
 .bl h3.umh{border-top:1px solid var(--line);margin-top:4px}
 .bl h3 button.outb{white-space:nowrap;color:var(--faint);font-weight:500;text-decoration:underline;text-decoration-color:var(--line2);text-underline-offset:3px}
-.chip svg{width:13px;height:13px;vertical-align:-2px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;margin-right:2px}
+.chip svg{display:inline-block;width:13px;height:13px;vertical-align:-2px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;margin-right:2px}
 .bl h3 button{color:var(--accent);font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;padding:6px 0 6px 12px}
 .bl .bi.um{display:flex;align-items:center;gap:8px;padding:0 10px 0 0}
 .bl .um .umt{flex:1;min-width:0;text-align:left;padding:10px 16px}
@@ -190,7 +196,7 @@ body.finding .nav.stick{z-index:7}
 .editor{display:block;width:100%;min-height:55vh;background:none;border:0;outline:0;resize:none;color:var(--text);
   font-family:var(--mono);font-size:max(16px, calc(var(--fs) * .88));line-height:1.6;padding:0;caret-color:var(--accent)}
 .kb{position:fixed;left:0;right:0;bottom:0;z-index:30;display:none;align-items:center;justify-content:space-between;gap:2px;
-  padding:6px max(10px,var(--sar)) calc(6px + var(--sab)) max(10px,var(--sal));background:rgba(17,17,19,.96);border-top:1px solid var(--line);
+  padding:6px max(10px,var(--sar)) calc(6px + var(--bpad)) max(10px,var(--sal));background:rgba(17,17,19,.96);border-top:1px solid var(--line);
   -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
 body.editing .kb{display:flex}
 .kb button{flex:1;height:42px;display:grid;place-items:center;color:var(--dim);font-family:var(--mono);font-size:16px;border-radius:8px;min-width:0}
@@ -231,7 +237,7 @@ body.editing .kb{display:flex}
 .gtools{position:absolute;right:max(14px,calc(var(--sar) + 8px));top:calc(var(--sat) + 120px);z-index:2;display:flex;flex-direction:column;gap:8px}
 .gtools .ib{background:rgba(20,20,22,.85);border:1px solid var(--line2);width:40px;height:40px}
 .gtools .ib svg{width:18px;height:18px}
-.gsheet{position:absolute;left:max(12px,calc(var(--sal) + 8px));right:max(12px,calc(var(--sar) + 8px));bottom:calc(var(--tabh) + var(--sab) + 12px);z-index:3;
+.gsheet{position:absolute;left:max(12px,calc(var(--sal) + 8px));right:max(12px,calc(var(--sar) + 8px));bottom:calc(var(--tabh) + var(--bpad) + 12px);z-index:3;
   background:rgba(20,20,22,.94);border:1px solid var(--line2);border-radius:18px;padding:16px;-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
   transform:translateY(16px);opacity:0;pointer-events:none;transition:.18s ease}
 .gsheet.show{transform:none;opacity:1;pointer-events:auto}
@@ -241,7 +247,7 @@ body.editing .kb{display:flex}
 .gsheet .gb{display:flex;gap:10px}
 .gsheet .gb button{flex:1;height:44px;border-radius:12px;border:1px solid var(--line2);font-size:16px}
 .gsheet .gb button.acc{background:var(--accent);border-color:var(--accent);color:#0b0b0c;font-weight:600}
-.ghint{position:absolute;left:0;right:0;bottom:calc(var(--tabh) + var(--sab) + 18px);text-align:center;color:var(--faint);font-size:12.5px;pointer-events:none;z-index:1}
+.ghint{position:absolute;left:0;right:0;bottom:calc(var(--tabh) + var(--bpad) + 18px);text-align:center;color:var(--faint);font-size:12.5px;pointer-events:none;z-index:1}
 
 /* settings */
 .group{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:8px}
@@ -263,10 +269,10 @@ body.editing .kb{display:flex}
 .foot b i{color:var(--accent);font-style:normal}
 
 /* overlay layer */
-#layer{position:fixed;inset:0;bottom:calc(-1 * var(--vgap));z-index:50;pointer-events:none}
+#layer{position:fixed;inset:0;z-index:50;pointer-events:none}
 .scrim{position:absolute;inset:0;background:rgba(0,0,0,.55);opacity:0;transition:opacity .18s;pointer-events:auto}
 .scrim.show{opacity:1}
-.sheet{position:absolute;left:max(10px,var(--sal));right:max(10px,var(--sar));bottom:calc(10px + var(--sab));background:var(--card2);border:1px solid var(--line2);border-radius:18px;
+.sheet{position:absolute;left:max(10px,var(--sal));right:max(10px,var(--sar));bottom:calc(10px + var(--bpad));background:var(--card2);border:1px solid var(--line2);border-radius:18px;
   padding:8px;transform:translateY(110%);transition:transform .22s cubic-bezier(.2,.8,.2,1);pointer-events:auto;max-height:80vh;overflow-y:auto}
 .sheet.show{transform:none}
 .sheet .st{padding:12px 12px 6px;color:var(--faint);font-size:13px;text-align:center;line-height:1.4}
@@ -288,7 +294,7 @@ body.editing .kb{display:flex}
 .dialog .db{display:flex;gap:10px;margin-top:8px}
 .dialog .db button{flex:1;height:44px;border-radius:12px;border:1px solid var(--line2);font-size:16px}
 .dialog .db button.acc{background:var(--accent);border-color:var(--accent);color:#0b0b0c;font-weight:600}
-#toast{position:fixed;left:50%;bottom:calc(var(--tabh) + var(--sab) + 18px - var(--vgap));transform:translate(-50%,20px);opacity:0;z-index:60;background:var(--text);color:#0b0b0c;
+#toast{position:fixed;left:50%;bottom:calc(var(--tabh) + var(--bpad) + 18px);transform:translate(-50%,20px);opacity:0;z-index:60;background:var(--text);color:#0b0b0c;
   padding:10px 16px;border-radius:22px;font-size:14px;font-weight:500;transition:.2s;pointer-events:none;max-width:calc(100% - 40px);text-align:center}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 #toast.act{pointer-events:auto;display:flex;align-items:center;gap:14px;text-align:left;width:max-content;max-width:calc(100% - 32px)}
@@ -479,7 +485,7 @@ sup.fnr a{font-family:var(--sans);font-weight:600}
 .qsl button.sel,.qsl button:active{background:rgba(255,255,255,.05)}
 
 /* link peek */
-.peek{position:fixed;inset:0;z-index:55;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;padding:0 max(10px,var(--sar)) calc(10px + var(--sab)) max(10px,var(--sal));opacity:0;transition:opacity .16s}
+.peek{position:fixed;inset:0;z-index:55;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;padding:0 max(10px,var(--sar)) calc(10px + var(--bpad)) max(10px,var(--sal));opacity:0;transition:opacity .16s}
 .peek.show{opacity:1}
 .pk{width:100%;max-height:72vh;display:flex;flex-direction:column;background:var(--card2);border:1px solid var(--line2);border-radius:18px;overflow:hidden;transform:translateY(20px);transition:transform .2s}
 .peek.show .pk{transform:none}
@@ -517,7 +523,7 @@ sup.fnr a{font-family:var(--sans);font-weight:600}
 .fcb em{position:absolute;top:0;font-style:normal;font-size:10.5px;color:var(--dim)}
 .row.deck .nm{font-size:17px}
 body.reviewing #tabbar{display:none}
-body.reviewing #view{padding-bottom:calc(var(--sab) + 16px)}
+body.reviewing #view{padding-bottom:calc(var(--bpad) + 16px)}
 .rv{display:flex;flex-direction:column;min-height:calc(100vh - var(--sat) - var(--sab) - 40px);min-height:calc(100dvh - var(--sat) - var(--sab) - 40px);max-width:640px;margin:0 auto}
 .rvtop{display:flex;align-items:center;gap:12px;margin:-6px -8px 14px}
 .rvbar{flex:1;height:5px;border-radius:3px;background:var(--line2);overflow:hidden}
@@ -544,15 +550,15 @@ body.reviewing #view{padding-bottom:calc(var(--sab) + 16px)}
 .rvdone p{color:var(--dim);font-size:15.5px;line-height:1.5;margin:10px 0 0}
 .rvdone p.dim{color:var(--faint);font-size:14px;margin-top:4px}
 .rart.ok svg{stroke-width:2}
-#toast{bottom:calc(var(--tabh) + var(--sab) + 18px)}
+#toast{bottom:calc(var(--tabh) + var(--bpad) + 18px)}
 
 /* sticky note toolbar: edit / outline / preview always in reach */
-.nav.stick{position:sticky;top:calc(-1 * (var(--sat) + 14px));z-index:6;margin:calc(-1 * (var(--sat) + 14px)) calc(-1 * var(--padxr)) 10px calc(-1 * var(--padx));
-  padding:calc(var(--sat) + 8px) calc(var(--padxr) - 8px) 0 calc(var(--padx) - 8px);height:calc(var(--sat) + 52px);
+.nav.stick{position:sticky;top:-14px;z-index:6;margin:-14px calc(-1 * var(--padxr)) 10px calc(-1 * var(--padx));
+  padding:8px calc(var(--padxr) - 8px) 0 calc(var(--padx) - 8px);height:52px;
   background:rgba(11,11,12,.96);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border-bottom:1px solid transparent}
 
 /* Discover */
-#view.dview{scroll-snap-type:y proximity;scroll-padding-top:calc(var(--sat) + 10px)}
+#view.dview{scroll-snap-type:y proximity;scroll-padding-top:10px}
 .dhead{display:flex;align-items:flex-end;gap:6px;margin-bottom:4px}
 .dhead .dht{flex:1;min-width:0}
 .dhead .h1{margin-bottom:8px}

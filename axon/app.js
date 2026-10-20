@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.5.4 */
+/* Axon · Northpeak Studios · v1.5.5 */
 (function () {
   'use strict';
-  var VERSION = '1.5.4';
+  var VERSION = '1.5.5';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -958,7 +958,7 @@
   function lineTops(ed) {
     var cs = getComputedStyle(ed), m = document.createElement('div');
     ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'paddingTop', 'paddingLeft', 'paddingRight', 'tabSize', 'wordSpacing'].forEach(function (k) { m.style[k] = cs[k]; });
-    m.style.cssText += ';position:absolute;left:-9999px;top:0;visibility:hidden;white-space:pre-wrap;overflow-wrap:break-word;word-wrap:break-word;box-sizing:border-box;width:' + ed.clientWidth + 'px';
+    m.style.cssText += ';position:fixed;left:-9999px;top:0;visibility:hidden;white-space:pre-wrap;overflow-wrap:break-word;word-wrap:break-word;box-sizing:border-box;width:' + ed.clientWidth + 'px';
     var lines = ed.value.split('\n');
     m.innerHTML = lines.map(function (l) { return '<div>' + (l ? esc(l) : '\u200b') + '</div>'; }).join('');
     document.body.appendChild(m);
@@ -1131,34 +1131,34 @@
     document.body.appendChild(kb);
     placeKB(); updUR();
   }
-  /* iOS home-screen mode can lay the page out shorter than the screen (the bottom of the layout viewport sits above the home indicator);
-     measure the difference and let the shell extend into it so the tab bar reaches the real bottom edge */
-  var vgap = 0;
-  function fitViewport() {
-    var g = 0;
+  /* Some iOS home-screen launches lay the page out one status-bar shorter than the screen (innerHeight = screen.height - ~59):
+     the page cannot draw into that bottom strip, and the home indicator sits there. Detect it (a yes/no, no sizes are applied from it)
+     and let CSS drop the home-indicator padding under the tab bar, so the bar sits flush at the bottom of what the page can draw. */
+  var vpShort = false;
+  function checkViewport() {
+    var s = vpShort;
     try {
-      if (isStandalone() && window.screen && Math.abs(window.orientation || 0) !== 90) {
+      if (isStandalone() && window.screen && window.innerHeight >= window.innerWidth) {
         var vv = window.visualViewport, keyboard = vv && window.innerHeight - vv.height > 80;
-        if (!keyboard) g = Math.round(window.screen.height - window.innerHeight);
-        else g = vgap;
-      }
-    } catch (e) { g = 0; }
-    if (!(g > 16 && g < 160)) g = 0;
-    if (g !== vgap) { vgap = g; document.documentElement.style.setProperty('--vgap', g + 'px'); if (kb) placeKB(); }
+        var d = Math.max(screen.height, screen.width) - window.innerHeight;
+        if (!keyboard && d <= 140) s = d >= 30;
+      } else s = false;
+    } catch (e) { s = false; }
+    if (s !== vpShort) { vpShort = s; document.documentElement.classList.toggle('vp-short', s); }
   }
-  fitViewport();
-  window.addEventListener('resize', fitViewport);
-  window.addEventListener('orientationchange', function () { setTimeout(fitViewport, 300); });
+  checkViewport();
+  window.addEventListener('resize', checkViewport);
+  window.addEventListener('orientationchange', function () { setTimeout(checkViewport, 300); });
   function viewportInfo() {
     var vv = window.visualViewport, cs = getComputedStyle(document.documentElement);
     return (window.screen ? screen.width + '\u00d7' + screen.height : '?') + ' screen \u00b7 ' + window.innerWidth + '\u00d7' + window.innerHeight + ' page' + (vv ? ' \u00b7 ' + Math.round(vv.width) + '\u00d7' + Math.round(vv.height) + ' visible' : '') +
-      ' \u00b7 insets ' + cs.getPropertyValue('--sat').trim() + ' / ' + cs.getPropertyValue('--sab').trim() + ' \u00b7 gap ' + vgap + 'px \u00b7 ' + (isStandalone() ? 'home screen' : 'browser') + ' \u00b7 dpr ' + (window.devicePixelRatio || 1);
+      ' \u00b7 insets ' + cs.getPropertyValue('--sat').trim() + ' / ' + cs.getPropertyValue('--sab').trim() + ' \u00b7 ' + (vpShort ? 'short layout' : 'full layout') + ' \u00b7 ' + (isStandalone() ? 'home screen' : 'browser') + ' \u00b7 dpr ' + (window.devicePixelRatio || 1);
   }
   function placeKB() {
     if (!kb) return;
     var vv = window.visualViewport;
     var off = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0;
-    kb.style.bottom = (off > 60 ? off : -vgap) + 'px';
+    kb.style.bottom = (off > 60 ? off : 0) + 'px';
     kb.style.paddingBottom = off > 60 ? '6px' : '';
     if (ac || tbar) placeAC();
     if (slashEl) placeSlash();
