@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.5.1 */
+/* Axon · Northpeak Studios · v1.5.2 */
 (function () {
   'use strict';
-  var VERSION = '1.5.1';
+  var VERSION = '1.5.2';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -292,6 +292,20 @@
     var n = byTitle(t);
     if (!n) { n = createNote({ title: t, folder: DAILY, body: '' }); if (t !== ymd(new Date())) autoDaily[n.id] = 1; }
     go('#/n/' + n.id, replace);
+  }
+  /* quick jot: one line appended to today's note with the time, without opening the editor */
+  async function jot() {
+    var text = await dialog({ title: 'Jot to today\u2019s note', input: true, placeholder: 'A thought, a task, a link\u2026', ok: 'Add', validate: function (v) { return v.trim() ? null : 'Type something first.'; } });
+    if (!text) return;
+    var t = ymd(new Date()), n = byTitle(t);
+    if (!n) n = createNote({ title: t, folder: DAILY, body: '' });
+    var d = new Date(), hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    var line = '- ' + hm + ' ' + text.trim();
+    var body = n.body.replace(/\s+$/, '');
+    n.body = (body ? body + '\n' : '') + line + '\n';
+    lastSaved[n.id] = n.body; touch(n);
+    if (route().v === 'note' && route().id === n.id && !editing) renderNote(n.id);
+    toast('Added to today\u2019s note', { label: 'Open', fn: function () { go('#/n/' + n.id); } });
   }
   /* month calendar for daily notes */
   function openCalendar(day) {
@@ -1341,7 +1355,28 @@
     var pos = ed.selectionStart;
     if (pos !== ed.selectionEnd) return hideAC();
     var before = ed.value.slice(0, pos), m = /\[\[([^\[\]\n|#]*)$/.exec(before);
-    if (!m) return hideAC();
+    if (!m) {
+      /* [[Note#heading autocomplete */
+      var hm = /\[\[([^\[\]\n|#]+)#([^\[\]\n|#]*)$/.exec(before);
+      if (hm) {
+        var tn = byTitle(hm[1]); if (!tn) return hideAC();
+        var hq = norm(hm[2]), heads = [];
+        String(tn.body).replace(/^#{1,6}\s+(.+?)\s*#*\s*$/gm, function (x, t) { if (!hq || norm(t).indexOf(hq) >= 0) heads.push(t.trim()); return x; });
+        if (!heads.length) return hideAC();
+        acState = { kind: 'head', start: pos - hm[2].length, pos: pos, items: heads.slice(0, 6).map(function (t) { return { title: t }; }), sel: 0 };
+        hideSlash(); drawAC(); return;
+      }
+      /* #tag autocomplete (a # followed by a space is a heading, not a tag) */
+      var tm = /(^|[\s(])#([A-Za-z0-9_\-\/]*)$/.exec(before);
+      if (tm && (tm[2] || !/(^|\n)#$/.test(before))) {
+        var tq = tm[2].toLowerCase(), tc = tagCounts();
+        var tags = Object.keys(tc).filter(function (t) { return t.indexOf(tq) === 0 && t !== tq; }).sort(function (a, b) { return tc[b] - tc[a] || a.localeCompare(b); }).slice(0, 6);
+        if (!tags.length) return hideAC();
+        acState = { kind: 'tag', start: pos - tm[2].length, pos: pos, items: tags.map(function (t) { return { title: t, count: tc[t] }; }), sel: 0 };
+        hideSlash(); drawAC(); return;
+      }
+      return hideAC();
+    }
     var q = m[1], nq = norm(q);
     var list = Array.from(notes.values()).filter(function (n) { return n !== editing.n; }).map(function (n) {
       var t = norm(n.title), sc = !nq ? 1 : t === nq ? 100 : t.indexOf(nq) === 0 ? 50 : t.indexOf(nq) >= 0 ? 20 : fuzzy(nq, t) ? 5 : 0;
@@ -1358,8 +1393,8 @@
   function drawAC() {
     if (!ac) { ac = document.createElement('div'); ac.className = 'ac'; document.body.appendChild(ac);
       ac.addEventListener('pointerdown', function (e) { var b = e.target.closest('button'); if (!b) return; e.preventDefault(); pickAC(+b.dataset.i); }); }
-    ac.innerHTML = '<div class="hd">Link to note</div>' + acState.items.map(function (it, i) {
-      return '<button data-i="' + i + '" class="' + (i === acState.sel ? 'sel' : '') + '">' + (it.create ? '<span class="plus">+</span> New note \u201c' + esc(it.title) + '\u201d' : esc(it.title) + (it.folder ? '<small>' + esc(it.folder.toLowerCase()) + '</small>' : '')) + '</button>';
+    ac.innerHTML = '<div class="hd">' + (acState.kind === 'tag' ? 'Tag' : acState.kind === 'head' ? 'Heading' : 'Link to note') + '</div>' + acState.items.map(function (it, i) {
+      return '<button data-i="' + i + '" class="' + (i === acState.sel ? 'sel' : '') + '">' + (it.create ? '<span class="plus">+</span> New note \u201c' + esc(it.title) + '\u201d' : (acState.kind === 'tag' ? '#' : '') + esc(it.title) + (it.folder ? '<small>' + esc(it.folder.toLowerCase()) + '</small>' : it.count ? '<small>' + it.count + '</small>' : '')) + '</button>';
     }).join('');
     placeAC();
   }
@@ -1370,6 +1405,7 @@
     var st = acState, it = st.items[i], after = ed.value.slice(st.pos);
     var closes = after.indexOf(']]') === 0;
     acState = null;
+    if (st.kind === 'tag') { insertText(ed, it.title + ' ', st.start, st.pos); var ct = st.start + it.title.length + 1; ed.setSelectionRange(ct, ct); hideAC(); return; }
     insertText(ed, it.title + (closes ? '' : ']]'), st.start, st.pos);
     var c = st.start + it.title.length + 2;
     ed.setSelectionRange(c, c);
@@ -2288,7 +2324,7 @@
   /* ---------- quick switcher / command palette ---------- */
   var COMMANDS = [
     ['New note', 'create add write', function () { newNote(); }], ['New note from template', 'template starter', function () { newFromTemplate(); }],
-    ['Today\u2019s note', 'daily journal date', function () { openDaily(); }], ['Calendar', 'daily notes month day journal', function () { openCalendar(ymd(new Date())); }], ['Start Recall review', 'quiz flashcards study cards', function () { go('#/review/all'); }],
+    ['Today\u2019s note', 'daily journal date', function () { openDaily(); }], ['Calendar', 'daily notes month day journal', function () { openCalendar(ymd(new Date())); }], ['Jot to today\u2019s note', 'quick capture add line journal', function () { jot(); }], ['Start Recall review', 'quiz flashcards study cards', function () { go('#/review/all'); }],
     ['Open Recall', 'cards spaced repetition', function () { go('#/recall'); }], ['Discover', 'feed explore wikipedia learn', function () { go('#/discover'); }], ['Graph', 'map links', function () { go('#/graph'); }], ['Random note', 'surprise shuffle lucky', function () { randomNote(); }], ['Auto-link all mentions', 'autolink link everything graph connect', function () { autoLinkAll(); }],
     ['Search text', 'find full', function (q) { go('#/search/' + encodeURIComponent(q || '')); }], ['All notes', 'list every', function () { go('#/f/*'); }],
     ['New folder', 'directory', function () { newFolder(''); }], ['Trash', 'deleted restore bin', function () { go('#/trash'); }],
@@ -2784,8 +2820,8 @@
     var fab = $('#fab'), t = null, fired = 0;
     fab.addEventListener('pointerdown', function () { clearTimeout(t); t = setTimeout(async function () {
       fired = Date.now();
-      var a = await sheet({ actions: [{ label: 'New note', value: 'n', icon: I.newnote }, { label: 'New from template', value: 't', icon: I.tmpl }, { label: 'Today\u2019s note', value: 'd', icon: I.cal.replace(' class="fi"', '') }, { label: 'New folder', value: 'f', icon: I.newfolder }], left: true });
-      if (a === 'n') newNote(); else if (a === 't') newFromTemplate(); else if (a === 'd') openDaily(); else if (a === 'f') newFolder('');
+      var a = await sheet({ actions: [{ label: 'New note', value: 'n', icon: I.newnote }, { label: 'New from template', value: 't', icon: I.tmpl }, { label: 'Today\u2019s note', value: 'd', icon: I.cal.replace(' class="fi"', '') }, { label: 'Jot to today\u2019s note', value: 'j', icon: I.edit }, { label: 'New folder', value: 'f', icon: I.newfolder }], left: true });
+      if (a === 'n') newNote(); else if (a === 't') newFromTemplate(); else if (a === 'd') openDaily(); else if (a === 'j') jot(); else if (a === 'f') newFolder('');
     }, 450); });
     ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) { fab.addEventListener(ev, function () { clearTimeout(t); }); });
     fab.addEventListener('contextmenu', function (e) { e.preventDefault(); });
