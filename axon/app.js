@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.6.9 */
+/* Axon · Northpeak Studios · v1.6.10 */
 (function () {
   'use strict';
-  var VERSION = '1.6.9';
+  var VERSION = '1.6.10';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -3017,7 +3017,7 @@
     function addNote(n) {
       if (n.seed && !sy.map[nRec(n.id)]) return; /* untouched starter notes stay on this device */
       if (freshNote[n.id] && !n.body.trim()) return; /* a blank note you're still deciding on */
-      out.push([nRec(n.id), notePayload(n)]);
+      out.push([nRec(n.id), notePayload(n), n.body]);
     }
     notes.forEach(addNote); trash.forEach(addNote);
     out.push(['f:all', folderPayload()]);
@@ -3062,23 +3062,44 @@
         } else if (ex) n.title = uniqueTitle(p.t);
         if (p.tr) { n.trashed = p.tr; trash.set(id, n); } else { notes.set(id, n); ensureFolder(n.folder); }
         rebuildIdx(); putNote(n); stats.add++;
-        sy.map[rid] = { s: s, h: h }; return;
+        sy.map[rid] = { s: s, h: h, bh: AXS.hash(n.body) }; return;
       }
       var lh = AXS.hash(notePayload(local)), prev = sy.map[rid], rb = p.b || '';
-      if (lh === h) { sy.map[rid] = { s: s, h: h }; return; }
-      if (prev && prev.h === h) { sy.map[rid] = { s: s, h: h }; return; } /* the cloud still has the version this device last synced: only this device changed it */
+      if (lh === h) { sy.map[rid] = { s: s, h: h, bh: AXS.hash(rb) }; return; }
+      if (prev && prev.h === h) { sy.map[rid] = { s: s, h: h, bh: prev.bh }; return; } /* the cloud still has the version this device last synced: only this device changed it */
       var isEd = !!(editing && editing.n === local), localChanged = isEd || !prev || lh !== prev.h;
       if (localChanged) {
+        /* three-way check against the text both devices last agreed on: a rename on one device and an
+           edit on the other is not a conflict */
+        var bh = prev && prev.bh;
+        if (bh && local.body !== rb && !isEd) {
+          var rbh = AXS.hash(rb);
+          if (rbh === bh) {
+            /* only the name, folder or pin changed over there: take those, keep this device's text (it uploads next) */
+            local.title = setTitleSafe(local, p.t); local.folder = p.f || '';
+            if (p.p) local.pinned = true; else delete local.pinned;
+            if (p.tr) { local.trashed = p.tr; notes.delete(id); trash.set(id, local); } else { delete local.trashed; trash.delete(id); notes.set(id, local); ensureFolder(local.folder); }
+            rebuildIdx(); putNote(local); stats.upd++;
+            sy.map[rid] = { s: s, h: h, bh: rbh }; return;
+          }
+          if (AXS.hash(local.body) === bh) {
+            /* the text changed over there, only the name, folder or pin changed here: take the text, keep those */
+            snapshot(local, local.body, true);
+            local.body = rb; lastSaved[id] = rb;
+            rebuildIdx(); putNote(local); stats.upd++;
+            sy.map[rid] = { s: s, h: h, bh: rbh }; return;
+          }
+        }
         if (local.body !== rb) {
           /* changed on both devices: keep both, never lose an edit. The newer one keeps the note, the
              other becomes "title (conflict)". A note open in the editor always stays as it is. */
           stats.conf++;
           if (isEd || (p.u || 0) <= (local.updated || 0)) {
             stats.cids.push(createNote({ title: uniqueTitle(p.t + ' (conflict)'), folder: p.f || '', body: rb }).id);
-            sy.map[rid] = { s: s, h: h }; return; /* local stays and uploads next, since it differs from h */
+            sy.map[rid] = { s: s, h: h, bh: AXS.hash(rb) }; return; /* local stays and uploads next, since it differs from h */
           }
           stats.cids.push(createNote({ title: uniqueTitle(local.title + ' (conflict)'), folder: local.folder, body: local.body }).id);
-        } else if (isEd || (local.updated || 0) >= (p.u || 0)) { sy.map[rid] = { s: s, h: h }; return; } /* same text: newest title/folder/pin wins */
+        } else if (isEd || (local.updated || 0) >= (p.u || 0)) { sy.map[rid] = { s: s, h: h, bh: AXS.hash(rb) }; return; } /* same text: newest title/folder/pin wins */
       }
       if (local.body !== (p.b || '')) snapshot(local, local.body, true);
       local.title = setTitleSafe(local, p.t); local.folder = p.f || ''; local.body = p.b || ''; local.created = p.c || local.created; local.updated = p.u || local.updated; local.seed = false;
@@ -3086,7 +3107,7 @@
       if (p.tr) { local.trashed = p.tr; notes.delete(id); trash.set(id, local); } else { delete local.trashed; trash.delete(id); notes.set(id, local); ensureFolder(local.folder); }
       lastSaved[id] = local.body;
       rebuildIdx(); putNote(local); stats.upd++;
-      sy.map[rid] = { s: s, h: h };
+      sy.map[rid] = { s: s, h: h, bh: AXS.hash(local.body) };
       return;
     }
     if (del) { sy.map[rid] = { s: s, h: 'del' }; return; }
@@ -3146,22 +3167,23 @@
       r.res.forEach(function (x) {
         var b = byId[x.i]; if (!b) return;
         if (x.conflict) { res.conflicts++; if (b.rec.x) delete sy.tomb[x.i]; return; }
-        sy.map[x.i] = { s: x.s, h: b.h }; stats.up++;
+        sy.map[x.i] = b.bh ? { s: x.s, h: b.h, bh: b.bh } : { s: x.s, h: b.h }; stats.up++;
         if (b.rec.x) delete sy.tomb[x.i];
       });
     }
-    async function add(rid, pl, h) {
+    async function add(rid, pl, h, bh) {
       var d = await AXS.seal(sy.key, rid, pl);
-      batch.push({ rec: { i: rid, b: (sy.map[rid] && sy.map[rid].s) || 0, d: d }, h: h });
+      batch.push({ rec: { i: rid, b: (sy.map[rid] && sy.map[rid].s) || 0, d: d }, h: h, bh: bh });
       bytes += d.length;
       if (batch.length >= 150 || bytes > 3000000) await flush();
     }
     var loc = syLocal();
     for (var i = 0; i < loc.length && !res.busy; i++) {
       var rid = loc[i][0], pl = loc[i][1], h = AXS.hash(pl);
-      var m = sy.map[rid]; if (m && m.h === h) continue;
+      var m = sy.map[rid], body = loc[i][2];
+      if (m && m.h === h) { if (typeof body === 'string' && !m.bh) m.bh = AXS.hash(body); continue; } /* in sync: remember its text for three-way checks */
       if (rid === 'f:all' && !m && Array.from(folders).length === 0) continue;
-      await add(rid, pl, h);
+      await add(rid, pl, h, typeof body === 'string' ? AXS.hash(body) : undefined);
     }
     var imgs = syImages();
     for (var k = 0; k < imgs.length && !res.busy; k++) {
