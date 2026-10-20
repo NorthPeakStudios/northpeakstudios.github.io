@@ -17,7 +17,7 @@
       nodes = data.nodes.map(function (n) {
         var m = memory[n.id];
         var key = n.label || n.id, a = hash(key) * Math.PI * 2, rr = 60 + hash(key + 'r') * 160;
-        return { id: n.id, label: n.label, kind: n.kind || 'note', deg: 0,
+        return { id: n.id, label: n.label, kind: n.kind || 'note', color: n.color || null, deg: 0,
           x: m ? m.x : Math.cos(a) * rr, y: m ? m.y : Math.sin(a) * rr, vx: 0, vy: 0, fixed: false, isNew: !m };
       });
       byId = {}; adj = {};
@@ -148,7 +148,7 @@
           ctx.setLineDash([2.5, 2.5]); ctx.strokeStyle = isF ? accent : (isN ? 'rgba(237,235,230,0.7)' : 'rgba(237,235,230,0.32)'); ctx.lineWidth = 1.2;
           ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.stroke(); ctx.setLineDash([]);
         } else {
-          ctx.fillStyle = isF ? accent : (focus ? (isN ? '#edebe6' : '#5d5d63') : (n.deg ? '#a9a8a4' : '#5d5d63'));
+          ctx.fillStyle = n.color ? (focus && !isF && !isN ? hexA(n.color, 0.35) : (isF ? accent : n.color)) : (isF ? accent : (focus ? (isN ? '#edebe6' : '#5d5d63') : (n.deg ? '#a9a8a4' : '#5d5d63')));
           ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fill();
         }
         if (showAll || isF || isN || n.deg >= 4) {

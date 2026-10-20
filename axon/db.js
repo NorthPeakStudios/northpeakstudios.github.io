@@ -106,6 +106,34 @@
     del: function (ids) { return mtx('readwrite', function (s) { ids.forEach(function (k) { s.delete(k); }); }); },
     clear: function () { return mtx('readwrite', function (s) { return s.clear(); }); }
   };
+  /* note history (versions) lives in its own database too */
+  var hdb = null;
+  function hopen() {
+    if (hdb) return Promise.resolve(hdb);
+    return new Promise(function (res, rej) {
+      var r = indexedDB.open('axon-history', 1);
+      r.onupgradeneeded = function () { var d = r.result; if (!d.objectStoreNames.contains('versions')) { var s = d.createObjectStore('versions', { keyPath: 'k' }); s.createIndex('id', 'id', { unique: false }); } };
+      r.onsuccess = function () { hdb = r.result; hdb.onversionchange = function () { hdb.close(); hdb = null; }; res(hdb); };
+      r.onerror = function () { rej(r.error); };
+    });
+  }
+  function htx(mode, fn) {
+    return hopen().then(function (d) {
+      return new Promise(function (res, rej) {
+        var t = d.transaction('versions', mode), s = t.objectStore('versions'), out, r = fn(s);
+        if (r && 'onsuccess' in r) r.onsuccess = function () { out = r.result; };
+        t.oncomplete = function () { res(out); };
+        t.onerror = t.onabort = function () { rej(t.error); };
+      });
+    });
+  }
+  window.HIST = {
+    list: function (id) { return htx('readonly', function (s) { return s.index('id').getAll(id); }); },
+    all: function () { return htx('readonly', function (s) { return s.getAll(); }); },
+    put: function (o) { return htx('readwrite', function (s) { return s.put(o); }); },
+    del: function (keys) { return htx('readwrite', function (s) { keys.forEach(function (k) { s.delete(k); }); }); },
+    clear: function () { return htx('readwrite', function (s) { return s.clear(); }); }
+  };
   window.DB = {
     open: open,
     all: function (s) { return tx(s, 'readonly', function (st) { return st.getAll(); }); },

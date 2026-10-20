@@ -211,6 +211,11 @@ body.editing .kb{display:flex}
 .ghead .h1{margin-bottom:12px}
 .chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 calc(-1 * var(--padxr)) 0 calc(-1 * var(--padx));padding:0 var(--padxr) 0 var(--padx)}
 .chips::-webkit-scrollbar{display:none}
+.qs.tpick small{max-width:46%;font-family:var(--sans);font-size:12px}
+#app{background:var(--bg)}
+.glegend{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-size:12px;color:var(--dim)}
+.glegend span{display:inline-flex;align-items:center;gap:5px}
+.glegend i{width:8px;height:8px;border-radius:50%;display:inline-block}
 .chip{flex:none;height:34px;padding:0 14px;border-radius:17px;border:1px solid var(--line2);color:var(--dim);font-size:14px;background:rgba(11,11,12,.6)}
 .chip.on{background:var(--text);color:#0b0b0c;border-color:var(--text);font-weight:500}
 #gc{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block}
@@ -345,6 +350,10 @@ body.editing #toast{bottom:auto;top:calc(var(--sat) + 56px)}
 .prose>h1.folded::after,.prose>h2.folded::after,.prose>h3.folded::after,.prose>h4.folded::after,.prose>h5.folded::after,.prose>h6.folded::after{transform:translateY(-50%) rotate(-45deg);border-color:var(--accent)}
 .prose>.foldhide{display:none}
 .prose>.folded{opacity:.75}
+/* history preview */
+.dialog.hv{top:8%;width:min(420px,calc(100% - 28px))}
+.dialog.hv .hvp{max-height:50vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:4px 12px;margin:4px 0 10px;font-size:15px}
+.dialog.hv .db button{font-size:15px}
 .tagwrap{display:flex;flex-wrap:wrap;gap:8px}
 .tagwrap .chip{font-family:var(--mono);font-size:13px;height:32px;padding:0 12px}
 .tagwrap .chip .n{opacity:.5;margin-left:2px}

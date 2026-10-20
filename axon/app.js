@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.4.1 */
+/* Axon · Northpeak Studios · v1.5.0 */
 (function () {
   'use strict';
-  var VERSION = '1.4.1';
+  var VERSION = '1.5.0';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -176,7 +176,7 @@
     var backup = { ts: Date.now(), count: count, notes: [] };
     plan.forEach(function (pr) { var o = pr[0], nb = applyHits(o.body, pr[1]); backup.notes.push({ id: o.id, before: o.body, after: nb }); });
     try { await DB.put('meta', { k: 'autolink-backup', v: backup }); } catch (e) { toast('Couldn\u2019t save a backup, nothing changed'); return; }
-    backup.notes.forEach(function (b) { var o = notes.get(b.id); if (o) { o.body = b.after; lastSaved[o.id] = b.after; touch(o); } });
+    backup.notes.forEach(function (b) { var o = notes.get(b.id); if (o) { snapshot(o, o.body, true); o.body = b.after; lastSaved[o.id] = b.after; touch(o); } });
     alBackup = backup;
     toast('Linked ' + count + ' mention' + (count === 1 ? '' : 's') + ' in ' + plan.length + ' note' + (plan.length === 1 ? '' : 's'));
     render();
@@ -405,7 +405,7 @@
     deliver(new Blob([r.csv], { type: 'text/csv' }), (n ? safeName(n.title) : 'Axon flashcards') + '.csv', 'text/csv', 'Exported ' + r.count + ' card' + (r.count === 1 ? '' : 's') + ' · import the file in Synapse');
   }
   function persist() { try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {} }
-  function saveMeta() { DB.put('meta', { k: 'ui', v: { open: ui.open, lastNote: ui.lastNote, graphMode: ui.graphMode, graphTags: ui.graphTags, graphGhosts: ui.graphGhosts, graphAuto: ui.graphAuto, sort: ui.sort } }); }
+  function saveMeta() { DB.put('meta', { k: 'ui', v: { open: ui.open, lastNote: ui.lastNote, graphMode: ui.graphMode, graphTags: ui.graphTags, graphGhosts: ui.graphGhosts, graphAuto: ui.graphAuto, graphColor: ui.graphColor, sort: ui.sort } }); }
 
   /* ---------- data ops ---------- */
   function ensureFolder(p) {
@@ -1006,7 +1006,49 @@
     if (!silent) { renderNote(n.id); setFab(true); viewEl.scrollTop = 0; alignPreview(pos); }
   }
   var lastSaved = {}, freshNote = {};
-  function touchIfChanged(n) { if (lastSaved[n.id] !== n.body) { lastSaved[n.id] = n.body; touch(n); } }
+  function touchIfChanged(n) { if (lastSaved[n.id] !== n.body) { snapshot(n, lastSaved[n.id]); lastSaved[n.id] = n.body; touch(n); } }
+  /* note history: a version is kept when you leave the editor after real changes (at most one per 3 minutes per note), 30 days back */
+  var HIST_DAYS = 30, HIST_MAX = 40, lastSnap = {};
+  function snapshot(n, prevBody, force) {
+    if (!window.HIST) return;
+    var prev = typeof prevBody === 'string' ? prevBody : null;
+    if (prev === null || !prev.trim()) return;
+    if (prev === n.body) return;
+    var now = Date.now();
+    if (!force && lastSnap[n.id] && now - lastSnap[n.id] < 180000) return;
+    lastSnap[n.id] = now;
+    HIST.put({ k: n.id + ':' + now, id: n.id, ts: now, title: n.title, body: prev, words: words(prev) }).then(function () { return HIST.list(n.id); }).then(function (vs) {
+      vs.sort(function (a, b) { return b.ts - a.ts; });
+      var cut = now - HIST_DAYS * 864e5, gone = vs.filter(function (v, i) { return i >= HIST_MAX || v.ts < cut; }).map(function (v) { return v.k; });
+      if (gone.length) HIST.del(gone);
+    }).catch(function () {});
+  }
+  async function showHistory(n) {
+    var vs = [];
+    try { vs = await HIST.list(n.id); } catch (e) {}
+    vs.sort(function (a, b) { return b.ts - a.ts; });
+    if (!vs.length) { await dialog({ title: 'No earlier versions', message: 'Axon keeps a copy each time you leave the editor after changing a note (one every few minutes, 30 days back). Nothing here yet for \u201c' + n.title + '\u201d.', ok: 'OK', noCancel: true }); return; }
+    var cur = words(n.body);
+    var pick = await sheet({ title: 'History \u00b7 ' + n.title, left: true, actions: vs.slice(0, 12).map(function (v) { var d = v.words - cur; return { label: agoLong(v.ts) + ' \u00b7 ' + v.words + ' words' + (d ? ' (' + (d > 0 ? '+' : '') + d + ')' : '') + (v.title !== n.title ? ' \u00b7 was \u201c' + v.title + '\u201d' : ''), value: v.k }; }) });
+    if (!pick) return;
+    var v = vs.filter(function (x) { return x.k === pick; })[0]; if (!v) return;
+    var act = await overlay(function (done) {
+      var el = document.createElement('div'); el.className = 'dialog hv'; el.setAttribute('role', 'dialog');
+      el.innerHTML = '<h4>' + esc(agoLong(v.ts)) + '</h4><p>' + v.words + ' word' + (v.words === 1 ? '' : 's') + ' \u00b7 ' + new Date(v.ts).toLocaleString() + '</p><div class="prose hvp">' + MD.render(v.body, mdOpt()) + '</div><div class="db"><button data-v="0">Close</button><button data-v="copy">Copy text</button><button class="acc" data-v="1">Restore</button></div>';
+      el.addEventListener('click', function (e) { var b = e.target.closest('button[data-v]'); if (b) done(b.dataset.v); var a = e.target.closest('a'); if (a) e.preventDefault(); });
+      return el;
+    });
+    if (act === 'copy') { copyText(v.body, 'Copied that version'); return; }
+    if (act !== '1') return;
+    snapshot(n, n.body, true);
+    n.body = v.body; lastSaved[n.id] = v.body; touch(n);
+    toast('Restored the version from ' + agoLong(v.ts));
+    if (route().v === 'note' && route().id === n.id) renderNote(n.id);
+  }
+  function copyText(text, msg) {
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { toast(msg || 'Copied'); }, function () { toast('Couldn\u2019t copy'); });
+    else { var ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast(msg || 'Copied'); } catch (e) { toast('Couldn\u2019t copy'); } ta.remove(); }
+  }
 
   /* undo / redo: our own history so it works the same on every phone */
   function recordHist(ed) {
@@ -1344,7 +1386,7 @@
     var ghosts = {};
     notes.forEach(function (n) {
       if (include && !(n.id in include)) return;
-      nodes.push({ id: n.id, label: n.title });
+      nodes.push({ id: n.id, label: n.title, group: n.folder ? n.folder.split('/')[0] : '' });
       outNotes(n).forEach(function (o) { if (!include || o.id in include) links.push([n.id, o.id]); });
       if (ui.graphAuto !== false) autoOut(n).forEach(function (o) { if (!include || o.id in include) links.push([n.id, o.id, 'auto']); });
       if (ui.graphGhosts !== false) unresolvedOf(n).forEach(function (t) {
@@ -1371,14 +1413,21 @@
     var cur = ui.lastNote && notes.get(ui.lastNote);
     if (ui.graphMode === 'local' && !cur) ui.graphMode = 'global';
     var data = graphData();
+    var GPAL = ['#38bdf8', '#a3e635', '#f5a524', '#a78bfa', '#f472b6', '#34d399', '#fb7185', '#facc15', '#60a5fa', '#c084fc', '#2dd4bf', '#ff6a3d'].filter(function (c) { return c.toLowerCase() !== String(settings.accent).toLowerCase(); });
+    var gc = {}; data.nodes.forEach(function (x) { if (!x.kind) gc[x.group || ''] = (gc[x.group || ''] || 0) + 1; });
+    var groups = Object.keys(gc).sort(function (a, b) { return gc[b] - gc[a] || a.localeCompare(b); }).map(function (g, i) { return [g, gc[g], g === '' ? '#a9a8a4' : GPAL[(gc[''] ? i - 1 : i) % GPAL.length]]; });
+    var gcol = {}; groups.forEach(function (g) { gcol[g[0]] = g[2]; });
+    if (ui.graphColor) data.nodes.forEach(function (x) { if (!x.kind) x.color = gcol[x.group || '']; });
     var nN = data.nodes.filter(function (x) { return !x.kind; }).length, nG = data.nodes.filter(function (x) { return x.kind === 'ghost'; }).length, eSeen = {}, nL = 0, nA = 0;
     data.links.filter(function (l) { return !l[2]; }).concat(data.links.filter(function (l) { return l[2]; })).forEach(function (l) { var k = l[0] < l[1] ? l[0] + '\u0001' + l[1] : l[1] + '\u0001' + l[0]; if (!eSeen[k] && l[0] !== l[1]) { eSeen[k] = 1; if (l[2]) nA++; else if (String(l[1]).indexOf('ghost:') !== 0) nL++; } });
     var h = '<div class="gwrap"><canvas id="gc" aria-label="Graph of linked notes"></canvas><div class="ghead"><div class="eyebrow">' + nN + ' note' + (nN === 1 ? '' : 's') + ' · ' + nL + ' link' + (nL === 1 ? '' : 's') + (nA ? ' · ' + nA + ' auto' : '') + (nG ? ' · ' + nG + ' unresolved' : '') + '</div><h1 class="h1">Graph</h1>' +
       '<div class="chips"><button class="chip' + (ui.graphMode === 'global' ? ' on' : '') + '" data-act="gmode" data-m="global">Global</button>' +
       '<button class="chip' + (ui.graphMode === 'local' ? ' on' : '') + '" data-act="gmode" data-m="local">Local</button>' +
       '<button class="chip' + (ui.graphTags ? ' on' : '') + '" data-act="gtags">Tags</button>' +
+      '<button class="chip' + (ui.graphColor ? ' on' : '') + '" data-act="gcolor" title="Color notes by their top folder">Folders</button>' +
       '<button class="chip' + (ui.graphAuto !== false ? ' on' : '') + '" data-act="gauto" title="Notes that mention each other by name">Auto-link</button>' +
-      '<button class="chip' + (ui.graphGhosts !== false ? ' on' : '') + '" data-act="gghosts" title="Links to notes that don\u2019t exist yet">Unresolved</button></div></div>' +
+      '<button class="chip' + (ui.graphGhosts !== false ? ' on' : '') + '" data-act="gghosts" title="Links to notes that don\u2019t exist yet">Unresolved</button></div>' +
+      (ui.graphColor && groups.length ? '<div class="glegend">' + groups.slice(0, 7).map(function (g) { return '<span><i style="background:' + g[2] + '"></i>' + esc(g[0] || 'Vault') + '</span>'; }).join('') + (groups.length > 7 ? '<span>+' + (groups.length - 7) + ' more</span>' : '') + '</div>' : '') + '</div>' +
       (data.nodes.length ? '<div class="gtools"><button class="ib" aria-label="Fit" data-act="gfit">' + I.fit + '</button><button class="ib" aria-label="Zoom in" data-act="gzin">' + I.zin + '</button><button class="ib" aria-label="Zoom out" data-act="gzout">' + I.zout + '</button></div>' : '') +
       (data.nodes.length ? '<div class="ghint" id="ghint">Tap a node · tap again to open · pinch to zoom</div>' : '<div class="gempty">' + EMPTY_ART + '<b>Nothing to map yet</b><p>Each note becomes a dot, and every <span class="kbd">[[link]]</span> draws a line between them.</p><button class="bignew" data-act="newempty">' + I.plus + '<span>New note</span></button></div>') +
       '<div class="gsheet" id="gsheet"></div></div>';
@@ -1513,7 +1562,7 @@
       '<div class="item"><span>Templates<small>Make a folder called \u201cTemplates\u201d. Notes in it appear in New from template. {{date}}, {{time}} and {{title}} fill in for you.</small></span></div></div>' +
       '<div class="sec"><span>About</span></div><div class="group">' +
       '<button class="item" data-act="stats"><span>Vault stats<small>' + (function () { var s = vaultStats(); return s.notes + ' note' + (s.notes === 1 ? '' : 's') + ' \u00b7 ' + s.words.toLocaleString() + ' word' + (s.words === 1 ? '' : 's') + ' \u00b7 ' + s.links + ' link' + (s.links === 1 ? '' : 's'); })() + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
-      '<div class="item"><span>Storage<small>Notes live only on this device and work offline. Export now and then to keep a backup.</small></span></div>' +
+      '<div class="item"><span>Storage<small>Notes live only on this device and work offline. Each note keeps up to 30 days of earlier versions (note menu \u203a History). Export now and then to keep a backup.</small></span></div>' +
       (isStandalone() ? '' : '<div class="item"><span>Install on iPhone<small>In Safari tap Share, then Add to Home Screen.</small></span></div>') +
       '</div><input type="file" id="file" accept=".md,.markdown,.txt,.zip,.jpg,.jpeg,.png,.webp,.gif,text/markdown,text/plain,application/zip" multiple hidden>' +
       '<div class="foot"><b>Axon<i>.</i></b>by Northpeak Studios · v' + VERSION + '</div></div>';
@@ -1691,7 +1740,7 @@
   }
   async function noteMenu(n, preset) {
     var nc = MD.cards(n.body).length;
-    var a = preset || await sheet({ title: n.title, left: true, actions: [{ label: n.pinned ? 'Unpin' : 'Pin to top', value: 'pin', icon: I.pin }, { label: 'Find in note', value: 'find', icon: I.search }, { label: 'Share\u2026', value: 'share', icon: I.ext }, { label: 'Copy as Markdown', value: 'copy', icon: I.copy }, { label: 'Rename', value: 'rename', icon: I.edit }, { label: 'Move to folder', value: 'move', icon: I.folder.replace(' class="fi"', '') }, { label: 'Duplicate', value: 'dup', icon: I.copy }]
+    var a = preset || await sheet({ title: n.title, left: true, actions: [{ label: n.pinned ? 'Unpin' : 'Pin to top', value: 'pin', icon: I.pin }, { label: 'Find in note', value: 'find', icon: I.search }, { label: 'Share\u2026', value: 'share', icon: I.ext }, { label: 'Copy as Markdown', value: 'copy', icon: I.copy }, { label: 'History\u2026', value: 'hist', icon: I.restore }, { label: 'Rename', value: 'rename', icon: I.edit }, { label: 'Move to folder', value: 'move', icon: I.folder.replace(' class="fi"', '') }, { label: 'Duplicate', value: 'dup', icon: I.copy }]
       .concat(inTemplates(n) ? [] : [{ label: 'Save as template', value: 'tmpl', icon: I.tmpl }])
       .concat(nc ? [{ label: 'Review ' + nc + ' card' + (nc === 1 ? '' : 's') + ' now', value: 'review', icon: I.recall }, { label: 'Export ' + nc + ' card' + (nc === 1 ? '' : 's') + ' (CSV for Synapse)', value: 'cards', icon: I.copy }] : [])
       .concat([{ label: 'Local graph', value: 'lg', icon: I.graph }, { label: 'Move to Trash', value: 'delete', danger: true, icon: I.trash }]) });
@@ -1699,6 +1748,7 @@
     if (a === 'find') { if (route().v !== 'note') go('#/n/' + n.id); openFind(n); return; }
     if (a === 'share') { shareNote(n); return; }
     if (a === 'copy') { copyNote(n); return; }
+    if (a === 'hist') { showHistory(n); return; }
     if (a === 'pin') { togglePin(n); renderNote(n.id); return; }
     if (a === 'dup') { var c = await duplicateNote(n); go('#/n/' + c.id); return; }
     if (a === 'review') { go('#/review/' + encodeURIComponent(n.id)); return; }
@@ -1739,11 +1789,31 @@
   /* ---------- templates ---------- */
   var TEMPLATES = 'Templates';
   var BUILTIN = [
-    { name: 'Study notes', body: '---\ntags: [study]\ndate: {{date}}\n---\n## Key ideas\n- \n\n## Details\n\n\n## Cards\n> [!tip] Type / then Flashcard or Cloze card. Each one becomes a Recall card.\n\n## Questions I still have\n- [ ] \n' },
-    { name: 'Daily journal', body: '## Top 3 today\n- [ ] \n- [ ] \n- [ ] \n\n## Notes\n\n\n## Grateful for\n- \n\n> [!toggle]- Tomorrow\n> \n' },
-    { name: 'Meeting', body: '---\ndate: {{date}}\n---\n**When:** {{date}} {{time}}\n**Who:** \n\n## Agenda\n1. \n\n## Notes\n\n\n## Action items\n- [ ] \n' },
-    { name: 'Project', body: '---\ntags: [project]\nstatus: planning\n---\n> [!info] Goal\n> What does done look like?\n\n## Tasks\n- [ ] \n\n## Ideas\n- \n\n## Links\n- \n' }
+    { name: 'Study notes', group: 'School', body: '---\ntags: [study]\ndate: {{date}}\n---\n## Key ideas\n- \n\n## Details\n\n\n## Cards\n> [!tip] Type / then Flashcard or Cloze card. Each one becomes a Recall card.\n\n## Questions I still have\n- [ ] \n' },
+    { name: 'Class notes', group: 'School', body: '---\ntags: [class]\nclass: \ndate: {{date}}\n---\n**Class:**   **Teacher:**   **Topic:** {{title}}\n\n## Today we covered\n- \n\n## Notes\n\n\n## Vocabulary\nterm :: meaning\n\n## Homework\n- [ ] \n\n> [!question] Ask next time\n> \n' },
+    { name: 'Cornell notes', group: 'School', body: '---\ntags: [cornell]\ndate: {{date}}\n---\n> [!info] Cornell method\n> Cues on the left, notes on the right, summary at the end. Write the cues after class.\n\n| Cues / questions | Notes |\n|---|---|\n|  |  |\n|  |  |\n|  |  |\n\n## Summary\nIn two or three sentences, what was this about?\n\n' },
+    { name: 'Lecture study guide', group: 'School', body: '---\ntags: [study, guide]\nexam: \n---\n## Big picture\nWhy does this topic matter?\n\n## Must-know terms\nterm :: definition\nterm :: definition\n\n## Key concepts\n### 1. \n\n### 2. \n\n## Worked example\n\n\n## Likely test questions\n- [ ] \n- [ ] \n\n## Still fuzzy\n- \n' },
+    { name: 'Flashcard deck', group: 'School', body: '---\ntags: [cards]\n---\n> [!tip] One card per line: question :: answer. Or a cloze: The {{c::mitochondria}} makes ATP. Review them in Recall.\n\nquestion :: answer\nquestion :: answer\nquestion :: answer\n\nThe {{c::answer}} hides in the sentence.\n' },
+    { name: 'Essay outline', group: 'School', body: '---\ntags: [essay]\ndue: \n---\n## Prompt\n> \n\n## Thesis\n\n\n## Body 1\n- Claim: \n- Evidence: \n- Why it matters: \n\n## Body 2\n- Claim: \n- Evidence: \n- Why it matters: \n\n## Body 3\n- Claim: \n- Evidence: \n- Why it matters: \n\n## Conclusion\n\n\n## Sources\n1. \n' },
+    { name: 'Lab report', group: 'School', body: '---\ntags: [lab]\ndate: {{date}}\n---\n## Question\n\n\n## Hypothesis\nIf \u2026 then \u2026 because \u2026\n\n## Materials\n- \n\n## Procedure\n1. \n\n## Data\n| Trial | Measurement | Notes |\n|---|---|---|\n| 1 |  |  |\n| 2 |  |  |\n\n## Results\n\n\n## Conclusion\nWas the hypothesis supported? Sources of error?\n' },
+    { name: 'Exam prep plan', group: 'School', body: '---\ntags: [exam]\nexam date: \n---\n> [!warning] Exam\n> Date:   Format:   Topics: \n\n## Topics, hardest first\n- [ ] \n- [ ] \n- [ ] \n\n## Plan\n| Day | Topic | Done |\n|---|---|---|\n|  |  |  |\n|  |  |  |\n\n## Cards to review\n[[ ]]\n' },
+    { name: 'Language vocab', group: 'School', body: '---\ntags: [language]\nlanguage: \n---\n## New words\nword :: meaning\nword :: meaning\nword :: meaning\n\n## Grammar point\n\n\n## Sentences\n- \n\n> [!tip] Each word :: meaning line becomes a Recall card.\n' },
+    { name: 'Daily journal', group: 'Life', body: '## Top 3 today\n- [ ] \n- [ ] \n- [ ] \n\n## Notes\n\n\n## Grateful for\n- \n\n> [!toggle]- Tomorrow\n> \n' },
+    { name: 'Weekly review', group: 'Life', body: '---\ntags: [review]\nweek of: {{date}}\n---\n## Wins\n- \n\n## What got in the way\n- \n\n## Lessons\n- \n\n## Next week\n- [ ] \n- [ ] \n- [ ] \n\n## Rating\nEnergy ==/10== \u00b7 Focus ==/10== \u00b7 Mood ==/10==\n' },
+    { name: 'To-do list', group: 'Life', body: '---\ntags: [todo]\n---\n## Today\n- [ ] \n- [ ] \n\n## This week\n- [ ] \n\n## Someday\n- [ ] \n' },
+    { name: 'Goal tracker', group: 'Life', body: '---\ntags: [goal]\nstarted: {{date}}\n---\n> [!tip] Goal\n> {{title}}\n\n**Why:** \n**By when:** \n\n## Milestones\n- [ ] \n- [ ] \n- [ ] \n\n## Weekly check-in\n| Week | Progress | Blocker |\n|---|---|---|\n| 1 |  |  |\n\n## Done looks like\n\n' },
+    { name: 'Pros & cons', group: 'Life', body: '## Decision\n> {{title}}\n\n| Pros | Cons |\n|---|---|\n|  |  |\n|  |  |\n|  |  |\n\n## Gut feeling\n\n\n## Decision & why\n\n' },
+    { name: 'Idea dump', group: 'Life', body: '---\ntags: [ideas]\ndate: {{date}}\n---\n> [!tip] No order, no judging. Link ideas with [[ ]] later.\n\n- \n- \n- \n\n## Worth keeping\n- [ ] \n' },
+    { name: 'Recipe', group: 'Life', body: '---\ntags: [recipe]\nserves: \ntime: \n---\n## Ingredients\n- [ ] \n- [ ] \n\n## Steps\n1. \n2. \n\n> [!tip] Notes\n> What to change next time.\n' },
+    { name: 'Book notes', group: 'Life', body: '---\ntags: [book]\nauthor: \nstatus: reading\n---\n## In one sentence\n\n\n## Key ideas\n- \n\n## Quotes\n> \n\n## Chapter notes\n### Ch. 1\n\n\n## My take\n\n' },
+    { name: 'Band practice log', group: 'Life', body: '---\ntags: [band]\ndate: {{date}}\n---\n**Piece:**   **Tempo:**   **Minutes:** \n\n## Worked on\n- \n\n## Trouble spots (measures)\n- [ ] \n\n## Next session\n- \n\n> [!tip] Slow it down, loop the bar, speed up 4 bpm at a time.\n' },
+    { name: 'Meeting', group: 'Work', body: '---\ndate: {{date}}\n---\n**When:** {{date}} {{time}}\n**Who:** \n\n## Agenda\n1. \n\n## Notes\n\n\n## Action items\n- [ ] \n' },
+    { name: 'Project plan', group: 'Work', body: '---\ntags: [project]\nstatus: planning\nstarted: {{date}}\n---\n> [!info] Goal\n> What does done look like?\n\n## Milestones\n| Milestone | Target | Status |\n|---|---|---|\n|  |  | planning |\n\n## Tasks\n- [ ] \n\n## Risks\n- \n\n## Links\n- \n' },
+    { name: 'Medical case', group: 'Medicine', body: '---\ntags: [case]\ndate: {{date}}\n---\n> [!info] Chief complaint\n> \n\n## History\n**HPI:** \n**PMH:**   **Meds:**   **Allergies:** \n**Family / social:** \n\n## Exam\n**Vitals:** \n\n\n## Labs & imaging\n| Test | Result | Normal |\n|---|---|---|\n|  |  |  |\n\n## Assessment\n**Differential:**\n1. \n2. \n3. \n\n## Plan\n- [ ] \n\n## Teaching point\nwhat was the key finding :: \n' },
+    { name: 'Drug card', group: 'Medicine', body: '---\ntags: [pharm, drug]\n---\n## {{title}}\n**Class:** \n**Mechanism:** \n\n## Uses\n- \n\n## Side effects\n- \n\n## Contraindications & interactions\n- \n\n## Pearls\n> [!tip] \n> \n\n## Cards\n{{title}} mechanism :: \n{{title}} class :: \n' },
+    { name: 'Anatomy region', group: 'Medicine', body: '---\ntags: [anatomy]\n---\n## {{title}}\n**Location:** \n**Function:** \n\n## Structures\n- \n\n## Blood supply & nerves\n- \n\n## Clinical\n> [!warning] What goes wrong here\n> \n\n## Cards\n{{title}} is supplied by :: \n' }
   ];
+  var TGROUPS = ['School', 'Medicine', 'Life', 'Work'];
   function allTemplates() {
     var mine = Array.from(notes.values()).filter(function (n) { return n.folder === TEMPLATES || n.folder.indexOf(TEMPLATES + '/') === 0; })
       .sort(function (a, b) { return a.title.localeCompare(b.title); }).map(function (n) { return { name: n.title, body: n.body, mine: true }; });
@@ -1755,15 +1825,46 @@
   }
   function chooseTemplate() {
     var list = allTemplates();
-    return sheet({ title: 'Templates', message: list.some(function (t) { return t.mine; }) ? '' : 'Tip: notes you put in a \u201cTemplates\u201d folder show up here too.', left: true,
-      actions: list.map(function (t, i) { return { label: t.name + (t.mine ? '' : ' \u00b7 starter'), value: i, icon: I.tmpl }; }) }).then(function (i) { return i === null || i === undefined ? null : list[i]; });
+    return overlay(function (done) {
+      var box = document.createElement('div'); box.className = 'qs tpick'; box.setAttribute('role', 'dialog');
+      box.innerHTML = '<label class="qsin">' + I.tmpl + '<input id="tq" type="text" placeholder="Find a template" autocomplete="off" autocapitalize="none" spellcheck="false"><button class="qsx" aria-label="Close">Cancel</button></label><div class="qsl" id="tl"></div>';
+      var inp = $('#tq', box), ul = $('#tl', box);
+      function draw() {
+        var q = norm(inp.value), h = '', groups = [['Mine', list.filter(function (t) { return t.mine; })]].concat(TGROUPS.map(function (g) { return [g, list.filter(function (t) { return !t.mine && t.group === g; })]; }));
+        groups.forEach(function (g) {
+          var items = g[1].filter(function (t) { return !q || norm(t.name).indexOf(q) >= 0 || norm(t.body).indexOf(q) >= 0; });
+          if (!items.length) return;
+          h += '<div class="qsh">' + g[0] + '</div>' + items.map(function (t) { return '<button data-i="' + list.indexOf(t) + '">' + I.tmpl + '<span class="qt">' + esc(t.name) + '</span><small>' + esc(tmplHint(t.body)) + '</small></button>'; }).join('');
+        });
+        ul.innerHTML = h || '<div class="qsh">Nothing matches</div>' + (list.some(function (t) { return t.mine; }) ? '' : '<div class="qsh" style="text-transform:none;letter-spacing:0">Tip: notes in a \u201cTemplates\u201d folder show up here too.</div>');
+      }
+      inp.addEventListener('input', draw);
+      inp.addEventListener('keydown', function (e) { if (e.key === 'Escape') done(null); if (e.key === 'Enter') { var b = ul.querySelector('button[data-i]'); if (b) done(+b.dataset.i); } });
+      ul.addEventListener('click', function (e) { var b = e.target.closest('button[data-i]'); if (b) done(+b.dataset.i); });
+      $('.qsx', box).addEventListener('click', function () { done(null); });
+      draw();
+      setTimeout(function () { if (!/iP(hone|ad|od)/.test(navigator.userAgent)) inp.focus(); }, 80);
+      return box;
+    }).then(function (i) { return i === null || i === undefined ? null : list[i]; });
+  }
+  function tmplHint(body) {
+    var heads = []; String(body).replace(/^#{1,3}\s+(.+)$/gm, function (m, t) { if (heads.length < 4 && !/\{\{/.test(t)) heads.push(t.trim()); return m; });
+    return heads.join(' \u00b7 ');
   }
   async function newFromTemplate(folder) {
     var t = await chooseTemplate(); if (!t) return;
+    createFromTemplate(t, folder);
+  }
+  async function createFromTemplate(t, folder) {
     if (folder === undefined) { var r = route(); folder = r.v === 'folder' && r.path !== '*' && r.path !== TEMPLATES ? r.path : ''; }
-    var title = uniqueTitle(t.mine ? t.name : 'Untitled');
+    var title = null, asks = /\{\{title\}\}/.test(t.body);
+    if (asks) {
+      title = await dialog({ title: 'Name this note', message: 'The \u201c' + t.name + '\u201d template uses the name inside the note.', input: true, placeholder: t.name === 'Drug card' ? 'e.g. Propranolol' : 'Title', ok: 'Create', validate: function (v) { return checkTitle(v); } });
+      if (!title) return;
+    }
+    title = title || uniqueTitle(t.mine ? t.name : 'Untitled');
     var n = createNote({ title: title, folder: folder, body: fillTmpl(t.body, title) });
-    go('#/n/' + n.id); startEditing(n, true);
+    go('#/n/' + n.id); startEditing(n, !asks);
   }
 
   /* ---------- Recall: spaced repetition built from your notes ---------- */
@@ -2170,6 +2271,7 @@
     ['New folder', 'directory', function () { newFolder(''); }], ['Trash', 'deleted restore bin', function () { go('#/trash'); }],
     ['Formatting guide', 'help markdown how syntax', function () { go('#/guide'); }], ['Settings', 'preferences accent text size', function () { go('#/settings'); }],
     ['Find in this note', 'search within replace', function () { var r = route(); if (r.v === 'note' && notes.get(r.id)) { if (editing) openFindReplace($('#ed')); else openFind(notes.get(r.id)); } else toast('Open a note first'); }],
+    ['Note history', 'versions restore earlier backup', function () { var r = route(); if (r.v === 'note' && notes.get(r.id)) showHistory(notes.get(r.id)); else toast('Open a note first'); }],
     ['Share this note', 'send export text', function () { var r = route(); if (r.v === 'note' && notes.get(r.id)) shareNote(notes.get(r.id)); else toast('Open a note first'); }],
     ['Vault stats', 'count words statistics', function () { showStats(); }],
     ['Export vault (.zip)', 'backup download', function () { exportVault(); }], ['Export flashcards (CSV for Synapse)', 'synapse anki csv', function () { exportCards(null); }]
@@ -2194,14 +2296,16 @@
       if (q && !cmdOnly && !byTitle(q) && !checkTitle(q)) items.push({ t: 'create', q: q });
       if (q && !cmdOnly) items.push({ t: 'search', q: q });
       items = items.concat(cs.map(function (c) { return { t: 'c', c: c }; }));
+      if (nq) allTemplates().filter(function (t) { return norm(t.name).indexOf(nq) >= 0 || fuzzy(nq, norm(t.name)); }).slice(0, 4).forEach(function (t) { items.push({ t: 'tmpl', tp: t }); });
       sel = 0;
       var h = '', lastT = '';
       items.forEach(function (it, i) {
-        var grp = it.t === 'n' ? (nq ? 'Notes' : 'Recent') : it.t === 'c' ? 'Commands' : 'Notes';
+        var grp = it.t === 'n' ? (nq ? 'Notes' : 'Recent') : it.t === 'c' ? 'Commands' : it.t === 'tmpl' ? 'Templates' : 'Notes';
         if (grp !== lastT) { h += '<div class="qsh">' + grp + '</div>'; lastT = grp; }
         if (it.t === 'n') h += '<button data-i="' + i + '">' + (it.n.pinned ? I.pin : I.doc) + '<span class="qt">' + esc(it.n.title) + '</span><small>' + esc(it.n.folder ? it.n.folder.toLowerCase() : '') + '</small></button>';
         else if (it.t === 'create') h += '<button data-i="' + i + '">' + I.plus + '<span class="qt">New note \u201c' + esc(it.q) + '\u201d</span></button>';
         else if (it.t === 'search') h += '<button data-i="' + i + '">' + I.search + '<span class="qt">Search text for \u201c' + esc(it.q) + '\u201d</span></button>';
+        else if (it.t === 'tmpl') h += '<button data-i="' + i + '">' + I.tmpl + '<span class="qt">New \u201c' + esc(it.tp.name) + '\u201d note</span><small>template</small></button>';
         else h += '<button data-i="' + i + '">' + I.cmd + '<span class="qt">' + esc(it.c[0]) + '</span></button>';
       });
       list.innerHTML = h || '<div class="qsh">Nothing matches</div>';
@@ -2214,6 +2318,7 @@
       if (it.t === 'n') go('#/n/' + it.n.id);
       else if (it.t === 'create') { var n = createNote({ title: it.q.trim().replace(/\s+/g, ' '), folder: '', body: '' }); go('#/n/' + n.id); startEditing(n, false); }
       else if (it.t === 'search') go('#/search/' + encodeURIComponent(it.q));
+      else if (it.t === 'tmpl') createFromTemplate(it.tp);
       else it.c[2](inp.value.trim());
     }
     inp.addEventListener('input', draw);
@@ -2372,6 +2477,7 @@
     linkall: function (el) { var n = notes.get(el.dataset.id); if (!n) return; var k = 0; unlinkedMentions(n).forEach(function (m) { k += linkMention(m.note, n.title); }); toast('Linked ' + k + ' mention' + (k === 1 ? '' : 's')); render(); },
     gghosts: function () { ui.graphGhosts = ui.graphGhosts === false; saveMeta(); render(); },
     gauto: function () { ui.graphAuto = ui.graphAuto === false; saveMeta(); render(); },
+    gcolor: function () { ui.graphColor = !ui.graphColor; saveMeta(); render(); },
     autolink: function () { autoLinkAll(); },
     autoundo: function () { undoAutoLink(); },
     gfit: function () { graphCtl && graphCtl.fit(); },
@@ -2459,6 +2565,7 @@
       await DB.clear('notes'); await DB.clear('folders'); saveMeta();
       rc.clear(); try { await RC.clear('cards'); } catch (e) {}
       try { await IMG.clear(); } catch (e) {}
+      try { await HIST.clear(); } catch (e) {}
       Object.keys(imgURL).forEach(function (i) { URL.revokeObjectURL(imgURL[i]); delete imgURL[i]; });
       toast('Vault erased'); renderSettings();
     }
