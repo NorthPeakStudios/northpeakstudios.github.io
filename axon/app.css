@@ -153,6 +153,8 @@ a.wl.unresolved{opacity:.6;text-decoration:underline dotted;text-underline-offse
 .bl .bi span em{font-style:normal;color:var(--accent)}
 .bl .none{padding:4px 16px 14px;color:var(--faint);font-size:14px}
 .bl h3.umh{border-top:1px solid var(--line);margin-top:4px}
+.bl h3 button.outb{white-space:nowrap;color:var(--faint);font-weight:500;text-decoration:underline;text-decoration-color:var(--line2);text-underline-offset:3px}
+.chip svg{width:13px;height:13px;vertical-align:-2px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;margin-right:2px}
 .bl h3 button{color:var(--accent);font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;padding:6px 0 6px 12px}
 .bl .bi.um{display:flex;align-items:center;gap:8px;padding:0 10px 0 0}
 .bl .um .umt{flex:1;min-width:0;text-align:left;padding:10px 16px}

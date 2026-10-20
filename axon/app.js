@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.5.3 */
+/* Axon · Northpeak Studios · v1.5.4 */
 (function () {
   'use strict';
-  var VERSION = '1.5.3';
+  var VERSION = '1.5.4';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -290,15 +290,22 @@
   function openDaily(t, replace) {
     t = t || ymd(new Date());
     var n = byTitle(t);
-    if (!n) { n = createNote({ title: t, folder: DAILY, body: '' }); if (t !== ymd(new Date())) autoDaily[n.id] = 1; }
+    if (!n) { n = createNote({ title: t, folder: DAILY, body: dailyBody(t) }); if (t !== ymd(new Date()) && !n.body.trim()) autoDaily[n.id] = 1; }
     go('#/n/' + n.id, replace);
+  }
+  function dailyBody(t) {
+    if (!settings.dailyTmpl) return '';
+    var tp = allTemplates().filter(function (x) { return x.name === settings.dailyTmpl; })[0];
+    if (!tp) return '';
+    var d = dayOf(t) || new Date();
+    return String(tp.body).replace(/\{\{date\}\}/g, t).replace(/\{\{title\}\}/g, t).replace(/\{\{time\}\}/g, String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'));
   }
   /* quick jot: one line appended to today's note with the time, without opening the editor */
   async function jot() {
     var text = await dialog({ title: 'Jot to today\u2019s note', input: true, placeholder: 'A thought, a task, a link\u2026', ok: 'Add', validate: function (v) { return v.trim() ? null : 'Type something first.'; } });
     if (!text) return;
     var t = ymd(new Date()), n = byTitle(t);
-    if (!n) n = createNote({ title: t, folder: DAILY, body: '' });
+    if (!n) n = createNote({ title: t, folder: DAILY, body: dailyBody(t) });
     var d = new Date(), hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
     var line = '- ' + hm + ' ' + text.trim();
     var body = n.body.replace(/\s+$/, '');
@@ -760,7 +767,7 @@
       '<div class="meta">' + tags.map(function (t) { return '<span class="tag" data-tag="' + esc(t) + '">#' + esc(t) + '</span>'; }).join('') +
       '<span>' + (tags.length ? '· ' : '') + (n.pinned ? 'pinned · ' : '') + 'edited ' + agoLong(n.updated) + ' · ' + wc + ' word' + (wc === 1 ? '' : 's') + (wc > 150 ? ' · ' + readMin(wc) + ' min read' : '') + (nc ? ' · </span><button class="cardct" data-act="cards" data-id="' + n.id + '">' + I.recall + nc + ' card' + (nc === 1 ? '' : 's') + '</button>' : '</span>') + '</div>' +
       '<article class="prose" id="prose">' + (n.body.trim() ? dedupeTitle(MD.render(n.body, mdOpt()), n.title) : '<button class="empty-note" data-act="edit">Empty note. Tap here to start writing \u2014 type / for blocks.</button>') + '</article>' +
-      '<section class="bl" id="backlinks"><h3><span>' + bl.length + ' backlink' + (bl.length === 1 ? '' : 's') + '</span><span>' + out.length + ' outgoing</span></h3>' +
+      '<section class="bl" id="backlinks"><h3><span>' + bl.length + ' backlink' + (bl.length === 1 ? '' : 's') + '</span><button class="outb" data-act="outlinks" data-id="' + n.id + '">' + out.length + ' out' + (unresolvedOf(n).length ? ' \u00b7 ' + unresolvedOf(n).length + ' unresolved' : '') + '</button></h3>' +
       (bl.length ? bl.map(function (o) { return '<button class="bi" data-act="open" data-id="' + o.id + '"><b>' + esc(o.title) + '</b><span>' + backlinkSnippet(o.body, n.title) + '</span></button>'; }).join('') :
         '<div class="none">No notes link here yet. Link it from another note with [[' + esc(n.title) + ']].</div>') +
       (um.length ? '<h3 class="umh"><span>' + um.length + ' unlinked mention' + (um.length === 1 ? '' : 's') + '</span>' + (um.length > 1 ? '<button data-act="linkall" data-id="' + n.id + '">Link all</button>' : '') + '</h3>' +
@@ -1528,6 +1535,7 @@
     var h = '<div class="gwrap"><canvas id="gc" aria-label="Graph of linked notes"></canvas><div class="ghead"><div class="eyebrow">' + nN + ' note' + (nN === 1 ? '' : 's') + ' · ' + nL + ' link' + (nL === 1 ? '' : 's') + (nA ? ' · ' + nA + ' auto' : '') + (nG ? ' · ' + nG + ' unresolved' : '') + '</div><h1 class="h1">Graph</h1>' +
       '<div class="chips"><button class="chip' + (ui.graphMode === 'global' ? ' on' : '') + '" data-act="gmode" data-m="global">Global</button>' +
       '<button class="chip' + (ui.graphMode === 'local' ? ' on' : '') + '" data-act="gmode" data-m="local">Local</button>' +
+      '<button class="chip" data-act="gfind" title="Find a note and center the graph on it">' + I.search.replace(' class="fi"', '') + ' Find</button>' +
       '<button class="chip' + (ui.graphTags ? ' on' : '') + '" data-act="gtags">Tags</button>' +
       '<button class="chip' + (ui.graphColor ? ' on' : '') + '" data-act="gcolor" title="Color notes by their top folder">Folders</button>' +
       '<button class="chip' + (ui.graphAuto !== false ? ' on' : '') + '" data-act="gauto" title="Notes that mention each other by name">Auto-link</button>' +
@@ -1678,6 +1686,9 @@
       '<button class="item" data-act="autolink"><span>Auto-link mentions<small>' + (function () { var c = 0, m = 0; notes.forEach(function (o) { var k = mentionsOf(o).length; c += k; if (k) m++; }); return c ? c + ' plain mention' + (c === 1 ? '' : 's') + ' of other notes in ' + m + ' note' + (m === 1 ? '' : 's') + ' \u2014 turn them into [[links]]' : 'Every mention of another note is already a link'; })() + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       (alBackup ? '<button class="item" data-act="autoundo"><span>Undo last auto-link<small>' + alBackup.count + ' link' + (alBackup.count === 1 ? '' : 's') + ' added ' + agoLong(alBackup.ts) + '</small></span></button>' : '') +
       '<div class="item"><span>Auto-link in the graph<small>Notes that mention another note by name (or an alias from its front matter) are drawn as dotted lines, without changing your text. Toggle it with the Auto-link chip on the graph.</small></span></div></div>' +
+      '<div class="sec"><span>Daily notes</span></div><div class="group">' +
+      '<button class="item" data-act="dailytmpl"><span>Template for new daily notes<small>' + (settings.dailyTmpl ? esc(settings.dailyTmpl) : 'None \u2014 new daily notes start empty') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
+      '<div class="item"><span>Where they live<small>Daily notes are kept in the \u201c' + DAILY + '\u201d folder, named by date. Tap the day chip on one to open the calendar.</small></span></div></div>' +
       '<div class="sec"><span>Discover</span></div><div class="group">' +
       '<div class="item"><span>Discover uses the internet<small>Looks up your note topics on Wikipedia while Discover is open. Only the search words are sent.</small></span><div class="seg">' + [['1', 'On'], ['0', 'Off']].map(function (s) { return '<button class="' + ((settings.discoverNet !== false) === (s[0] === '1') ? 'on' : '') + '" data-act="dnet" data-v="' + s[0] + '" style="font-family:var(--sans);font-size:13px">' + s[1] + '</button>'; }).join('') + '</div></div>' +
       '<button class="item" data-act="dclear"><span>Clear Discover history<small>Forget saved cards and \u201cnot for me\u201d picks</small></span></button></div>' +
@@ -1974,6 +1985,26 @@
       setTimeout(function () { if (!/iP(hone|ad|od)/.test(navigator.userAgent)) inp.focus(); }, 80);
       return box;
     }).then(function (i) { return i === null || i === undefined ? null : list[i]; });
+  }
+  /* generic note picker with search; resolves to a note id or null */
+  function pickNote(title) {
+    return overlay(function (done) {
+      var box = document.createElement('div'); box.className = 'qs tpick'; box.setAttribute('role', 'dialog');
+      box.innerHTML = '<label class="qsin">' + I.search + '<input id="pq" type="text" placeholder="' + esc(title || 'Find a note') + '" autocomplete="off" autocapitalize="none" spellcheck="false"><button class="qsx" aria-label="Close">Cancel</button></label><div class="qsl" id="pl"></div>';
+      var inp = $('#pq', box), ul = $('#pl', box);
+      function draw() {
+        var q = norm(inp.value), list = Array.from(notes.values()).map(function (n) { var t = norm(n.title), sc = !q ? 1 : t === q ? 100 : t.indexOf(q) === 0 ? 60 : t.indexOf(q) >= 0 ? 30 : fuzzy(q, t) ? 5 : 0; return { n: n, sc: sc }; })
+          .filter(function (x) { return x.sc > 0; }).sort(function (a, b) { return b.sc - a.sc || b.n.updated - a.n.updated; }).slice(0, 12);
+        ul.innerHTML = (list.length ? '<div class="qsh">' + (q ? 'Notes' : 'Recent') + '</div>' + list.map(function (x) { return '<button data-id="' + x.n.id + '">' + I.note + '<span class="qt">' + esc(x.n.title) + '</span>' + (x.n.folder ? '<small>' + esc(x.n.folder.toLowerCase()) + '</small>' : '') + '</button>'; }).join('') : '<div class="qsh">Nothing matches</div>');
+      }
+      inp.addEventListener('input', draw);
+      inp.addEventListener('keydown', function (e) { if (e.key === 'Escape') done(null); if (e.key === 'Enter') { var b = ul.querySelector('button[data-id]'); if (b) done(b.dataset.id); } });
+      ul.addEventListener('click', function (e) { var b = e.target.closest('button[data-id]'); if (b) done(b.dataset.id); });
+      $('.qsx', box).addEventListener('click', function () { done(null); });
+      draw();
+      setTimeout(function () { inp.focus(); }, 80);
+      return box;
+    });
   }
   function tmplHint(body) {
     var heads = []; String(body).replace(/^#{1,3}\s+(.+)$/gm, function (m, t) { if (heads.length < 4 && !/\{\{/.test(t)) heads.push(t.trim()); return m; });
@@ -2599,6 +2630,16 @@
     gtags: function () { ui.graphTags = !ui.graphTags; saveMeta(); render(); },
     stats: function () { showStats(); },
     calendar: function (el) { openCalendar(el.dataset.day); },
+    outlinks: async function (el) {
+      var n = notes.get(el.dataset.id); if (!n) return;
+      var out = outNotes(n), gh = unresolvedOf(n);
+      if (!out.length && !gh.length) { toast('This note doesn\u2019t link anywhere yet \u2014 type [[ to link one'); return; }
+      var acts = out.map(function (o) { return { label: o.title, value: 'o:' + o.id, icon: I.note }; }).concat(gh.map(function (t) { return { label: t + ' \u00b7 create', value: 'g:' + t, icon: I.plus }; }));
+      var v = await sheet({ title: 'Links from \u201c' + n.title + '\u201d', left: true, actions: acts });
+      if (!v) return;
+      if (v.slice(0, 2) === 'o:') go('#/n/' + v.slice(2));
+      else { var nn = createNote({ title: v.slice(2), folder: n.folder, body: '' }); go('#/n/' + nn.id); startEditing(nn, false); }
+    },
     findrep: function () { var ed = $('#ed'); if (ed) openFindReplace(ed); },
     findnote: function (el) { var n = notes.get(el.dataset.id); if (n) openFind(n); },
     linkone: function (el) { var o = notes.get(el.dataset.id), n = route().id && notes.get(route().id); if (!o || !n) return; var k = linkMention(o, n.title); toast(k ? 'Linked in \u201c' + o.title + '\u201d' : 'Nothing to link'); render(); },
@@ -2606,6 +2647,11 @@
     gghosts: function () { ui.graphGhosts = ui.graphGhosts === false; saveMeta(); render(); },
     gauto: function () { ui.graphAuto = ui.graphAuto === false; saveMeta(); render(); },
     gcolor: function () { ui.graphColor = !ui.graphColor; saveMeta(); render(); },
+    gfind: async function () {
+      var id = await pickNote('Center the graph on\u2026');
+      if (!id) return;
+      ui.lastNote = id; ui.graphMode = 'local'; saveMeta(); render();
+    },
     autolink: function () { autoLinkAll(); },
     autoundo: function () { undoAutoLink(); },
     gfit: function () { graphCtl && graphCtl.fit(); },
@@ -2630,6 +2676,13 @@
       if (!ok) return; dHidden = {}; dSaved = {}; try { await DC.clear('cache'); await DC.clear('meta'); } catch (e) {} toast('Discover history cleared');
     },
     dnet: function (el) { settings.discoverNet = el.dataset.v === '1'; saveSettings(); renderSettings(); },
+    dailytmpl: async function () {
+      var list = allTemplates();
+      var v = await sheet({ title: 'Template for new daily notes', left: true, actions: [{ label: 'None (start empty)', value: '', icon: I.x }].concat(list.map(function (t) { return { label: t.name + (t.mine ? '' : ' \u00b7 starter'), value: t.name, icon: I.tmpl }; })) });
+      if (v === null || v === undefined) return;
+      settings.dailyTmpl = v || ''; saveSettings(); renderSettings();
+      toast(v ? 'New daily notes will use \u201c' + v + '\u201d' : 'Daily notes start empty');
+    },
     gorecall: function () { go('#/recall'); },
     gotrash: function () { go('#/trash'); },
     fromtmpl: function () { newFromTemplate(''); },
