@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.6.14 */
+/* Axon · Northpeak Studios · v1.6.15 */
 (function () {
   'use strict';
-  var VERSION = '1.6.14';
+  var VERSION = '1.6.15';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -2110,7 +2110,7 @@
   async function importFiles(list) {
     if (!list.length) return;
     var entries = [], images = [], keeps = [], meta = null, metaRoot = '', dec = new TextDecoder();
-    var zipSeen = 0, zipFilesN = 0, otherN = 0, strictDec = null;
+    var zipSeen = 0, zipFilesN = 0, otherN = 0, strictDec = null, readErr = '', badN = 0;
     try { strictDec = new TextDecoder('utf-8', { fatal: true }); } catch (e) {}
     for (var i = 0; i < list.length; i++) {
       var f = list[i];
@@ -2122,6 +2122,7 @@
         if (isZip) {
           zipSeen++;
           var z = await Zip.read(buf);
+          if (z.bad) { badN += z.bad; readErr = z.err || readErr; }
           z.forEach(function (e) {
             if (!/\/$/.test(e.name)) zipFilesN++;
             var mm = /(^|\/)\.axon\/vault\.json$/.exec(e.name);
@@ -2142,9 +2143,11 @@
           if (txt !== null && txt.indexOf('\u0000') < 0) entries.push({ path: f.name.replace(/\.[^.\/]{1,8}$/, '') + '.md', text: txt, date: f.lastModified || 0 });
           else otherN++;
         }
-      } catch (err) { toast('Couldn\u2019t read ' + (f.name || 'that file') + ': ' + err.message); }
+      } catch (err) { readErr = (f.name || 'that file') + ': ' + err.message; }
     }
     if (!entries.length) {
+      /* a read error is the real news: never cover it with "no markdown files" */
+      if (readErr) { toast('Couldn\u2019t read ' + readErr + (badN ? ' (' + badN + ' file' + (badN === 1 ? '' : 's') + ' in the zip)' : '')); return; }
       toast(zipSeen ? 'That zip had 0 notes (' + zipFilesN + ' file' + (zipFilesN === 1 ? '' : 's') + ', none ending in .md or .txt)' : otherN ? 'That file isn\u2019t a zip or a text note' : 'No markdown files found');
       return;
     }
@@ -2211,7 +2214,7 @@
     });
     if (nrc) recallSoon();
     if (!count && same) toast('Everything in that file is already in your vault');
-    else toast('Imported ' + count + ' note' + (count === 1 ? '' : 's') + (nimg ? ' · ' + nimg + ' image' + (nimg === 1 ? '' : 's') : '') + (same ? ' · ' + same + ' already here' : '') + (renamed ? ' · ' + renamed + ' renamed to avoid clashes' : ''));
+    else toast('Imported ' + count + ' note' + (count === 1 ? '' : 's') + (nimg ? ' · ' + nimg + ' image' + (nimg === 1 ? '' : 's') : '') + (same ? ' · ' + same + ' already here' : '') + (renamed ? ' · ' + renamed + ' renamed to avoid clashes' : '') + (badN ? ' · ' + badN + ' file' + (badN === 1 ? '' : 's') + ' couldn\u2019t be unpacked' : ''));
     render();
   }
 
