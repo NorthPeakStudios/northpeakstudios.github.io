@@ -166,7 +166,7 @@
   function inline(text, opt) {
     var codes = [], toks = [];
     text = text.replace(/`([^`\n]+)`/g, function (m, c) { codes.push(c); return '\u0000' + (codes.length - 1) + '\u0000'; });
-    text = text.replace(/!\[([^\]\n]*)\]\(\s*((?:axon-img:[\w-]+)|(?:https?:\/\/[^\s)]+))\s*\)/g, function (m, alt, u) {
+    text = text.replace(/!\[([^\]\n]*)\]\(\s*((?:axon-img:[\w-]+)|(?:https?:\/\/(?:[^\s()]|\([^\s()]*\))+))\s*\)/g, function (m, alt, u) {
       var im = /^axon-img:([\w-]+)$/.exec(u);
       toks.push(im ? '<img class="aimg" data-img="' + esc(im[1]) + '" alt="' + esc(alt) + '">' : '<img class="aimg" src="' + esc(u) + '" alt="' + esc(alt) + '" loading="lazy">');
       return '\u0001' + (toks.length - 1) + '\u0001';
@@ -194,11 +194,16 @@
       toks.push('<a class="wl' + (exists ? '' : ' unresolved') + '" data-wl="' + esc(t) + '"' + (h ? ' data-h="' + esc(slug(h.slice(1))) + '"' : '') + ' href="#">' + esc(label) + '</a>');
       return '\u0001' + (toks.length - 1) + '\u0001';
     });
-    text = text.replace(/\[([^\]\n]+)\]\(((?:https?:\/\/|mailto:)[^\s)]+)\)/g, function (m, t, u) {
+    text = text.replace(/\[([^\]\n]+)\]\(((?:https?:\/\/|mailto:)(?:[^\s()]|\([^\s()]*\))+)\)/g, function (m, t, u) {
       toks.push('<a class="ext" href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(t) + '</a>');
       return '\u0001' + (toks.length - 1) + '\u0001';
     });
-    text = text.replace(/(^|[\s(])(https?:\/\/[^\s<)]+[^\s<).,;:!?])/g, function (m, p, u) {
+    /* <https://…> autolinks */
+    text = text.replace(/<((?:https?:\/\/|mailto:)[^\s<>]+)>/g, function (m, u) {
+      toks.push('<a class="ext" href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(u.replace(/^mailto:/, '')) + '</a>');
+      return '\u0001' + (toks.length - 1) + '\u0001';
+    });
+    text = text.replace(/(^|[\s(])(https?:\/\/(?:[^\s<()]|\([^\s<()]*\))*(?:[^\s<().,;:!?'"]|\([^\s<()]*\)))/g, function (m, p, u) {
       toks.push('<a class="ext" href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(u) + '</a>');
       return p + '\u0001' + (toks.length - 1) + '\u0001';
     });
@@ -219,13 +224,14 @@
   }
 
   var LIST = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/;
-  var TABLE_SEP = /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/;
+  var TABLE_SEP = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
 
   function buildList(items, start, indent, opt) {
     var ordered = items[start].ordered;
     var html = ordered ? '<ol' + (items[start].num > 1 ? ' start="' + items[start].num + '"' : '') + '>' : '<ul>';
     var i = start;
     while (i < items.length && items[i].indent >= indent) {
+      if (i > start && items[i].indent === indent && items[i].ordered !== ordered) break;
       var it = items[i];
       var c = it.content, m = /^\[( |x|X)\]\s+(.*)$/.exec(c) || /^\[( |x|X)\]$/.exec(c);
       if (m) {
@@ -236,8 +242,9 @@
       }
       if (it.more.length) html += '<br>' + it.more.map(function (x) { return inline(x, opt); }).join('<br>');
       i++;
-      if (i < items.length && items[i].indent > it.indent) {
+      while (i < items.length && items[i].indent > it.indent) {
         var r = buildList(items, i, items[i].indent, opt);
+        if (r.i === i) break;
         html += r.html; i = r.i;
       }
       html += '</li>';
@@ -354,14 +361,26 @@
         out.push(html.replace(/^<(ul|ol)/, '<$1' + dl(ls)));
         continue;
       }
-      if (line.indexOf('|') >= 0 && i + 1 < lines.length && TABLE_SEP.test(lines[i + 1])) {
+      if (line.indexOf('|') >= 0 && i + 1 < lines.length && TABLE_SEP.test(lines[i + 1]) && (lines[i + 1].indexOf('|') >= 0 || /-{2,}/.test(lines[i + 1]))) {
         flush();
-        var cells = function (l) { return l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(function (c) { return c.trim(); }); };
-        var head = cells(line);
-        var t = '<div class="tw"' + dl(i) + '><table><thead><tr>' + head.map(function (c) { return '<th>' + inline(c, opt) + '</th>'; }).join('') + '</tr></thead><tbody>';
+        /* split on | but not on \| or a | inside `code` */
+        var cells = function (l) {
+          var s = l.trim().replace(/^\|/, '').replace(/(^|[^\\])\|$/, '$1'), out = [], cur = '', code = false;
+          for (var k = 0; k < s.length; k++) {
+            var ch = s[k];
+            if (ch === '\\' && s[k + 1] === '|') { cur += '|'; k++; continue; }
+            if (ch === '`') code = !code;
+            if (ch === '|' && !code) { out.push(cur.trim()); cur = ''; continue; }
+            cur += ch;
+          }
+          out.push(cur.trim()); return out;
+        };
+        var head = cells(line), al = cells(lines[i + 1]).map(function (c) { return /^:-*:$/.test(c) ? 'center' : /-:$/.test(c) ? 'right' : /^:-/.test(c) ? 'left' : ''; });
+        var sty = function (k) { return al[k] ? ' style="text-align:' + al[k] + '"' : ''; };
+        var t = '<div class="tw"' + dl(i) + '><table><thead><tr>' + head.map(function (c, k) { return '<th' + sty(k) + '>' + inline(c, opt) + '</th>'; }).join('') + '</tr></thead><tbody>';
         i += 2;
         while (i < lines.length && lines[i].indexOf('|') >= 0 && lines[i].trim()) {
-          t += '<tr>' + cells(lines[i]).map(function (c) { return '<td>' + inline(c, opt) + '</td>'; }).join('') + '</tr>';
+          t += '<tr>' + cells(lines[i]).map(function (c, k) { return '<td' + sty(k) + '>' + inline(c, opt) + '</td>'; }).join('') + '</tr>';
           i++;
         }
         out.push(t + '</tbody></table></div>');
