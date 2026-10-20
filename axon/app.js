@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.5.8 */
+/* Axon · Northpeak Studios · v1.5.9 */
 (function () {
   'use strict';
-  var VERSION = '1.5.8';
+  var VERSION = '1.5.9';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -1051,11 +1051,13 @@
     if (prev === null || !prev.trim()) return;
     if (prev === n.body) return;
     var now = Date.now();
-    if (!force && lastSnap[n.id] && now - lastSnap[n.id] < 180000) return;
+    /* a big cut (select-all + delete, a pasted-over paragraph) always keeps the text it removed, even inside the 3 minute window */
+    var cut = prev.length - n.body.length > 80 && n.body.length < prev.length * 0.8;
+    if (!force && !cut && lastSnap[n.id] && now - lastSnap[n.id] < 180000) return;
     lastSnap[n.id] = now;
     HIST.put({ k: n.id + ':' + now, id: n.id, ts: now, title: n.title, body: prev, words: words(prev) }).then(function () { return HIST.list(n.id); }).then(function (vs) {
       vs.sort(function (a, b) { return b.ts - a.ts; });
-      var cut = now - HIST_DAYS * 864e5, gone = vs.filter(function (v, i) { return i >= HIST_MAX || v.ts < cut; }).map(function (v) { return v.k; });
+      var old = now - HIST_DAYS * 864e5, gone = vs.filter(function (v, i) { return i >= HIST_MAX || v.ts < old; }).map(function (v) { return v.k; });
       if (gone.length) HIST.del(gone);
     }).catch(function () {});
   }
@@ -1715,7 +1717,7 @@
       '<div class="item"><span>Templates<small>Make a folder called \u201cTemplates\u201d. Notes in it appear in New from template. {{date}}, {{time}} and {{title}} fill in for you.</small></span></div></div>' +
       '<div class="sec"><span>About</span></div><div class="group">' +
       '<button class="item" data-act="stats"><span>Vault stats<small>' + (function () { var s = vaultStats(); return s.notes + ' note' + (s.notes === 1 ? '' : 's') + ' \u00b7 ' + s.words.toLocaleString() + ' word' + (s.words === 1 ? '' : 's') + ' \u00b7 ' + s.links + ' link' + (s.links === 1 ? '' : 's'); })() + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
-      '<div class="item"><span>Storage<small>Notes live only on this device and work offline. Each note keeps up to 30 days of earlier versions (note menu \u203a History). Export now and then to keep a backup.</small></span></div>' +
+      '<div class="item"><span>Storage<small>Notes live only on this device and work offline. Each note keeps up to 30 days of earlier versions (note menu \u203a History). Tap Back up vault now and then to keep a copy off this phone.</small></span></div>' +
       (isStandalone() ? '' : '<div class="item"><span>Install on iPhone<small>In Safari tap Share, then Add to Home Screen.</small></span></div>') +
       '</div><input type="file" id="file" accept=".md,.markdown,.txt,.zip,.jpg,.jpeg,.png,.webp,.gif,text/markdown,text/plain,application/zip" multiple hidden>' +
       '<div class="foot"><b>Axon<i>.</i></b>by Northpeak Studios · v' + VERSION + '<span class="vinfo">' + esc(viewportInfo()) + '</span></div></div>';
@@ -3083,7 +3085,20 @@
     applySettings();
     render();
     if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-      navigator.serviceWorker.register('sw.js').catch(function () {});
+      /* a home-screen app is usually resumed, not reopened, so a new version would wait for a swipe-close.
+         Check for one each time Axon comes back; once it has landed, reload on the next return (never mid-edit). */
+      var hadCtl = !!navigator.serviceWorker.controller, swReg = null, swReady = false, swReloading = false, hiddenAt = Date.now();
+      navigator.serviceWorker.register('sw.js').then(function (r) { swReg = r; }).catch(function () {});
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (!hadCtl || swReloading) { hadCtl = true; return; }
+        swReady = true;
+        if (!editing) toast('A new version of Axon is ready', { label: 'Reload', fn: function () { swReloading = true; location.reload(); } });
+      });
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden) { hiddenAt = Date.now(); return; }
+        if (swReady && !editing && !openOverlays.length && route().v !== 'review') { swReloading = true; location.reload(); return; }
+        if (swReg && Date.now() - hiddenAt > 30000) swReg.update().catch(function () {});
+      });
     }
   }
   window.__axon = { notes: notes, folders: folders, trash: trash, rc: rc, recallStats: recallStats, byTitle: byTitle, backlinks: backlinks, renameNote: renameNote, exportFiles: function () { return notes; }, Zip: Zip, importFiles: importFiles };

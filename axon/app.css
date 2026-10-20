@@ -1,7 +1,7 @@
 /* Axon · Northpeak Studios */
 :root{
   --bg:#0b0b0c;--bg2:#111113;--card:#141416;--card2:#1a1a1d;--line:#202023;--line2:#2b2b2f;
-  --text:#edebe6;--dim:#8f8e8a;--faint:#5e5e63;--accent:#ff6a3d;--accent-soft:rgba(255,106,61,.16);
+  --text:#edebe6;--dim:#8f8e8a;--faint:#7c7c82;--accent:#ff6a3d;--accent-soft:rgba(255,106,61,.16);
   --serif:ui-serif,"New York","Source Serif 4","Iowan Old Style",Georgia,serif;
   --sans:-apple-system,BlinkMacSystemFont,system-ui,"Inter","Segoe UI",sans-serif;
   --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
@@ -52,7 +52,7 @@ body.editing #tabbar{display:none}
 
 /* headers */
 .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);font-weight:500}
-.h1{font-family:var(--serif);font-weight:400;font-size:38px;line-height:1.1;margin:6px 0 18px;letter-spacing:-.01em}
+.h1{font-family:var(--serif);font-weight:400;font-size:38px;line-height:1.1;margin:6px 0 18px;letter-spacing:-.01em;overflow-wrap:anywhere}
 .h1 .dot{color:var(--accent)}
 .sec{display:flex;justify-content:space-between;align-items:center;margin:26px 0 6px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);font-weight:500}
 .sec button{color:var(--faint);letter-spacing:.14em;text-transform:uppercase;font-size:12px;padding:6px 0 6px 12px}
@@ -629,3 +629,6 @@ body.reviewing #view{padding-bottom:calc(var(--bpad) + 16px)}
 .tkl ul{margin:0;padding:0}
 .tkl li.task{padding:7px 0;margin-top:0;margin-bottom:0;border-bottom:1px solid var(--line)}
 .tkl li.task:last-child{border-bottom:0}
+
+/* v1.5.8+: --faint lifted for readable small text (4.7:1); the tab bar keeps its original tone */
+#tabbar{--faint:#5e5e63}
