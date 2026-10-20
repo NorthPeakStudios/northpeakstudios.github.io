@@ -31,7 +31,7 @@
         links.push([a, b]);
       });
       nodes.forEach(function (n) {
-        n.r = n.kind === 'tag' ? 3.5 : 4 + Math.min(9, Math.sqrt(n.deg) * 2.4);
+        n.r = n.kind === 'tag' ? 3.5 : n.kind === 'ghost' ? 4 : 4 + Math.min(9, Math.sqrt(n.deg) * 2.4);
         if (n.isNew) {
           var nb = Object.keys(adj[n.id]).map(function (id) { return memory[id]; }).filter(Boolean);
           if (nb.length) { n.x = nb[0].x + (hash(n.id + 'x') - .5) * 40; n.y = nb[0].y + (hash(n.id + 'y') - .5) * 40; }
@@ -64,7 +64,7 @@
       for (i = 0; i < links.length; i++) {
         a = links[i][0]; b = links[i][1];
         dx = b.x - a.x; dy = b.y - a.y; d = Math.sqrt(dx * dx + dy * dy) || 1;
-        var len = (a.kind === 'tag' || b.kind === 'tag') ? L * 0.7 : L;
+        var len = (a.kind === 'tag' || b.kind === 'tag') ? L * 0.7 : (a.kind === 'ghost' || b.kind === 'ghost') ? L * 0.8 : L;
         f = (d - len) * ks * alpha;
         a.vx += dx / d * f; a.vy += dy / d * f; b.vx -= dx / d * f; b.vy -= dy / d * f;
       }
@@ -122,7 +122,10 @@
         var hot = focus && (l[0] === focus || l[1] === focus);
         ctx.strokeStyle = hot ? hexA(accent, 0.75) : 'rgba(237,235,230,0.13)';
         ctx.lineWidth = hot ? 1.4 : 1;
+        var gh = l[0].kind === 'ghost' || l[1].kind === 'ghost';
+        if (gh) ctx.setLineDash([3, 4]);
         ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+        if (gh) ctx.setLineDash([]);
       });
       var showAll = view.k > 0.75 || nodes.length < 40;
       var order = nodes.slice().sort(function (a, b) { var ra = a === focus ? 2 : nb[a.id] ? 1 : 0, rb = b === focus ? 2 : nb[b.id] ? 1 : 0; return ra - rb; });
@@ -138,6 +141,9 @@
         if (n.kind === 'tag') {
           ctx.strokeStyle = isN || isF ? '#edebe6' : 'rgba(237,235,230,0.45)'; ctx.lineWidth = 1.2;
           ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.stroke();
+        } else if (n.kind === 'ghost') {
+          ctx.setLineDash([2.5, 2.5]); ctx.strokeStyle = isF ? accent : (isN ? 'rgba(237,235,230,0.7)' : 'rgba(237,235,230,0.32)'); ctx.lineWidth = 1.2;
+          ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.stroke(); ctx.setLineDash([]);
         } else {
           ctx.fillStyle = isF ? accent : (focus ? (isN ? '#edebe6' : '#5d5d63') : (n.deg ? '#a9a8a4' : '#5d5d63'));
           ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fill();

@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.3.0 */
+/* Axon · Northpeak Studios · v1.3.1 */
 (function () {
   'use strict';
-  var VERSION = '1.3.0';
+  var VERSION = '1.3.1';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -66,6 +66,40 @@
     var seen = {}, out = [];
     linksOf(n).forEach(function (l) { var t = byTitle(l.target); if (t && t !== n && !seen[t.id]) { seen[t.id] = 1; out.push(t); } });
     return out;
+  }
+  function unresolvedOf(n) {
+    var seen = {}, out = [];
+    linksOf(n).forEach(function (l) { var t = norm(l.target); if (!t || byTitle(t) || seen[t]) return; seen[t] = 1; out.push(l.target.trim().replace(/\s+/g, ' ')); });
+    return out;
+  }
+  function ghostCounts() {
+    var g = {};
+    notes.forEach(function (n) { unresolvedOf(n).forEach(function (t) { var k = norm(t); if (!g[k]) g[k] = { title: t, n: 0, from: [] }; g[k].n++; g[k].from.push(n.id); }); });
+    return g;
+  }
+  /* notes that mention this title in plain text without linking it */
+  function mentionRe(title) { return new RegExp('(^|[^\\[\\w#/])(' + escRe(title) + ')(?![\\w\\]])', 'i'); }
+  function unlinkedMentions(n) {
+    if (!n.title || n.title.length < 3 || isDaily(n)) return [];
+    var re = mentionRe(n.title), out = [];
+    notes.forEach(function (o) {
+      if (o === n || inTemplates(o)) return;
+      var body = MD.stripLinks ? MD.stripLinks(o.body) : o.body.replace(/\[\[[^\]]*\]\]/g, '');
+      var m = re.exec(body); if (!m) return;
+      out.push({ note: o, text: m[2] });
+    });
+    return out.sort(function (a, b) { return a.note.title.localeCompare(b.note.title); });
+  }
+  function linkMention(o, title, all) {
+    var re = new RegExp('(^|[^\\[\\w#/])(' + escRe(title) + ')(?![\\w\\]])', all ? 'gi' : 'i');
+    var parts = o.body.split(/(\[\[[^\]]*\]\]|`[^`]*`|!\[[^\]]*\]\([^)]*\))/), done = 0;
+    for (var i = 0; i < parts.length; i += 2) {
+      if (!all && done) break;
+      parts[i] = parts[i].replace(re, function (m, pre, t) { done++; return pre + '[[' + (t === title ? title : title + '|' + t) + ']]'; });
+    }
+    if (!done) return 0;
+    o.body = parts.join(''); touch(o);
+    return done;
   }
   function backlinks(n) {
     var key = norm(n.title), out = [];
@@ -137,6 +171,16 @@
         // keep wikilinks whole at the edges
         return (start > 0 ? '…' : '') + inlineSnippet(cut.replace(/^[^\[]*\]\]/, ''), 200) + (end < line.length ? '…' : '');
       }
+    }
+    return '';
+  }
+  function mentionSnippet(src, title) {
+    var re = mentionRe(title), lines = String(src).replace(MD.IMG, '').replace(/\[\[([^\]|#]*)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]/g, function (m, t, l) { return '\u2063' + (l || t) + '\u2063'; }).split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      var m = re.exec(lines[i]); if (!m) continue;
+      var line = lines[i], idx = m.index + m[1].length, start = Math.max(0, idx - 50), end = Math.min(line.length, idx + m[2].length + 60);
+      var cut = line.slice(start, end);
+      return (start > 0 ? '\u2026' : '') + hl(MD.plain ? MD.plain(cut) : cut, m[2]) + (end < line.length ? '\u2026' : '');
     }
     return '';
   }
@@ -247,7 +291,7 @@
     deliver(new Blob([r.csv], { type: 'text/csv' }), (n ? safeName(n.title) : 'Axon flashcards') + '.csv', 'text/csv', 'Exported ' + r.count + ' card' + (r.count === 1 ? '' : 's') + ' · import the file in Synapse');
   }
   function persist() { try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {} }
-  function saveMeta() { DB.put('meta', { k: 'ui', v: { open: ui.open, lastNote: ui.lastNote, graphMode: ui.graphMode, graphTags: ui.graphTags, sort: ui.sort } }); }
+  function saveMeta() { DB.put('meta', { k: 'ui', v: { open: ui.open, lastNote: ui.lastNote, graphMode: ui.graphMode, graphTags: ui.graphTags, graphGhosts: ui.graphGhosts, sort: ui.sort } }); }
 
   /* ---------- data ops ---------- */
   function ensureFolder(p) {
@@ -572,20 +616,23 @@
     if (!n) { toast('That note no longer exists'); go('#/', true); return; }
     opts = opts || {};
     ui.lastNote = n.id; saveMeta();
-    var hasFront = !!MD.front(n.body), tags = hasFront ? [] : MD.tags(n.body), bl = backlinks(n), out = outNotes(n), nc = MD.recall(n.body).length, wc = words(n.body);
+    var hasFront = !!MD.front(n.body), tags = hasFront ? [] : MD.tags(n.body), bl = backlinks(n), out = outNotes(n), nc = MD.recall(n.body).length, wc = words(n.body), um = unlinkedMentions(n);
     var backTo = n.folder ? '#/f/' + encodeURIComponent(n.folder) : '#/';
     var h = '<div class="page"><div class="nav stick"><button class="back" data-act="back" data-to="' + backTo + '">' + I.back + '<span>' + esc(n.folder ? folderName(n.folder) : 'Notes') + '</span></button><div class="acts">' +
       '<button class="ib" aria-label="Edit" data-act="edit">' + I.edit + '</button>' +
       '<button class="ib" aria-label="Outline" data-act="outline">' + I.outline + '</button>' +
       '<button class="ib" aria-label="Discover for this note" data-act="dnote" data-id="' + n.id + '">' + I.compass + '</button>' +
       '<button class="ib" aria-label="Note options" data-act="notemore" data-id="' + n.id + '">' + I.more + '</button></div></div>' +
-      '<div class="crumb">' + esc(crumbOf(n.folder)) + '</div><h1 class="ntitle">' + esc(n.title) + '</h1>' + dayNav(n) +
+      (n.folder ? '<div class="crumb">' + esc(crumbOf(n.folder)) + '</div>' : '') + '<h1 class="ntitle">' + esc(n.title) + '</h1>' + dayNav(n) +
       '<div class="meta">' + tags.map(function (t) { return '<span class="tag" data-tag="' + esc(t) + '">#' + esc(t) + '</span>'; }).join('') +
       '<span>' + (tags.length ? '· ' : '') + (n.pinned ? 'pinned · ' : '') + 'edited ' + agoLong(n.updated) + ' · ' + wc + ' word' + (wc === 1 ? '' : 's') + (wc > 150 ? ' · ' + readMin(wc) + ' min read' : '') + (nc ? ' · </span><button class="cardct" data-act="cards" data-id="' + n.id + '">' + I.recall + nc + ' card' + (nc === 1 ? '' : 's') + '</button>' : '</span>') + '</div>' +
       '<article class="prose" id="prose">' + (n.body.trim() ? MD.render(n.body, mdOpt()) : '<button class="empty-note" data-act="edit">Empty note. Tap here to start writing \u2014 type / for blocks.</button>') + '</article>' +
       '<section class="bl" id="backlinks"><h3><span>' + bl.length + ' backlink' + (bl.length === 1 ? '' : 's') + '</span><span>' + out.length + ' outgoing</span></h3>' +
       (bl.length ? bl.map(function (o) { return '<button class="bi" data-act="open" data-id="' + o.id + '"><b>' + esc(o.title) + '</b><span>' + backlinkSnippet(o.body, n.title) + '</span></button>'; }).join('') :
-        '<div class="none">No notes link here yet. Link it from another note with [[' + esc(n.title) + ']].</div>') + '</section></div>';
+        '<div class="none">No notes link here yet. Link it from another note with [[' + esc(n.title) + ']].</div>') +
+      (um.length ? '<h3 class="umh"><span>' + um.length + ' unlinked mention' + (um.length === 1 ? '' : 's') + '</span>' + (um.length > 1 ? '<button data-act="linkall" data-id="' + n.id + '">Link all</button>' : '') + '</h3>' +
+        um.map(function (m) { return '<div class="bi um"><button class="umt" data-act="open" data-id="' + m.note.id + '"><b>' + esc(m.note.title) + '</b><span>' + mentionSnippet(m.note.body, n.title) + '</span></button><button class="umb" data-act="linkone" data-id="' + m.note.id + '" data-t="' + esc(n.title) + '">Link</button></div>'; }).join('') : '') +
+      '</section></div>';
     viewEl.innerHTML = h;
     hydrateImgs();
     if (opts.heading) { var hd = document.getElementById('h-' + opts.heading); if (hd) setTimeout(function () { hd.scrollIntoView({ block: 'start' }); }, 30); }
@@ -1059,10 +1106,16 @@
         frontier = next;
       }
     }
+    var ghosts = {};
     notes.forEach(function (n) {
       if (include && !(n.id in include)) return;
       nodes.push({ id: n.id, label: n.title });
       outNotes(n).forEach(function (o) { if (!include || o.id in include) links.push([n.id, o.id]); });
+      if (ui.graphGhosts !== false) unresolvedOf(n).forEach(function (t) {
+        var id = 'ghost:' + norm(t);
+        if (!ghosts[id]) { ghosts[id] = 1; nodes.push({ id: id, label: t, kind: 'ghost' }); }
+        links.push([n.id, id]);
+      });
     });
     if (ui.graphTags) {
       var seen = {};
@@ -1082,10 +1135,13 @@
     var cur = ui.lastNote && notes.get(ui.lastNote);
     if (ui.graphMode === 'local' && !cur) ui.graphMode = 'global';
     var data = graphData();
-    var h = '<div class="gwrap"><canvas id="gc" aria-label="Graph of linked notes"></canvas><div class="ghead"><div class="eyebrow">' + data.nodes.filter(function (x) { return !x.kind; }).length + ' notes · ' + data.links.length + ' links</div><h1 class="h1">Graph</h1>' +
+    var nN = data.nodes.filter(function (x) { return !x.kind; }).length, nG = data.nodes.filter(function (x) { return x.kind === 'ghost'; }).length, eSeen = {}, nL = 0;
+    data.links.forEach(function (l) { var k = l[0] < l[1] ? l[0] + '\u0001' + l[1] : l[1] + '\u0001' + l[0]; if (!eSeen[k] && l[0] !== l[1]) { eSeen[k] = 1; nL++; } });
+    var h = '<div class="gwrap"><canvas id="gc" aria-label="Graph of linked notes"></canvas><div class="ghead"><div class="eyebrow">' + nN + ' note' + (nN === 1 ? '' : 's') + ' · ' + nL + ' link' + (nL === 1 ? '' : 's') + (nG ? ' · ' + nG + ' unresolved' : '') + '</div><h1 class="h1">Graph</h1>' +
       '<div class="chips"><button class="chip' + (ui.graphMode === 'global' ? ' on' : '') + '" data-act="gmode" data-m="global">Global</button>' +
-      '<button class="chip' + (ui.graphMode === 'local' ? ' on' : '') + '" data-act="gmode" data-m="local">Local · depth 2</button>' +
-      '<button class="chip' + (ui.graphTags ? ' on' : '') + '" data-act="gtags">Tags</button></div></div>' +
+      '<button class="chip' + (ui.graphMode === 'local' ? ' on' : '') + '" data-act="gmode" data-m="local">Local</button>' +
+      '<button class="chip' + (ui.graphTags ? ' on' : '') + '" data-act="gtags">Tags</button>' +
+      '<button class="chip' + (ui.graphGhosts !== false ? ' on' : '') + '" data-act="gghosts" title="Links to notes that don\u2019t exist yet">Unresolved</button></div></div>' +
       (data.nodes.length ? '<div class="gtools"><button class="ib" aria-label="Fit" data-act="gfit">' + I.fit + '</button><button class="ib" aria-label="Zoom in" data-act="gzin">' + I.zin + '</button><button class="ib" aria-label="Zoom out" data-act="gzout">' + I.zout + '</button></div>' : '') +
       (data.nodes.length ? '<div class="ghint" id="ghint">Tap a node · tap again to open · pinch to zoom</div>' : '<div class="gempty">' + EMPTY_ART + '<b>Nothing to map yet</b><p>Each note becomes a dot, and every <span class="kbd">[[link]]</span> draws a line between them.</p><button class="bignew" data-act="newempty">' + I.plus + '<span>New note</span></button></div>') +
       '<div class="gsheet" id="gsheet"></div></div>';
@@ -1096,7 +1152,7 @@
     graphCtl = Graph.mount(canvas, {
       data: data, current: cur ? cur.id : null, selected: cur ? cur.id : null, accent: settings.accent, topInset: topIn, bottomInset: tabH + (cur ? 170 : 40),
       onSelect: function (id) { showGSheet(id); },
-      onOpen: function (id) { if (id.indexOf('tag:') === 0) go('#/search/' + encodeURIComponent('#' + id.slice(4))); else go('#/n/' + id); }
+      onOpen: function (id) { if (id.indexOf('tag:') === 0) go('#/search/' + encodeURIComponent('#' + id.slice(4))); else if (id.indexOf('ghost:') === 0) createGhost(id); else go('#/n/' + id); }
     });
     if (cur) showGSheet(cur.id);
   }
@@ -1104,7 +1160,11 @@
     var s = $('#gsheet'), hint = $('#ghint'); if (!s) return;
     if (!id) { s.classList.remove('show'); if (hint) hint.style.opacity = 1; return; }
     if (hint) hint.style.opacity = 0;
-    if (id.indexOf('tag:') === 0) {
+    if (id.indexOf('ghost:') === 0) {
+      var gh = ghostCounts()[id.slice(6)]; if (!gh) return;
+      s.innerHTML = '<div class="gt"><i class="ghosti"></i>' + esc(gh.title) + '</div><div class="gm">Not created yet · linked from ' + gh.n + ' note' + (gh.n === 1 ? '' : 's') + '</div><div class="gb"><button class="acc" data-act="gopen" data-id="' + esc(id) + '">Create note</button>' +
+        (gh.from.length === 1 ? '<button data-act="gopen" data-id="' + gh.from[0] + '">Open source</button>' : '') + '</div>';
+    } else if (id.indexOf('tag:') === 0) {
       var t = id.slice(4), c = 0; notes.forEach(function (n) { if (MD.tags(n.body).indexOf(t) >= 0) c++; });
       s.innerHTML = '<div class="gt"><i style="background:transparent;border:1.5px solid var(--text)"></i>#' + esc(t) + '</div><div class="gm">Tag · ' + c + ' note' + (c === 1 ? '' : 's') + '</div><div class="gb"><button class="acc" data-act="gopen" data-id="' + esc(id) + '">Show notes</button></div>';
     } else {
@@ -1114,6 +1174,12 @@
         '<div class="gb"><button class="acc" data-act="gopen" data-id="' + n.id + '">Open note</button><button data-act="glocal" data-id="' + n.id + '">Local graph</button></div>';
     }
     s.classList.add('show');
+  }
+
+  function createGhost(id) {
+    var gh = ghostCounts()[id.slice(6)]; if (!gh) return;
+    var from = gh.from.length ? notes.get(gh.from[0]) : null;
+    openLink(gh.title, null, from);
   }
 
   /* ---------- search ---------- */
@@ -2006,10 +2072,13 @@
       ui.graphMode = el.dataset.m; saveMeta(); render();
     },
     gtags: function () { ui.graphTags = !ui.graphTags; saveMeta(); render(); },
+    linkone: function (el) { var o = notes.get(el.dataset.id), n = route().id && notes.get(route().id); if (!o || !n) return; var k = linkMention(o, n.title, false); toast(k ? 'Linked in \u201c' + o.title + '\u201d' : 'Nothing to link'); render(); },
+    linkall: function (el) { var n = notes.get(el.dataset.id); if (!n) return; var k = 0; unlinkedMentions(n).forEach(function (m) { k += linkMention(m.note, n.title, true); }); toast('Linked ' + k + ' mention' + (k === 1 ? '' : 's')); render(); },
+    gghosts: function () { ui.graphGhosts = ui.graphGhosts === false; saveMeta(); render(); },
     gfit: function () { graphCtl && graphCtl.fit(); },
     gzin: function () { graphCtl && graphCtl.zoom(1.3); },
     gzout: function () { graphCtl && graphCtl.zoom(1 / 1.3); },
-    gopen: function (el) { var id = el.dataset.id; if (id.indexOf('tag:') === 0) go('#/search/' + encodeURIComponent('#' + id.slice(4))); else go('#/n/' + id); },
+    gopen: function (el) { var id = el.dataset.id; if (id.indexOf('tag:') === 0) go('#/search/' + encodeURIComponent('#' + id.slice(4))); else if (id.indexOf('ghost:') === 0) createGhost(id); else go('#/n/' + id); },
     glocal: function (el) { ui.lastNote = el.dataset.id; ui.graphMode = 'local'; saveMeta(); render(); },
     stag: function (el) { var i = $('#sq'); if (i && el.dataset.on) { i.value = ''; i.dispatchEvent(new Event('input')); return; } if (!i) { go('#/search/' + encodeURIComponent('#' + el.dataset.tag)); return; } i.value = '#' + el.dataset.tag; i.dispatchEvent(new Event('input')); },
     today: function () { openDaily(); },

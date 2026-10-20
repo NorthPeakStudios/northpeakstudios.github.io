@@ -152,6 +152,14 @@ a.wl.unresolved{opacity:.6;text-decoration:underline dotted;text-underline-offse
 .bl .bi span{display:block;color:var(--faint);font-size:13.5px;margin-top:3px;line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .bl .bi span em{font-style:normal;color:var(--accent)}
 .bl .none{padding:4px 16px 14px;color:var(--faint);font-size:14px}
+.bl h3.umh{border-top:1px solid var(--line);margin-top:4px}
+.bl h3 button{color:var(--accent);font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;padding:6px 0 6px 12px}
+.bl .bi.um{display:flex;align-items:center;gap:8px;padding:0 10px 0 0}
+.bl .um .umt{flex:1;min-width:0;text-align:left;padding:10px 16px}
+.bl .um .umt b{font-weight:500;font-size:16px;display:block}
+.bl .um .umt span mark{background:transparent;color:var(--accent);font-weight:500}
+.bl .um .umb{flex:none;color:var(--accent);font-weight:600;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;font-family:var(--sans)}
+.gsheet .gt i.ghosti{background:transparent;border:1.5px dashed var(--faint)}
 .bl.out h3{border-top:0}
 
 /* editor */
