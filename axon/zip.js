@@ -42,7 +42,7 @@
     var stream = new Blob([data]).stream().pipeThrough(ds);
     return new Uint8Array(await new Response(stream).arrayBuffer());
   }
-  // returns [{name, data:Uint8Array}]
+  // returns [{name, data:Uint8Array, date:ms (0 when the zip has none)}]
   async function read(buf) {
     var u = new Uint8Array(buf), v = new DataView(u.buffer, u.byteOffset, u.byteLength), dec = new TextDecoder();
     var eocd = -1;
@@ -51,7 +51,7 @@
     var count = v.getUint16(eocd + 10, true), p = v.getUint32(eocd + 16, true), out = [];
     for (var n = 0; n < count; n++) {
       if (v.getUint32(p, true) !== 0x02014b50) break;
-      var method = v.getUint16(p + 10, true), csz = v.getUint32(p + 20, true);
+      var method = v.getUint16(p + 10, true), csz = v.getUint32(p + 20, true), dt = v.getUint16(p + 12, true), dd = v.getUint16(p + 14, true);
       var nl = v.getUint16(p + 28, true), xl = v.getUint16(p + 30, true), cl = v.getUint16(p + 32, true), lo = v.getUint32(p + 42, true);
       var name = dec.decode(u.subarray(p + 46, p + 46 + nl));
       p += 46 + nl + xl + cl;
@@ -59,7 +59,8 @@
       var lnl = v.getUint16(lo + 26, true), lxl = v.getUint16(lo + 28, true), start = lo + 30 + lnl + lxl;
       var raw = u.subarray(start, start + csz);
       var data = method === 0 ? raw : method === 8 ? await inflate(raw) : null;
-      if (data) out.push({ name: name, data: data });
+      var when = dd ? new Date((dd >> 9) + 1980, ((dd >> 5) & 15) - 1, dd & 31, dt >> 11, (dt >> 5) & 63, (dt & 31) * 2).getTime() : 0;
+      if (data) out.push({ name: name, data: data, date: when > 0 ? when : 0 });
     }
     return out;
   }

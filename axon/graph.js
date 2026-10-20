@@ -122,8 +122,8 @@
       links.forEach(function (l) {
         var a = toScreen(l[0]), b = toScreen(l[1]);
         var hot = focus && (l[0] === focus || l[1] === focus);
-        ctx.strokeStyle = hot ? hexA(accent, 0.75) : 'rgba(237,235,230,0.13)';
-        ctx.lineWidth = hot ? 1.4 : 1;
+        ctx.strokeStyle = hot ? hexA(accent, 0.75) : (focus ? 'rgba(237,235,230,0.1)' : 'rgba(237,235,230,0.26)');
+        ctx.lineWidth = hot ? 1.4 : 1.1;
         var gh = l[0].kind === 'ghost' || l[1].kind === 'ghost';
         if (gh) ctx.setLineDash([3, 4]);
         else if (l.auto) { ctx.setLineDash([1.5, 3.5]); ctx.strokeStyle = hot ? hexA(accent, 0.6) : 'rgba(237,235,230,0.22)'; ctx.lineWidth = hot ? 1.2 : 1; }

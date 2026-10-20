@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.5.7 */
+/* Axon · Northpeak Studios · v1.5.8 */
 (function () {
   'use strict';
-  var VERSION = '1.5.7';
+  var VERSION = '1.5.8';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -445,7 +445,7 @@
   }
   function createNote(o) {
     var now = Date.now();
-    var n = { id: uid(), title: o.title, folder: o.folder || '', body: o.body || '', created: o.created || now, updated: o.updated || now, seed: !!o.seed };
+    var n = { id: o.id || uid(), title: o.title, folder: o.folder || '', body: o.body || '', created: o.created || now, updated: o.updated || now, seed: !!o.seed };
     ensureFolder(n.folder);
     notes.set(n.id, n); rebuildIdx();
     putNote(n); persist();
@@ -463,6 +463,11 @@
     notes.forEach(function (o) {
       var nb = o.body.replace(re, function (m, h, a) { return '[[' + newTitle + h + a + ']]'; });
       if (nb !== o.body) { o.body = nb; changed++; if (o !== n) { o.updated = Date.now(); putNote(o); } }
+    });
+    /* notes in Trash keep working links too, so restoring one never brings back a dead link */
+    trash.forEach(function (o) {
+      var nb = o.body.replace(re, function (m, h, a) { return '[[' + newTitle + h + a + ']]'; });
+      if (nb !== o.body) { o.body = nb; putNote(o); }
     });
     n.title = newTitle; n.updated = Date.now(); n.seed = false;
     putNote(n); rebuildIdx();
@@ -776,7 +781,7 @@
       '<div class="meta">' + tags.map(function (t) { return '<span class="tag" data-tag="' + esc(t) + '">#' + esc(t) + '</span>'; }).join('') +
       '<span>' + (tags.length ? '· ' : '') + (n.pinned ? 'pinned · ' : '') + 'edited ' + agoLong(n.updated) + ' · ' + wc + ' word' + (wc === 1 ? '' : 's') + (wc > 150 ? ' · ' + readMin(wc) + ' min read' : '') + (nc ? ' · </span><button class="cardct" data-act="cards" data-id="' + n.id + '">' + I.recall + nc + ' card' + (nc === 1 ? '' : 's') + '</button>' : '</span>') + '</div>' +
       '<article class="prose" id="prose">' + (n.body.trim() ? dedupeTitle(MD.render(n.body, mdOpt()), n.title) : '<button class="empty-note" data-act="edit">Empty note. Tap here to start writing \u2014 type / for blocks.</button>') + '</article>' +
-      '<section class="bl" id="backlinks"><h3><span>' + bl.length + ' backlink' + (bl.length === 1 ? '' : 's') + '</span><button class="outb" data-act="outlinks" data-id="' + n.id + '">' + out.length + ' out' + (unresolvedOf(n).length ? ' \u00b7 ' + unresolvedOf(n).length + ' unresolved' : '') + '</button></h3>' +
+      '<section class="bl" id="backlinks"><h3><span>' + bl.length + ' backlink' + (bl.length === 1 ? '' : 's') + '</span>' + ((out.length || unresolvedOf(n).length) ? '<button class="outb" data-act="outlinks" data-id="' + n.id + '">' + out.length + ' out' + (unresolvedOf(n).length ? ' \u00b7 ' + unresolvedOf(n).length + ' unresolved' : '') + '</button>' : '') + '</h3>' +
       (bl.length ? bl.map(function (o) { return '<button class="bi" data-act="open" data-id="' + o.id + '"><b>' + esc(o.title) + '</b><span>' + backlinkSnippet(o.body, n.title) + '</span></button>'; }).join('') :
         '<div class="none">No notes link here yet. Link it from another note with [[' + esc(n.title) + ']].</div>') +
       (um.length ? '<h3 class="umh"><span>' + um.length + ' unlinked mention' + (um.length === 1 ? '' : 's') + '</span>' + (um.length > 1 ? '<button data-act="linkall" data-id="' + n.id + '">Link all</button>' : '') + '</h3>' +
@@ -1685,9 +1690,9 @@
       '<div class="sec"><span>Accent</span><span style="text-transform:none;letter-spacing:0">' + esc((ACCENTS.filter(function (a) { return a[1] === settings.accent; })[0] || ['Custom'])[0]) + '</span></div><div class="group"><div class="sw">' +
       ACCENTS.map(function (a) { return '<button aria-label="' + a[0] + '" class="' + (settings.accent === a[1] ? 'on' : '') + '" data-act="accent" data-v="' + a[1] + '" style="background:' + a[1] + '"></button>'; }).join('') + '</div></div>' +
       '<div class="sec"><span>Vault</span></div><div class="group">' +
-      '<button class="item" data-act="export"><span>Export vault<small>All ' + notes.size + ' notes as .md files in a .zip, with images \u00b7 last backup ' + (settings.lastExport ? agoLong(settings.lastExport) : 'never') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
+      '<button class="item" data-act="export"><span>Back up vault<small>All ' + notes.size + ' notes as .md files in a .zip, with images, pins and Recall progress \u00b7 last backup ' + (settings.lastExport ? agoLong(settings.lastExport) : 'never') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<button class="item" data-act="allcards"><span>Export flashcards<small>' + (function () { var c = 0, m = 0; notes.forEach(function (n) { var k = MD.cards(n.body).length; c += k; if (k) m++; }); return c ? c + ' card' + (c === 1 ? '' : 's') + ' from ' + m + ' note' + (m === 1 ? '' : 's') + ' · a CSV that Synapse imports' : 'Lines like question :: answer become cards for Synapse'; })() + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
-      '<button class="item" data-act="import"><span>Import notes<small>Pick .md files or a .zip of them</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
+      '<button class="item" data-act="import"><span>Import or restore<small>Pick .md files, a .zip of them, or an Axon backup \u00b7 notes already here are skipped</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<button class="item" data-act="newfolder" data-path=""><span>New folder</span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<button class="item" data-act="gotrash"><span>Trash<small>' + (trash.size ? trash.size + ' note' + (trash.size === 1 ? '' : 's') + ' \u00b7 kept ' + TRASH_DAYS + ' days, then removed' : 'Deleted notes wait here ' + TRASH_DAYS + ' days') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
             '<button class="item danger" data-act="wipe"><span>Delete all notes</span></button></div>' +
@@ -1766,7 +1771,7 @@
         files.push({ name: 'attachments/' + id + '.' + ext[id], data: new Uint8Array(r.data), date: new Date(r.created || Date.now()) });
       } catch (e) {}
     }
-    var nimg = files.length;
+    var nimg = files.length, meta = { app: 'axon', v: 1, exported: Date.now(), notes: [], recall: [] };
     notes.forEach(function (n) {
       var folderPath = n.folder ? n.folder.split('/').map(safeName).join('/') : '';
       var path = (folderPath ? folderPath + '/' : '') + safeName(n.title);
@@ -1774,7 +1779,12 @@
       used[p.toLowerCase()] = 1;
       var body = n.body.replace(/!\[([^\]\n]*)\]\(\s*axon-img:([\w-]+)\s*\)/g, function (m, alt, id) { return ext[id] ? '![' + alt + '](' + relUp(folderPath) + 'attachments/' + id + '.' + ext[id] + ')' : m; });
       files.push({ name: p + '.md', data: body, date: new Date(n.updated) });
+      meta.notes.push({ p: p + '.md', id: n.id, title: n.title, folder: n.folder, created: n.created, updated: n.updated, pinned: !!n.pinned });
     });
+    /* exact titles, dates, pins and Recall progress ride along, so restoring this file loses nothing */
+    rc.forEach(function (s) { if (s && notes.has(s.noteId)) meta.recall.push(s); });
+    meta.folders = Array.from(folders);
+    files.push({ name: '.axon/vault.json', data: JSON.stringify(meta), date: new Date() });
     folders.forEach(function (f) { if (!countIn(f)) files.push({ name: f.split('/').map(safeName).join('/') + '/.keep', data: '' }); });
     var blob = Zip.make(files);
     var d = new Date(), name = 'Axon vault ' + ymd(d) + '.zip';
@@ -1818,19 +1828,22 @@
   function normPath(p) { var out = []; p.split('/').forEach(function (x) { if (!x || x === '.') return; if (x === '..') out.pop(); else out.push(x); }); return out.join('/'); }
   async function importFiles(list) {
     if (!list.length) return;
-    var entries = [], images = [], dec = new TextDecoder();
+    var entries = [], images = [], keeps = [], meta = null, metaRoot = '', dec = new TextDecoder();
     for (var i = 0; i < list.length; i++) {
       var f = list[i];
       try {
         if (/\.zip$/i.test(f.name) || f.type === 'application/zip') {
           var z = await Zip.read(await f.arrayBuffer());
           z.forEach(function (e) {
+            var mm = /(^|\/)\.axon\/vault\.json$/.exec(e.name);
+            if (mm && !meta) { try { var j = JSON.parse(dec.decode(e.data)); if (j && j.app === 'axon' && Array.isArray(j.notes)) { meta = j; metaRoot = e.name.slice(0, mm.index + mm[1].length); } } catch (err) {} return; }
+            if (/(^|\/)\.keep$/.test(e.name) && !/__MACOSX/.test(e.name)) { keeps.push(e.name.replace(/\/?\.keep$/, '')); return; }
             if (/(^|\/)(__MACOSX|\.)/.test(e.name)) return;
-            if (/\.(md|markdown|txt)$/i.test(e.name)) entries.push({ path: e.name, text: dec.decode(e.data) });
+            if (/\.(md|markdown|txt)$/i.test(e.name)) entries.push({ path: e.name, text: dec.decode(e.data), date: e.date });
             else if (IMG_EXT.test(e.name)) images.push({ path: e.name, data: e.data });
           });
         } else if (/\.(md|markdown|txt)$/i.test(f.name) || /^text\//.test(f.type)) {
-          entries.push({ path: f.name, text: await f.text() });
+          entries.push({ path: f.name, text: await f.text(), date: f.lastModified || 0 });
         } else if (IMG_EXT.test(f.name)) {
           images.push({ path: f.name, data: new Uint8Array(await f.arrayBuffer()) });
         }
@@ -1866,19 +1879,41 @@
     }
     // drop a shared top folder (e.g. "My vault/")
     var tops = {}; entries.forEach(function (e) { tops[e.path.split('/')[0]] = 1; });
-    var strip = Object.keys(tops).length === 1 && entries.every(function (e) { return e.path.indexOf('/') > 0; });
-    var count = 0, renamed = 0;
+    var strip = !meta && Object.keys(tops).length === 1 && entries.every(function (e) { return e.path.indexOf('/') > 0; });
+    var byMeta = {}; if (meta) meta.notes.forEach(function (m) { if (m && typeof m.p === 'string') byMeta[m.p] = m; });
+    function okTitle(t) { return typeof t === 'string' && t.trim() && t.length <= 120 && !/[\[\]|#^\\\/:]/.test(t); }
+    function okFolder(f) { return typeof f === 'string' && !/[\[\]|#^\\:]/.test(f) && f.split('/').every(Boolean); }
+    var count = 0, renamed = 0, same = 0, kept = {};
     entries.forEach(function (e) {
+      var m = meta && e.path.indexOf(metaRoot) === 0 ? byMeta[e.path.slice(metaRoot.length)] : null;
       var parts = e.path.split('/'); if (strip) parts.shift();
       var base = parts.pop().replace(/\.(md|markdown|txt)$/i, '');
       var folder = parts.map(function (p) { return p.replace(/[\[\]|#^\\:]/g, '').trim(); }).filter(Boolean).join('/');
       var title = base.replace(/[\[\]|#^\\\/:]/g, ' ').replace(/\s+/g, ' ').trim() || 'Untitled';
+      if (m) { if (okTitle(m.title)) title = m.title.trim().replace(/\s+/g, ' '); if (m.folder === '' || okFolder(m.folder)) folder = m.folder; }
+      var body = linkImages(e.text.replace(/\r\n?/g, '\n'), e.path);
+      var ex = byTitle(title);
+      /* the same note is already here (e.g. restoring a backup onto the same phone): skip it, never duplicate */
+      if (ex && ex.body === body) { same++; if (m && ex.id === m.id) kept[ex.id] = 1; return; }
       var t = title;
-      if (byTitle(t)) { t = uniqueTitle(title + ' (imported)'); renamed++; }
-      createNote({ title: t, folder: folder, body: linkImages(e.text.replace(/\r\n?/g, '\n'), e.path) });
+      if (ex) { t = uniqueTitle(title + ' (imported)'); renamed++; }
+      var when = m && +m.updated > 0 ? +m.updated : (+e.date > 0 ? +e.date : 0);
+      var id = m && typeof m.id === 'string' && /^[\w-]{1,40}$/.test(m.id) && !notes.has(m.id) && !trash.has(m.id) ? m.id : undefined;
+      var n = createNote({ id: id, title: t, folder: folder, body: body, created: (m && +m.created > 0 ? +m.created : when) || undefined, updated: when || undefined });
+      if (m && m.pinned) { n.pinned = true; putNote(n); }
+      if (id) kept[id] = 1;
       count++;
     });
-    toast('Imported ' + count + ' note' + (count === 1 ? '' : 's') + (nimg ? ' · ' + nimg + ' image' + (nimg === 1 ? '' : 's') : '') + (renamed ? ' · ' + renamed + ' renamed to avoid clashes' : ''));
+    keeps.forEach(function (k) { var p = k.split('/'); if (strip) p.shift(); p = p.map(function (x) { return x.replace(/[\[\]|#^\\:]/g, '').trim(); }).filter(Boolean).join('/'); if (p && p !== 'attachments') ensureFolder(p); });
+    if (meta && Array.isArray(meta.folders)) meta.folders.forEach(function (f) { if (okFolder(f)) ensureFolder(f); });
+    var nrc = 0;
+    if (meta && Array.isArray(meta.recall)) meta.recall.forEach(function (s) {
+      if (!s || typeof s.id !== 'string' || !kept[s.noteId] || rc.has(s.id)) return;
+      rc.set(s.id, s); RC.put('cards', s).catch(function () {}); nrc++;
+    });
+    if (nrc) recallSoon();
+    if (!count && same) toast('Everything in that file is already in your vault');
+    else toast('Imported ' + count + ' note' + (count === 1 ? '' : 's') + (nimg ? ' · ' + nimg + ' image' + (nimg === 1 ? '' : 's') : '') + (same ? ' · ' + same + ' already here' : '') + (renamed ? ' · ' + renamed + ' renamed to avoid clashes' : ''));
     render();
   }
 
