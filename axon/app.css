@@ -700,3 +700,42 @@ body.reviewing #view{padding-bottom:calc(var(--bpad) + 16px)}
 .dialog.hv .hvlg b.g{color:#7ee0a4}.dialog.hv .hvlg b.r{color:#ff9a94}
 .ehero .esync{display:block;margin:22px auto 0;font-size:14px;color:var(--dim);line-height:1.4;text-align:center}
 .ehero .esync b{display:block;color:var(--accent);font:600 15px/1.4 var(--sans);margin-top:2px}
+
+/* Axon Pro */
+.tb span .tlock{display:inline-block;margin-left:2px;vertical-align:-1px}
+.tb span .tlock svg{width:9px;height:9px;stroke-width:2.4}
+.prov .pgap{min-width:76px}
+.prov .pbody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:6px 18px calc(28px + var(--sab))}
+.prov .phero{text-align:center;padding:18px 0 6px}
+.prov .pprice{font:700 46px/1 var(--sans);letter-spacing:-.02em;color:var(--text)}
+.prov .pone{color:var(--dim);font-size:14px;margin-top:6px}
+.prov .pwhy{margin:14px 0 0;font-size:15px;color:var(--text)}
+.prov .plist{list-style:none;margin:16px 0 0;padding:0}
+.prov .plist li{display:flex;gap:12px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--line)}
+.prov .plist li:last-child{border-bottom:0}
+.prov .plist svg{width:20px;height:20px;flex:none;margin-top:1px;fill:none;stroke:var(--accent);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.prov .plist span{font-size:14px;color:var(--dim);line-height:1.35}
+.prov .plist b{display:block;color:var(--text);font-weight:600;font-size:15.5px}
+.prov .pfree{font-size:13.5px;color:var(--dim);line-height:1.45;margin:14px 0 4px}
+.prov .pbox{background:var(--card,rgba(255,255,255,.05));border:1px solid var(--line);border-radius:16px;padding:14px;margin-top:14px}
+.prov .pbox>b{display:flex;align-items:center;gap:6px;font-size:17px;font-weight:650}
+.prov .pbox>b svg{width:18px;height:18px;fill:none;stroke:var(--accent);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.prov .pbox p{font-size:14px;color:var(--dim);line-height:1.45;margin:6px 0 10px}
+.prov .pbox p b{color:var(--text);font-weight:600}
+.prov .pon{border-color:var(--accent)}
+.prov .pbox input{display:block;width:100%;box-sizing:border-box;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--text);font:16px var(--sans);padding:0 12px;margin-top:8px}
+.prov .pnote{font-size:13px!important;margin:10px 0 0!important}
+.prov .perr{color:#ff8a8a;font-size:14px;margin-top:10px}
+.prov .pbtns{display:flex;gap:8px;margin-top:12px}
+.prov .pbtns button{flex:1;height:46px;border-radius:12px;font:600 16px var(--sans);background:var(--line);color:var(--text)}
+.prov .pbtns .pmain{background:var(--accent);color:#0b0b0c}
+.prov .pbtns button:disabled{opacity:.6}
+.prov .plink{display:block;margin:12px auto 0;color:var(--accent);font-size:15px}
+.prolock{text-align:center;padding-top:12vh}
+.prolock .plk svg{width:46px;height:46px;fill:none;stroke:var(--accent);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.prolock h2{font:600 22px/1.25 var(--serif,var(--sans));margin:14px 24px 6px}
+.prolock p{color:var(--dim);font-size:15px;line-height:1.45;margin:0 30px 18px}
+.prolock .bignew{margin:0 auto}
+.prolock .pfine{font-size:13px;margin-top:16px}
+.progrp{margin-top:6px}
+.prolock .plk{display:flex;justify-content:center}

@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.6.10 */
+/* Axon · Northpeak Studios · v1.6.11 */
 (function () {
   'use strict';
-  var VERSION = '1.6.10';
+  var VERSION = '1.6.11';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -288,7 +288,7 @@
   function shiftDay(t, k) { var d = dayOf(t); d.setDate(d.getDate() + k); return ymd(d); }
   function isDaily(n) { return !!(n && dayOf(n.title)); }
   function dayLabel(t, long) { var d = dayOf(t); return d ? d.toLocaleDateString(undefined, long ? { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' } : { month: 'short', day: 'numeric' }) : t; }
-  function openDaily(t, replace) {
+  function openDaily(t, replace) { if (!proOk('Daily notes')) return;
     t = t || ymd(new Date());
     var n = byTitle(t);
     if (!n) { n = createNote({ title: t, folder: DAILY, body: dailyBody(t) }); if (t !== ymd(new Date()) && !n.body.trim()) autoDaily[n.id] = 1; }
@@ -302,7 +302,7 @@
     return String(tp.body).replace(/\{\{date\}\}/g, t).replace(/\{\{title\}\}/g, t).replace(/\{\{time\}\}/g, String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'));
   }
   /* quick jot: one line appended to today's note with the time, without opening the editor */
-  async function jot() {
+  async function jot() { if (!proOk('Daily notes')) return;
     var text = await dialog({ title: 'Jot to today\u2019s note', input: true, placeholder: 'A thought, a task, a link\u2026', ok: 'Add', validate: function (v) { return v.trim() ? null : 'Type something first.'; } });
     if (!text) return;
     var t = ymd(new Date()), n = byTitle(t);
@@ -316,7 +316,7 @@
     toast('Added to today\u2019s note', { label: 'Open', fn: function () { go('#/n/' + n.id); } });
   }
   /* month calendar for daily notes */
-  function openCalendar(day) {
+  function openCalendar(day) { if (!proOk('Daily notes')) return;
     var d = dayOf(day) || new Date(), today = ymd(new Date());
     var y = d.getFullYear(), mo = d.getMonth();
     var has = {}; notes.forEach(function (n) { if (isDaily(n) && n.body.trim()) has[n.title] = 1; });
@@ -422,7 +422,7 @@
     });
     return { csv: '\uFEFF' + rows.join('\r\n') + '\r\n', count: c };
   }
-  function exportCards(n) {
+  function exportCards(n) { if (!proOk('Flashcard export')) return;
     var list = n ? [n] : Array.from(notes.values()).sort(function (a, b) { return a.title.localeCompare(b.title); });
     var r = cardsCSV(list);
     if (!r.count) { toast(n ? 'No cards here. Write a line like: question :: answer' : 'No cards yet. Write lines like: question :: answer'); return; }
@@ -672,6 +672,7 @@
     var tab = { vault: 'notes', folder: 'notes', note: 'notes', graph: 'graph', search: 'notes', settings: 'settings', recall: 'notes', review: 'notes', trash: 'notes', guide: 'settings', discover: 'discover' }[r.v];
     setTab(tab);
     setFab(/^(vault|folder|note|search)$/.test(r.v));
+    if (PRO_VIEWS[r.v] && !isPro()) { renderLocked(r.v); viewEl.scrollTop = 0; return; }
     if (r.v === 'vault') renderVault();
     else if (r.v === 'folder') renderFolder(r.path);
     else if (r.v === 'note') renderNote(r.id);
@@ -708,7 +709,7 @@
   function emptyHero(sub) {
     return '<div class="ehero">' + EMPTY_ART + '<b>No notes yet</b><p>' + sub + '</p>' +
       '<button class="bignew" data-act="newempty">' + I.plus + '<span>New note</span></button>' +
-      '<div class="esub"><button class="pill" data-act="fromtmpl">From a template</button><button class="pill" data-act="today">Today\u2019s note</button><button class="pill" data-act="newfolder" data-path="">New folder</button><button class="pill" data-act="import">Import .md files</button></div>' +
+      '<div class="esub">' + (isPro() ? '<button class="pill" data-act="fromtmpl">From a template</button><button class="pill" data-act="today">Today\u2019s note</button>' : '') + '<button class="pill" data-act="newfolder" data-path="">New folder</button><button class="pill" data-act="import">Import .md files</button></div>' +
       /* a second phone or iPad starts empty: the way to its notes is one tap, not buried in Settings */
       (window.AXS && !syOn() ? '<button class="esync" data-act="sylogin">Already use Axon on another device?<b>Log in to Cloud sync</b></button>' : '') + '</div>';
   }
@@ -731,7 +732,7 @@
     var pins = pinnedNotes(), rs = recallStats();
     var h = '<div class="pullhint" id="pullhint">Release to jump to a note</div><div class="page"><div class="eyebrow">Vault · ' + notes.size + ' note' + (notes.size === 1 ? '' : 's') + '</div><h1 class="h1">Notes</h1>' +
       '<button class="searchbox" data-act="qs" style="width:100%;text-align:left">' + I.search + '<span style="flex:1;font-size:17px">Jump to a note or command</span></button>' + backupRow() +
-      '<div class="rows" style="margin-top:14px">' + todayRow() +
+      '<div class="rows" style="margin-top:14px">' + (isPro() ? todayRow() : '') +
       (function () { var tc = allTasks(); if (!tc.length) return ''; var op = tc.filter(function (t) { return !t.done; }).length; return '<button class="row today" data-act="gotasks">' + I.check.replace('<svg', '<svg class="fi"') + '<span class="nm">Tasks</span><span class="ct">' + (op ? '<i class="duen">' + op + ' open</i>' : 'all done') + '</span><span class="chev">' + I.chev + '</span></button>'; })() +
       (rs.total ? '<button class="row today" data-act="gorecall">' + I.recall.replace('<svg', '<svg class="fi"') + '<span class="nm">Recall</span><span class="ct">' + (rs.due ? '<i class="duen">' + rs.due + ' due</i>' : 'all caught up') + '</span><span class="chev">' + I.chev + '</span></button>' : '') + '</div>' +
       (pins.length ? '<div class="sec"><span>Pinned</span></div><div class="rows">' + pins.map(function (n) { return '<button class="row" data-act="open" data-id="' + n.id + '">' + I.pin.replace('<svg', '<svg class="fi pinfi"') + '<span class="nm">' + esc(n.title) + '</span><span class="chev">' + I.chev + '</span></button>'; }).join('') + '</div>' : '') +
@@ -959,7 +960,7 @@
       '<button class="ib on" aria-label="Preview" data-act="donebtn">' + I.eye + '</button></div></div>' +
       (n.folder ? '<div class="crumb">' + esc(crumbOf(n.folder)) + '</div>' : '') +
       '<input class="ntitle" id="ttl" aria-label="Note title" autocomplete="off" spellcheck="false" enterkeyhint="next">' +
-      (n.body.trim() ? '' : '<div class="tchips" id="tchips"><span>Start from</span>' + allTemplates().slice(0, 6).map(function (t, i) { return '<button class="chip" data-act="usetmpl" data-i="' + i + '">' + esc(t.name) + '</button>'; }).join('') + '</div>') +
+      (n.body.trim() || !isPro() ? '' : '<div class="tchips" id="tchips"><span>Start from</span>' + allTemplates().slice(0, 6).map(function (t, i) { return '<button class="chip" data-act="usetmpl" data-i="' + i + '">' + esc(t.name) + '</button>'; }).join('') + '</div>') +
       '<textarea class="editor" id="ed" aria-label="Note text" placeholder="Start writing. Type / for blocks, [[ to link a note." spellcheck="true" autocapitalize="sentences"></textarea></div>';
     var ttl = $('#ttl'), ed = $('#ed');
     ttl.value = n.title; ed.value = n.body;
@@ -1131,7 +1132,7 @@
     if (Date.now() - ts < 20 * 36e5) return agoLong(ts);
     return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ', ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   }
-  async function showHistory(n) {
+  async function showHistory(n) { if (!proOk('History')) return;
     var vs = [];
     try { vs = await HIST.list(n.id); } catch (e) {}
     vs.sort(function (a, b) { return b.ts - a.ts; });
@@ -1251,7 +1252,7 @@
   }
   function copyLabel(n) { return /\(restored/.test(n.title) ? 'Restored' : /\(conflict/.test(n.title) ? 'Conflict copy' : 'Other note'; }
   /* merge `other` into `into`. Nothing is written until Save; Save keeps the old text of `into` in History first */
-  async function openMerge(into, other) {
+  async function openMerge(into, other) { if (!proOk('Merge')) return;
     if (!into || !other || into === other) return;
     if (editing) { stopEditing(true); if (route().v === 'note' && notes.has(route().id)) renderNote(route().id); }
     var A = into.body, B = other.body;
@@ -1342,7 +1343,7 @@
     else if (route().v === 'note') renderNote(route().id);
   }
   /* "Merge…" from a note's menu: a copy merges into the note it came from; otherwise pick a note to merge into this one */
-  async function pickMerge(n) {
+  async function pickMerge(n) { if (!proOk('Merge')) return;
     var o = copyOrigin(n);
     if (o) { openMerge(o, n); return; }
     var kids = Array.from(notes.values()).filter(function (x) { return x !== n && copyOrigin(x) === n; });
@@ -1643,7 +1644,7 @@
       snip(ed, 0, 0, '---\ntags: \u0001\u0002\ndate: ' + ymd(new Date()) + '\n---\n');
       return;
     }
-    if (kind === 'template') { chooseTemplate().then(function (t) { var e2 = $('#ed'); if (!t || !e2) return; var cc = Math.min(c, e2.value.length); insertText(e2, fillTmpl(t.body, editing ? editing.n.title : ''), cc, cc); }); return; }
+    if (kind === 'template') { if (!proOk('Templates')) return; chooseTemplate().then(function (t) { var e2 = $('#ed'); if (!t || !e2) return; var cc = Math.min(c, e2.value.length); insertText(e2, fillTmpl(t.body, editing ? editing.n.title : ''), cc, cc); }); return; }
   }
 
   /* wikilink autocomplete */
@@ -1962,25 +1963,26 @@
   function isStandalone() { return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; }
   function renderSettings() {
     var h = '<div class="page"><div class="eyebrow">Axon</div><h1 class="h1">Settings</h1>' +
+      '<div class="group progrp"><button class="item" data-act="getpro"><span>' + (isPro() ? 'Axon Pro is on' : 'Get Axon Pro \u00b7 $35') + '<small>' + (isPro() ? (PRO.acct ? 'On your account ' + esc(PRO.acct) + ', on every device you log in on' : 'This device had Axon before Pro, so it keeps every feature') : PRO.req && PRO.req.status === 'new' && syOn() ? 'Request sent \u00b7 turns on by itself once the Apple Cash payment is marked paid' : 'Sync, History, Graph, Templates, Daily notes, Recall and more \u00b7 one time') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button></div>' +
       '<div class="sec"><span>Reading</span></div><div class="group">' +
       '<div class="item"><span>Text size</span><div class="seg">' + SIZES.map(function (s) { return '<button class="' + (settings.fs === s[1] ? 'on' : '') + '" data-act="fs" data-v="' + s[1] + '" style="font-size:' + (s[1] - 3) + 'px">' + s[0] + '</button>'; }).join('') + '</div></div>' +
       '<div class="preview prose">The <a class="wl" href="#" data-noop="1">Basal ganglia</a> gate movement; dopamine tips the balance toward <strong>go</strong>.</div></div>' +
-      '<div class="sec"><span>Accent</span><span style="text-transform:none;letter-spacing:0">' + esc((ACCENTS.filter(function (a) { return a[1] === settings.accent; })[0] || ['Custom'])[0]) + '</span></div><div class="group"><div class="sw">' +
+      '<div class="sec"><span>' + proTag('Accent') + '</span><span style="text-transform:none;letter-spacing:0">' + esc((ACCENTS.filter(function (a) { return a[1] === settings.accent; })[0] || ['Custom'])[0]) + '</span></div><div class="group"><div class="sw">' +
       ACCENTS.map(function (a) { return '<button aria-label="' + a[0] + '" class="' + (settings.accent === a[1] ? 'on' : '') + '" data-act="accent" data-v="' + a[1] + '" style="background:' + a[1] + '"></button>'; }).join('') + '</div></div>' +
       syHTML() +
       '<div class="sec"><span>Vault</span></div><div class="group">' +
       '<button class="item" data-act="export"><span>Back up vault<small>All ' + notes.size + ' notes as .md files in a .zip, with images, pins and Recall progress \u00b7 last backup ' + (settings.lastExport ? agoLong(settings.lastExport) : 'never') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
-      '<button class="item" data-act="allcards"><span>Export flashcards<small>' + (function () { var c = 0, m = 0; notes.forEach(function (n) { var k = MD.cards(n.body).length; c += k; if (k) m++; }); return c ? c + ' card' + (c === 1 ? '' : 's') + ' from ' + m + ' note' + (m === 1 ? '' : 's') + ' · a CSV that Synapse imports' : 'Lines like question :: answer become cards for Synapse'; })() + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
+      '<button class="item" data-act="allcards"><span>' + proTag('Export flashcards') + '<small>' + (function () { var c = 0, m = 0; notes.forEach(function (n) { var k = MD.cards(n.body).length; c += k; if (k) m++; }); return c ? c + ' card' + (c === 1 ? '' : 's') + ' from ' + m + ' note' + (m === 1 ? '' : 's') + ' · a CSV that Synapse imports' : 'Lines like question :: answer become cards for Synapse'; })() + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<button class="item" data-act="import"><span>Import or restore<small>Pick .md files, a .zip of them, or an Axon backup \u00b7 notes already here are skipped</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<button class="item" data-act="newfolder" data-path=""><span>New folder</span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<button class="item" data-act="gotrash"><span>Trash<small>' + (trash.size ? trash.size + ' note' + (trash.size === 1 ? '' : 's') + ' \u00b7 kept ' + TRASH_DAYS + ' days, then removed' : 'Deleted notes wait here ' + TRASH_DAYS + ' days') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
             '<button class="item danger" data-act="wipe"><span>Delete all notes</span></button></div>' +
       '<div class="sec"><span>Links</span></div><div class="group">' +
-      '<button class="item" data-act="autolink"><span>Auto-link mentions<small>' + (function () { var c = 0, m = 0; notes.forEach(function (o) { var k = mentionsOf(o).length; c += k; if (k) m++; }); return c ? c + ' plain mention' + (c === 1 ? '' : 's') + ' of other notes in ' + m + ' note' + (m === 1 ? '' : 's') + ' \u2014 turn them into [[links]]' : 'Every mention of another note is already a link'; })() + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
+      '<button class="item" data-act="autolink"><span>' + proTag('Auto-link mentions') + '<small>' + (function () { var c = 0, m = 0; notes.forEach(function (o) { var k = mentionsOf(o).length; c += k; if (k) m++; }); return c ? c + ' plain mention' + (c === 1 ? '' : 's') + ' of other notes in ' + m + ' note' + (m === 1 ? '' : 's') + ' \u2014 turn them into [[links]]' : 'Every mention of another note is already a link'; })() + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       (alBackup ? '<button class="item" data-act="autoundo"><span>Undo last auto-link<small>' + alBackup.count + ' link' + (alBackup.count === 1 ? '' : 's') + ' added ' + agoLong(alBackup.ts) + '</small></span></button>' : '') +
       '<div class="item"><span>Auto-link in the graph<small>Notes that mention another note by name (or an alias from its front matter) are drawn as dotted lines, without changing your text. Toggle it with the Auto-link chip on the graph.</small></span></div></div>' +
       '<div class="sec"><span>Daily notes</span></div><div class="group">' +
-      '<button class="item" data-act="dailytmpl"><span>Template for new daily notes<small>' + (settings.dailyTmpl ? esc(settings.dailyTmpl) : 'None \u2014 new daily notes start empty') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
+      '<button class="item" data-act="dailytmpl"><span>' + proTag('Template for new daily notes') + '<small>' + (settings.dailyTmpl ? esc(settings.dailyTmpl) : 'None \u2014 new daily notes start empty') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<div class="item"><span>Where they live<small>Daily notes are kept in the \u201c' + DAILY + '\u201d folder, named by date. Tap the day chip on one to open the calendar.</small></span></div></div>' +
       '<div class="sec"><span>Discover</span></div><div class="group">' +
       '<div class="item"><span>Discover uses the internet<small>Looks up your note topics on Wikipedia while Discover is open. Only the search words are sent.</small></span><div class="seg">' + [['1', 'On'], ['0', 'Off']].map(function (s) { return '<button class="' + ((settings.discoverNet !== false) === (s[0] === '1') ? 'on' : '') + '" data-act="dnet" data-v="' + s[0] + '" style="font-family:var(--sans);font-size:13px">' + s[1] + '</button>'; }).join('') + '</div></div>' +
@@ -2219,10 +2221,12 @@
   }
   async function noteMenu(n, preset) {
     var nc = MD.cards(n.body).length;
-    var a = preset || await sheet({ title: n.title, left: true, actions: [{ label: n.pinned ? 'Unpin' : 'Pin to top', value: 'pin', icon: I.pin }, { label: 'Find in note', value: 'find', icon: I.search }, { label: 'Share\u2026', value: 'share', icon: I.ext }, { label: 'Copy as Markdown', value: 'copy', icon: I.copy }, { label: 'History\u2026', value: 'hist', icon: I.restore }, { label: copyOrigin(n) ? 'Merge into \u201c' + copyOrigin(n).title + '\u201d\u2026' : 'Merge another note into this\u2026', value: 'merge', icon: I.copy }, { label: 'Rename', value: 'rename', icon: I.edit }, { label: 'Move to folder', value: 'move', icon: I.folder.replace(' class="fi"', '') }, { label: 'Duplicate', value: 'dup', icon: I.copy }]
-      .concat(inTemplates(n) ? [] : [{ label: 'Save as template', value: 'tmpl', icon: I.tmpl }])
-      .concat(nc ? [{ label: 'Review ' + nc + ' card' + (nc === 1 ? '' : 's') + ' now', value: 'review', icon: I.recall }, { label: 'Export ' + nc + ' card' + (nc === 1 ? '' : 's') + ' (CSV for Synapse)', value: 'cards', icon: I.copy }] : [])
-      .concat([{ label: 'Local graph', value: 'lg', icon: I.graph }, { label: 'Move to Trash', value: 'delete', danger: true, icon: I.trash }]) });
+    var a = preset || await sheet({ title: n.title, left: true, actions: [{ label: n.pinned ? 'Unpin' : 'Pin to top', value: 'pin', icon: I.pin }, { label: 'Find in note', value: 'find', icon: I.search }, { label: 'Share\u2026', value: 'share', icon: I.ext }, { label: 'Copy as Markdown', value: 'copy', icon: I.copy }, { label: proTag('History\u2026'), value: 'hist', icon: I.restore }, { label: proTag(copyOrigin(n) ? 'Merge into \u201c' + copyOrigin(n).title + '\u201d\u2026' : 'Merge a note into this\u2026'), value: 'merge', icon: I.copy }, { label: 'Rename', value: 'rename', icon: I.edit }, { label: 'Move to folder', value: 'move', icon: I.folder.replace(' class="fi"', '') }, { label: 'Duplicate', value: 'dup', icon: I.copy }]
+      .concat(inTemplates(n) ? [] : [{ label: proTag('Save as template'), value: 'tmpl', icon: I.tmpl }])
+      .concat(nc ? [{ label: proTag('Review ' + nc + ' card' + (nc === 1 ? '' : 's') + ' now'), value: 'review', icon: I.recall }, { label: proTag('Export ' + nc + ' card' + (nc === 1 ? '' : 's') + ' (CSV for Synapse)'), value: 'cards', icon: I.copy }] : [])
+      .concat([{ label: proTag('Local graph'), value: 'lg', icon: I.graph }, { label: 'Move to Trash', value: 'delete', danger: true, icon: I.trash }]) });
+    var PM = { hist: 'History', merge: 'Merge', tmpl: 'Templates', review: 'Recall', cards: 'Flashcard export', lg: 'Graph' };
+    if (PM[a] && !proOk(PM[a])) return;
     if (a === 'cards') { exportCards(n); return; }
     if (a === 'find') { if (route().v !== 'note') go('#/n/' + n.id); openFind(n); return; }
     if (a === 'share') { shareNote(n); return; }
@@ -2358,7 +2362,7 @@
     var heads = []; String(body).replace(/^#{1,3}\s+(.+)$/gm, function (m, t) { if (heads.length < 4 && !/\{\{/.test(t)) heads.push(t.trim()); return m; });
     return heads.join(' \u00b7 ');
   }
-  async function newFromTemplate(folder) {
+  async function newFromTemplate(folder) { if (!proOk('Templates')) return;
     var t = await chooseTemplate(); if (!t) return;
     createFromTemplate(t, folder);
   }
@@ -2900,7 +2904,7 @@
   }
 
   /* ---------- formatting guide (rendered, never saved as a note) ---------- */
-  var GUIDE = '## Fast ways in\n- Type **/** anywhere to insert a block, or tap **+** on the toolbar.\n- **[[** links a note. **![[Note]]** shows another note right inside this one.\n- Press and hold a note in a list for pin, rename, move, duplicate and delete.\n- Pull down on the Notes screen (or tap the search bar) to jump anywhere.\n- Double-tap any paragraph to edit right there.\n\n## Text\n**bold**, *italic*, ~~strike~~, ==highlight==, `code`, [^1] footnotes, $E = mc^2$ math.\n\n## Lists\n- [ ] Checklist item\n  - [x] Nested item (indent with the \u2192 button)\n1. Numbered\n\n## Callouts and toggles\n> [!info] Info\n> Also tip, warning, danger, question and example.\n\n> [!toggle]- Tap to open a toggle\n> Hidden until you need it.\n\n## Recall cards\nWhat does ATP stand for :: adenosine triphosphate\nThe {{c::hippocampus}} helps form new memories.\n\n## Sync\n**Settings \u203a Cloud sync** keeps your notes on every device you log in on. They\u2019re encrypted with your password before they leave this one, so only you can read them.\n\n## History\nEvery note keeps earlier versions for 30 days: **\u22ef \u203a History**. **Restore as new note** brings an old version back as its own note and leaves the current one alone. Then tap **Merge** on that copy to pick, change by change, what goes back into the original.\n\n## Properties\nStart a note with a block like this to get a chip row:\n```yaml\n---\ntags: [biology, exam]\ndate: 2026-10-19\n---\n```\n\n[^1]: Footnotes collect at the bottom of the note.';
+  var GUIDE = '## Fast ways in\n- Type **/** anywhere to insert a block, or tap **+** on the toolbar.\n- **[[** links a note. **![[Note]]** shows another note right inside this one.\n- Press and hold a note in a list for pin, rename, move, duplicate and delete.\n- Pull down on the Notes screen (or tap the search bar) to jump anywhere.\n- Double-tap any paragraph to edit right there.\n\n## Text\n**bold**, *italic*, ~~strike~~, ==highlight==, `code`, [^1] footnotes, $E = mc^2$ math.\n\n## Lists\n- [ ] Checklist item\n  - [x] Nested item (indent with the \u2192 button)\n1. Numbered\n\n## Callouts and toggles\n> [!info] Info\n> Also tip, warning, danger, question and example.\n\n> [!toggle]- Tap to open a toggle\n> Hidden until you need it.\n\n## Recall cards\nWhat does ATP stand for :: adenosine triphosphate\nThe {{c::hippocampus}} helps form new memories.\n\n## Sync\n**Settings \u203a Cloud sync** keeps your notes on every device you log in on. They\u2019re encrypted with your password before they leave this one, so only you can read them.\n\n## History\nEvery note keeps earlier versions for 30 days: **\u22ef \u203a History**. **Restore as new note** brings an old version back as its own note and leaves the current one alone. Then tap **Merge** on that copy to pick, change by change, what goes back into the original.\n\n## Axon Pro\nWriting, folders, [[links]], search, Markdown, Trash, import and backups are free. Cloud sync, History, Graph, Templates, Daily notes, Recall, Discover, Tasks, accent colors, auto-link and flashcard export are **Axon Pro**, $35 once: **Settings \u203a Get Axon Pro**. You pay with an Apple Cash request, and Pro turns on by itself once it\u2019s paid. Nothing you\u2019ve written is ever locked.\n\n## Properties\nStart a note with a block like this to get a chip row:\n```yaml\n---\ntags: [biology, exam]\ndate: 2026-10-19\n---\n```\n\n[^1]: Footnotes collect at the bottom of the note.';
   function renderGuide() {
     viewEl.innerHTML = '<div class="page"><div class="nav"><button class="back" data-act="back" data-to="#/settings">' + I.back + '<span>Settings</span></button><div class="acts"></div></div><div class="eyebrow">Axon</div><h1 class="h1">Formatting guide</h1><article class="prose">' + MD.render(GUIDE, { resolve: function () { return true; } }) + '</article></div>';
   }
@@ -3198,6 +3202,12 @@
   }
   async function syncNow(manual) {
     if (!syOn()) return;
+    if (PRO.need) {
+      /* this account doesn't have Pro (yet): no sync calls until it does */
+      if (!manual) return;
+      var pj = await proCheck(true);
+      if (!pj || !pj.pro) { if (pj) openPro('Cloud sync'); else toast('You\u2019re offline. Try again when you\u2019re connected.'); return; }
+    }
     if (syBusy) { syAgain = true; return; }
     if (!manual && navigator.onLine === false) return;
     syBusy = true; syAgain = false; syUI();
@@ -3229,7 +3239,8 @@
       else if (manual) toast(changed ? 'Synced \u00b7 ' + changed + ' change' + (changed === 1 ? '' : 's') + ' from the cloud' : 'Synced \u00b7 everything is up to date');
       if (stats.bad) sy.err = stats.bad + ' item' + (stats.bad === 1 ? '' : 's') + ' couldn\u2019t be read';
     } catch (e) {
-      if (e.status === 401) { syForget(true); toast('Signed out of cloud sync (the password was changed or the account removed). Log in again in Settings'); if (route().v === 'settings' && !openOverlays.length) renderSettings(); }
+      if (e.status === 402) { sy.err = ''; proFromServer(false); if (manual) openPro('Cloud sync'); }
+      else if (e.status === 401) { syForget(true); toast('Signed out of cloud sync (the password was changed or the account removed). Log in again in Settings'); if (route().v === 'settings' && !openOverlays.length) renderSettings(); }
       else sy.err = e.offline ? 'Offline \u00b7 will sync when you\u2019re back online' : 'Sync failed (' + (e.message || 'error') + ')';
       if (manual && sy.err) toast(sy.err);
     } finally {
@@ -3263,11 +3274,14 @@
   function syAgo() { return sy.last ? agoLong(sy.last) : 'not yet'; }
   function syHTML() {
     if (!window.AXS) return '';
-    var h = '<div class="sec"><span>Cloud sync</span>' + (syOn() ? '<span style="text-transform:none;letter-spacing:0" id="systate">' + (syBusy ? 'Syncing\u2026' : 'On') + '</span>' : '') + '</div><div class="group">';
+    var h = '<div class="sec"><span>Cloud sync</span>' + (syOn() ? '<span style="text-transform:none;letter-spacing:0" id="systate">' + (PRO.need ? 'Needs Pro' : syBusy ? 'Syncing\u2026' : 'On') + '</span>' : '') + '</div><div class="group">';
     if (!syOn()) {
       h += '<div class="item"><span>Keep your notes on all your devices<small>Notes, folders, images and Recall progress are encrypted on this device with your password before they\u2019re uploaded, so only you can read them. Axon still works fully offline.</small></span></div>' +
-        '<button class="item" data-act="sysignup"><span>Create a sync account</span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
+        '<button class="item" data-act="sysignup"><span>' + proTag('Create a sync account') + '</span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
         '<button class="item" data-act="sylogin"><span>Log in<small>Already synced on another device</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>';
+    } else if (PRO.need) {
+      h += '<button class="item" data-act="getpro" data-what="Cloud sync"><span>Cloud sync needs Axon Pro<small>Signed in as ' + esc(sy.user) + ' \u00b7 ' + (PRO.req && PRO.req.status === 'new' ? 'request sent, it starts by itself once it\u2019s paid' : 'your notes start syncing as soon as Pro is on') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
+        '<button class="item" data-act="sylogout"><span>Log out<small>Your notes stay on this device.</small></span></button>';
     } else {
       h += '<button class="item" data-act="synow"><span>Sync now<small id="sysub">Signed in as ' + esc(sy.user) + ' \u00b7 last synced ' + syAgo() + (sy.err ? ' \u00b7 ' + esc(sy.err) : '') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
         '<div class="item"><span>End-to-end encrypted<small>Your password is the only key. If you forget it, the cloud copy can\u2019t be recovered, but the notes on this device stay.</small></span></div>' +
@@ -3279,7 +3293,7 @@
   }
   function syUI() {
     var s = $('#systate'), b = $('#sysub');
-    if (s) s.textContent = syBusy ? 'Syncing\u2026' : 'On';
+    if (s) s.textContent = PRO.need ? 'Needs Pro' : syBusy ? 'Syncing\u2026' : 'On';
     if (b) b.textContent = 'Signed in as ' + sy.user + ' \u00b7 ' + (syBusy ? 'syncing\u2026' : 'last synced ' + syAgo()) + (sy.err && !syBusy ? ' \u00b7 ' + sy.err : '');
   }
   /* sign up / log in form */
@@ -3374,25 +3388,34 @@
       }
     }
   }
-  async function syAuth(mode) {
+  async function syAuth(mode, o) {
+    o = o || {};
     var msg = '', lastU = '';
     for (;;) {
-      var v = await syForm(mode, msg, lastU); if (!v) return;
+      var v = await syForm(mode, msg, lastU); if (!v) return false;
       lastU = v.u;
       var busy = toast(mode === 'signup' ? 'Creating your account and encryption key\u2026' : 'Unlocking\u2026', null, 20000);
       try {
         var d = await AXS.derive(v.u, v.p);
-        var r = await AXS.api(mode === 'signup' ? '/api/signup' : '/api/login', { body: { u: v.u, auth: d.auth, label: /iPhone|iPad/.test(navigator.userAgent) ? 'iPhone' : 'browser' } });
+        var r = await AXS.api(mode === 'signup' ? '/api/signup' : '/api/login', { body: { u: v.u, auth: d.auth, label: /iPhone|iPad/.test(navigator.userAgent) ? 'iPhone' : 'browser', grand: PRO.grand ? 1 : 0 } });
         syForget(true);
         var base = sy.base; sy.base = null;
         sy.user = r.user; sy.token = r.token; sy.key = await syStoreKey(d.raw); d.raw.fill(0);
         if (base && base.u === r.user) Object.keys(base.h).forEach(function (k) { sy.map[k] = { s: 0, h: base.h[k] }; });
         sySave();
-        toast(mode === 'signup' ? 'Cloud sync is on. Log in with the same username on your other devices.' : 'Logged in. Syncing your notes\u2026');
-        if (route().v === 'settings') renderSettings();
-        await syncNow(true);
-        if (route().v === 'settings') renderSettings();
-        return;
+        proFromServer(!!r.pro);
+        if (r.pro) {
+          toast(mode === 'signup' ? 'Cloud sync is on. Log in with the same username on your other devices.' : 'Logged in. Syncing your notes\u2026');
+          if (route().v === 'settings') renderSettings();
+          await syncNow(true);
+        } else {
+          /* a free account: sync starts once Pro is on (the server checks it too) */
+          toast(mode === 'signup' ? 'Account made: ' + r.user : 'Logged in as ' + r.user);
+          var j = await proCheck(true);
+          if (!o.forPro && !(j && j.request && j.request.status === 'new')) openPro('Cloud sync');
+        }
+        if (route().v === 'settings' && !openOverlays.length) renderSettings();
+        return true;
       } catch (e) {
         msg = e.offline ? 'You\u2019re offline. Connect to the internet and try again.' : e.message === 'taken' ? 'That username is taken. Try another.' : e.message === 'wrong' ? 'Wrong username or password.' : e.message === 'locked' ? 'Too many tries. Wait ' + ((e.body && e.body.wait) || 30) + ' seconds.' : e.message === 'slow_down' ? 'Too many new accounts from here. Try again later.' : 'Something went wrong (' + e.message + '). Try again.';
       }
@@ -3717,6 +3740,11 @@
     }
   });
 
+  act.getpro = function (el) { openPro(el && el.dataset.what || ''); };
+  (function () {
+    var PA = { fromtmpl: 'Templates', today: 'Daily notes', calendar: 'Daily notes', day: 'Daily notes', gorecall: 'Recall', gotasks: 'Tasks', dailytmpl: 'Templates', accent: 'Accent colors', allcards: 'Flashcard export', cards: 'Flashcard export', autolink: 'Auto-link', sysignup: 'Cloud sync', usetmpl: 'Templates' };
+    Object.keys(PA).forEach(function (k) { var f0 = act[k]; if (f0) act[k] = function (el, e) { if (!proOk(PA[k])) return; return f0(el, e); }; });
+  })();
   viewEl.addEventListener('click', function (e) {
     if (Date.now() - lpFired < 700) { e.preventDefault(); e.stopPropagation(); return; }
     var fh = e.target.closest('#prose > h1, #prose > h2, #prose > h3, #prose > h4, #prose > h5, #prose > h6');
@@ -3760,7 +3788,7 @@
     var fab = $('#fab'), t = null, fired = 0;
     fab.addEventListener('pointerdown', function () { clearTimeout(t); t = setTimeout(async function () {
       fired = Date.now();
-      var a = await sheet({ actions: [{ label: 'New note', value: 'n', icon: I.newnote }, { label: 'New from template', value: 't', icon: I.tmpl }, { label: 'Today\u2019s note', value: 'd', icon: I.cal.replace(' class="fi"', '') }, { label: 'Jot to today\u2019s note', value: 'j', icon: I.edit }, { label: 'New folder', value: 'f', icon: I.newfolder }], left: true });
+      var a = await sheet({ actions: [{ label: 'New note', value: 'n', icon: I.newnote }, { label: proTag('New from template'), value: 't', icon: I.tmpl }, { label: proTag('Today\u2019s note'), value: 'd', icon: I.cal.replace(' class="fi"', '') }, { label: proTag('Jot to today\u2019s note'), value: 'j', icon: I.edit }, { label: 'New folder', value: 'f', icon: I.newfolder }], left: true });
       if (a === 'n') newNote(); else if (a === 't') newFromTemplate(); else if (a === 'd') openDaily(); else if (a === 'j') jot(); else if (a === 'f') newFolder('');
     }, 450); });
     ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) { fab.addEventListener(ev, function () { clearTimeout(t); }); });
@@ -3769,6 +3797,124 @@
   })();
   document.addEventListener('visibilitychange', function () { if (document.hidden && editing) { var ed = $('#ed'); if (ed) editing.n.body = ed.value; touchIfChanged(editing.n); } });
   window.addEventListener('pagehide', function () { if (editing) { var ed = $('#ed'); if (ed) editing.n.body = ed.value; touchIfChanged(editing.n); } });
+
+
+  /* ---------- Axon Pro ($35, one time) ----------
+     Free: writing and editing notes, folders, search, [[links]] and backlinks, Markdown, Trash, import and backups.
+     Pro: cloud sync, History (restore, merge), Graph, Templates, Daily notes, Recall, Discover, Tasks, accent colors,
+     auto-link and flashcard export. A device that had Axon before Pro existed keeps all of it (grandfathered). Accounts get
+     Pro from the sync server, which is also where sync itself is checked. Nothing here hides, locks or deletes a note. */
+  var PRO = { grand: false, acct: '', need: false, req: null };
+  var LOCK = '<svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.2"/><path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7"/></svg>';
+  function isPro() { return !!(PRO.grand || PRO.acct); }
+  function savePro() { DB.put('meta', { k: 'pro', v: PRO }).catch(function () {}); }
+  function proOk(what) { if (isPro()) return true; openPro(what); return false; }
+  function proTag(label) { return isPro() ? label : label + ' \u00b7 Pro'; }
+  function proFromServer(on, req) {
+    var was = isPro();
+    if (req !== undefined) PRO.req = req ? Object.assign({}, PRO.req || {}, req) : null;
+    if (on) { if (sy.user) PRO.acct = sy.user; PRO.need = false; }
+    else { if (PRO.acct && PRO.acct === sy.user) PRO.acct = ''; PRO.need = true; }
+    savePro();
+    if (was !== isPro()) proChanged();
+  }
+  function proChanged() { proTabs(); if (!editing && !openOverlays.length) render(); }
+  function proTabs() {
+    document.querySelectorAll('.tb[data-tab=graph] span, .tb[data-tab=discover] span').forEach(function (sp) {
+      var l = sp.querySelector('.tlock');
+      if (isPro()) { if (l) l.remove(); } else if (!l) sp.insertAdjacentHTML('beforeend', '<i class="tlock">' + LOCK + '</i>');
+    });
+  }
+  var proLast = 0;
+  async function proCheck(force) {
+    if (!syOn() || !window.AXS) return null;
+    if (!force && Date.now() - proLast < 45000) return null;
+    proLast = Date.now();
+    try {
+      var j = await AXS.api('/api/me', { token: sy.token }), had = PRO.need && !isPro() || PRO.need;
+      proFromServer(!!j.pro, j.request || null);
+      if (j.pro && had) { toast('Axon Pro is on. Thank you!'); syncNow(false); }
+      if (route().v === 'settings' && !openOverlays.length) renderSettings();
+      return j;
+    } catch (e) { return null; }
+  }
+  var PRO_VIEWS = {
+    graph: ['Graph', 'See how all your notes connect, or just the web around one note.'],
+    today: ['Daily notes', 'A note for every day, with a calendar and quick jots.'],
+    recall: ['Recall', 'Turn lines like question :: answer into flashcards with spaced review and streaks.'],
+    review: ['Recall', 'Turn lines like question :: answer into flashcards with spaced review and streaks.'],
+    tasks: ['Tasks', 'Every checkbox from every note in one list.'],
+    discover: ['Discover', 'Find links you haven\u2019t made yet and read more about your topics.']
+  };
+  function renderLocked(v) {
+    var x = PRO_VIEWS[v];
+    viewEl.innerHTML = '<div class="page prolock"><div class="plk">' + LOCK + '</div><h2>' + esc(x[0]) + ' is part of Axon Pro</h2><p>' + esc(x[1]) + '</p>' +
+      '<button class="bignew" data-act="getpro" data-what="' + esc(x[0]) + '"><span>See Axon Pro \u00b7 $35</span></button>' +
+      '<p class="pfine">Writing, folders, links and search are free, and nothing you\u2019ve written is ever locked.</p></div>';
+  }
+  var PRO_LIST = [['Cloud sync', 'your notes on every device, end-to-end encrypted'], ['History', 'every version of a note, restore and merge'], ['Graph', 'the whole vault and each note\u2019s local web'],
+    ['Templates and Daily notes', 'with a calendar and quick jots'], ['Recall', 'flashcards, spaced review and streaks'], ['Discover and Tasks', 'missing links, topics, every checkbox in one list'],
+    ['Accent colors, auto-link, flashcard export', 'and every Pro feature added later']];
+  async function openPro(what) {
+    var tt = $('#toast'); if (tt) tt.classList.remove('show');
+    var mode = '', msg = '', f = { name: (PRO.req && PRO.req.name) || '', phone: (PRO.req && PRO.req.phone) || '' };
+    await overlay(function (done) {
+      var el = document.createElement('div'); el.className = 'mergev prov'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Axon Pro');
+      function waiting() { return PRO.req && PRO.req.status === 'new' && syOn() && mode !== 'edit'; }
+      function paint() {
+        var h = '<div class="mvh"><button data-p="close">Close</button><b>Axon Pro</b><span class="pgap"></span></div><div class="mvbody pbody">';
+        h += '<div class="phero"><div class="pprice">$35</div><div class="pone">one time \u00b7 yours for good</div>' + (what && !isPro() ? '<p class="pwhy"><b>' + esc(what) + '</b> is part of Axon Pro.</p>' : '') + '</div>';
+        if (isPro() && !(PRO.grand && !PRO.acct && syOn() && PRO.need)) {
+          h += '<div class="pbox pon"><b>Axon Pro is on' + '</b><p>' + (PRO.acct ? 'It\u2019s on your account <b>' + esc(PRO.acct) + '</b>, so it works on every device you log in on.' : 'This device had Axon before Pro existed, so it keeps every Pro feature for good.') + '</p></div>';
+        }
+        if (!isPro() || (PRO.grand && !PRO.acct && syOn() && PRO.need)) {
+          if (waiting()) {
+            h += '<div class="pbox psent"><b>' + I.check + 'Request sent</b><p>Watch Messages for an Apple Cash request for <b>$35</b> from Northpeak Studios' + (PRO.req.phone ? ' at <b>' + esc(PRO.req.phone) + '</b>' : '') + '. Pro turns on by itself once it\u2019s paid, on every device logged in as <b>' + esc(sy.user) + '</b>.</p>' +
+              '<div class="pbtns"><button class="pmain" data-p="check">Check now</button><button data-p="edit">Change details</button></div>' + (msg ? '<div class="perr">' + esc(msg) + '</div>' : '') + '</div>';
+          } else {
+            h += '<div class="pbox"><b>Get Pro</b><p>No card needed. Send your name and phone number and Northpeak Studios sends you an <b>Apple Cash request for $35</b> in Messages. Once it\u2019s paid, Pro turns on by itself.</p>' +
+              '<input name="pname" placeholder="Your name" autocomplete="name" enterkeyhint="next" value="' + esc(f.name) + '">' +
+              '<input name="pphone" type="tel" placeholder="Phone number for Apple Cash" autocomplete="tel" inputmode="tel" enterkeyhint="go" value="' + esc(f.phone) + '">' +
+              '<p class="pnote">' + (syOn() ? 'Pro goes on your account <b>' + esc(sy.user) + '</b>.' : 'Next you\u2019ll pick a username and password. Pro goes on that account, so you can log in and use it on all your devices.') + '</p>' +
+              (msg ? '<div class="perr">' + esc(msg) + '</div>' : '') +
+              '<div class="pbtns"><button class="pmain" data-p="send">' + (syOn() ? 'Send request' : 'Continue') + '</button></div>' +
+              (syOn() ? '' : '<button class="plink" data-p="login">Bought Pro already? Log in</button>') + '</div>';
+          }
+        }
+        h += '<ul class="plist">' + PRO_LIST.map(function (x) { return '<li>' + I.check + '<span><b>' + esc(x[0]) + '</b>' + esc(x[1]) + '</span></li>'; }).join('') + '</ul>';
+        h += '<p class="pfree">Free for everyone: writing and editing notes, folders, [[links]] and backlinks, search, Markdown, Trash, import and backups. Nothing you\u2019ve written is ever locked.</p>';
+        el.innerHTML = h + '</div>';
+      }
+      async function send() {
+        f.name = ($('[name=pname]', el).value || '').trim().replace(/\s+/g, ' '); f.phone = ($('[name=pphone]', el).value || '').trim();
+        if (f.name.length < 2) { msg = 'Type your name.'; paint(); return; }
+        if (f.phone.replace(/\D/g, '').length < 7 || !/^[+\d\s().-]+$/.test(f.phone)) { msg = 'Type a phone number that can get Apple Cash.'; paint(); return; }
+        msg = '';
+        if (!syOn()) { var ok = await syAuth('signup', { forPro: true }); if (!ok) { paint(); return; } if (isPro() && PRO.acct) { paint(); return; } }
+        var b = $('[data-p=send]', el); if (b) { b.disabled = true; b.textContent = 'Sending\u2026'; }
+        try {
+          var r = await AXS.api('/api/pro/request', { token: sy.token, body: { name: f.name, phone: f.phone, username: sy.user } });
+          PRO.req = { id: r.id, status: 'new', name: f.name, phone: f.phone, at: Date.now() }; savePro(); mode = '';
+        } catch (e) {
+          msg = e.offline ? 'You\u2019re offline. Connect and try again.' : e.message === 'slow_down' ? 'Too many requests from here. Try again later.' : e.message === 'bad_phone' ? 'That phone number doesn\u2019t look right.' : 'That didn\u2019t go through (' + e.message + '). Try again.';
+        }
+        paint();
+      }
+      el.addEventListener('click', async function (e) {
+        var b = e.target.closest('[data-p]'); if (!b) return;
+        var p = b.dataset.p;
+        if (p === 'close') done(null);
+        else if (p === 'send') send();
+        else if (p === 'edit') { mode = 'edit'; msg = ''; paint(); }
+        else if (p === 'login') { var ok = await syAuth('login', { forPro: true }); if (ok) { await proCheck(true); } paint(); }
+        else if (p === 'check') { b.disabled = true; b.textContent = 'Checking\u2026'; var j = await proCheck(true); msg = !j ? 'Couldn\u2019t check (offline?). Try again.' : j.pro ? '' : j.request && j.request.status === 'declined' ? 'This request was declined. Change your details to send a new one.' : 'Not marked paid yet. It turns on by itself once it is.'; paint(); }
+      });
+      el.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.name === 'pphone') { e.preventDefault(); send(); } else if (e.key === 'Enter' && e.target.name === 'pname') { e.preventDefault(); var ph = $('[name=pphone]', el); if (ph) ph.focus(); } });
+      paint();
+      return el;
+    });
+    if (route().v === 'settings' && !openOverlays.length) renderSettings();
+  }
 
   /* ---------- boot ---------- */
   async function boot() {
@@ -3781,6 +3927,9 @@
       if (m.settings) settings = Object.assign(settings, m.settings);
       if (m.ui) ui = Object.assign(ui, m.ui);
       if (m['autolink-backup'] && m['autolink-backup'].notes) alBackup = m['autolink-backup'];
+      /* the first run of a version with Pro: a device that already had Axon (notes, folders, settings or sync) is grandfathered */
+      if (m.pro) PRO = Object.assign(PRO, m.pro);
+      else { PRO.grand = !!(ns.length || fs.length || m.settings || m.ui || m.sync || m.seeded || m.starterRemoved); PRO.since = Date.now(); savePro(); }
       try { await syLoad(m); } catch (e) {}
       rebuildIdx();
       if (m.seeded && !m.starterRemoved) { removeOldStarter(); }
@@ -3797,11 +3946,11 @@
       cleanRecall();
     } catch (e) {}
     applySettings();
-    render();
-    if (syOn()) setTimeout(function () { syncNow(false); }, 1500);
+    render(); proTabs();
+    if (syOn()) setTimeout(function () { if (PRO.need) proCheck(true); else syncNow(false); }, 1500);
     window.addEventListener('online', function () { sySoon(800); });
-    document.addEventListener('visibilitychange', function () { if (!document.hidden && syOn() && Date.now() - sy.last > 20000) sySoon(600); });
-    setInterval(function () { if (!document.hidden && syOn()) syncNow(false); }, 120000);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden && syOn()) { if (PRO.need) proCheck(false); else if (Date.now() - sy.last > 20000) sySoon(600); } });
+    setInterval(function () { if (!document.hidden && syOn()) { if (PRO.need) proCheck(false); else syncNow(false); } }, 120000);
     if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       /* a home-screen app is usually resumed, not reopened, so a new version would wait for a swipe-close.
          Check for one each time Axon comes back; once it has landed, reload on the next return (never mid-edit). */
