@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.6.6 */
+/* Axon · Northpeak Studios · v1.6.7 */
 (function () {
   'use strict';
-  var VERSION = '1.6.6';
+  var VERSION = '1.6.7';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -988,29 +988,44 @@
     }
   }
   /* keep the line you're typing on above the bottom toolbar (it sits over the end of the editor) */
-  var kcRaf = 0, kcPad = 0;
+  var kcRaf = 0, kcPad = 0, kcT = 0;
   function caretAboveBar() {
+    var ed = $('#ed'); if (!ed) return;
+    var len = ed.value.length, tail = len - ed.selectionEnd;
+    /* measuring means laying out text up to the caret: in a long note, mid-note, wait for a pause in typing */
+    if (len > 20000 && tail > 4000) { clearTimeout(kcT); kcT = setTimeout(caretRun, 200); return; }
     if (kcRaf) return;
-    kcRaf = requestAnimationFrame(function () {
-      kcRaf = 0;
-      var ed = $('#ed'); if (!ed || !kb || document.activeElement !== ed) return;
-      var lim = kb.getBoundingClientRect().top, er = ed.getBoundingClientRect();
-      [ac, slashEl, tbar].forEach(function (p) { if (p && p.getBoundingClientRect) { var t = p.getBoundingClientRect().top; if (t > 60 && t < lim) lim = t; } });
-      lim -= 12;
-      if (lim <= 40 || er.bottom <= lim) return;
-      var cs = getComputedStyle(ed), m = document.createElement('div'), sp = document.createElement('span');
-      ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'paddingTop', 'paddingLeft', 'paddingRight', 'tabSize', 'wordSpacing'].forEach(function (k) { m.style[k] = cs[k]; });
-      m.style.cssText += ';position:fixed;left:-9999px;top:0;visibility:hidden;white-space:pre-wrap;overflow-wrap:break-word;word-wrap:break-word;box-sizing:border-box;width:' + ed.clientWidth + 'px';
-      m.textContent = ed.value.slice(0, ed.selectionEnd); sp.textContent = '\u200b'; m.appendChild(sp);
+    kcRaf = requestAnimationFrame(function () { kcRaf = 0; caretRun(); });
+  }
+  function caretRun() {
+    var ed = $('#ed'); if (!ed || !kb || document.activeElement !== ed) return;
+    var lim = kb.getBoundingClientRect().top, er = ed.getBoundingClientRect();
+    [ac, slashEl, tbar].forEach(function (p) { if (p && p.getBoundingClientRect) { var t = p.getBoundingClientRect().top; if (t > 60 && t < lim) lim = t; } });
+    lim -= 12;
+    if (lim <= 40 || er.bottom <= lim) return;
+    var v = ed.value, pos = ed.selectionEnd, cs = getComputedStyle(ed), m = document.createElement('div'), sp = document.createElement('span');
+    ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'paddingTop', 'paddingBottom', 'paddingLeft', 'paddingRight', 'tabSize', 'wordSpacing'].forEach(function (k) { m.style[k] = cs[k]; });
+    m.style.cssText += ';position:fixed;left:-9999px;top:0;visibility:hidden;white-space:pre-wrap;overflow-wrap:break-word;word-wrap:break-word;box-sizing:border-box;width:' + ed.clientWidth + 'px';
+    /* near the end of a long note, lay out only from the caret's line down and measure up from the bottom */
+    var fromEnd = v.length > 20000 && v.length - pos <= 4000, y;
+    sp.textContent = '\u200b';
+    if (fromEnd) {
+      var ls = v.lastIndexOf('\n', pos - 1) + 1;
+      m.style.paddingTop = '0';
+      m.appendChild(document.createTextNode(v.slice(ls, pos))); m.appendChild(sp); m.appendChild(document.createTextNode(v.slice(pos) + '\u200b'));
       document.body.appendChild(m);
-      var y = er.top + sp.offsetTop + sp.offsetHeight;
-      m.remove();
-      if (y <= lim) return;
-      var need = Math.ceil(y - lim), room = viewEl.scrollHeight - viewEl.clientHeight - viewEl.scrollTop;
-      /* at the end of a note there's nothing below to scroll into: add room under the editor while editing */
-      if (need > room) { kcPad += need - room + 24; viewEl.style.paddingBottom = 'calc(var(--bpad) + ' + (70 + kcPad) + 'px)'; }
-      viewEl.scrollTop += need;
-    });
+      y = er.bottom - (m.offsetHeight - (sp.offsetTop + sp.offsetHeight));
+    } else {
+      m.textContent = v.slice(0, pos); m.appendChild(sp);
+      document.body.appendChild(m);
+      y = er.top + sp.offsetTop + sp.offsetHeight;
+    }
+    m.remove();
+    if (y <= lim) return;
+    var need = Math.ceil(y - lim), room = viewEl.scrollHeight - viewEl.clientHeight - viewEl.scrollTop;
+    /* at the end of a note there's nothing below to scroll into: add room under the editor while editing */
+    if (need > room) { kcPad += need - room + 24; viewEl.style.paddingBottom = 'calc(var(--bpad) + ' + (70 + kcPad) + 'px)'; }
+    viewEl.scrollTop += need;
   }
   function autoGrow(ed) { ed.style.height = 'auto'; ed.style.height = Math.max(ed.scrollHeight, window.innerHeight * 0.55) + 'px'; }
   /* y position of each source line inside the textarea, via a hidden mirror */
@@ -1064,7 +1079,7 @@
   }
   function stopEditing(silent) {
     if (!editing) return;
-    if (kcPad) { kcPad = 0; viewEl.style.paddingBottom = ''; }
+    clearTimeout(kcT); if (kcPad) { kcPad = 0; viewEl.style.paddingBottom = ''; }
     var pos = silent ? null : editorTopLine();
     commitTitle();
     var n = editing.n, ed = $('#ed');
@@ -1227,7 +1242,8 @@
     }
     var tt = $('#toast'); if (tt) tt.classList.remove('show');
     var chunks = lineDiff(A, B), nch = 0, la = 'Current', lb = copyLabel(other), view = 'changes';
-    chunks.forEach(function (c) { if (!c.eq) { nch++; c.pick = !c.a.length || !c.b.length ? 'ab' : 'a'; } });
+    /* nothing is dropped unless chosen: one-sided lines are kept, and a conflict copy's edits default to Both */
+    chunks.forEach(function (c) { if (!c.eq) { nch++; c.pick = !c.a.length || !c.b.length || lb === 'Conflict copy' ? 'ab' : 'a'; } });
     var res = await overlay(function (done) {
       var el = document.createElement('div'); el.className = 'mergev'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Merge notes');
       function lines(ls) { return ls.length ? ls.map(function (x) { return esc(x) || '<i>\u21b5</i>'; }).join('\n') : '<i>nothing</i>'; }
@@ -3036,10 +3052,10 @@
              other becomes "title (conflict)". A note open in the editor always stays as it is. */
           stats.conf++;
           if (isEd || (p.u || 0) <= (local.updated || 0)) {
-            createNote({ title: uniqueTitle(p.t + ' (conflict)'), folder: p.f || '', body: rb });
+            stats.cids.push(createNote({ title: uniqueTitle(p.t + ' (conflict)'), folder: p.f || '', body: rb }).id);
             sy.map[rid] = { s: s, h: h }; return; /* local stays and uploads next, since it differs from h */
           }
-          createNote({ title: uniqueTitle(local.title + ' (conflict)'), folder: local.folder, body: local.body });
+          stats.cids.push(createNote({ title: uniqueTitle(local.title + ' (conflict)'), folder: local.folder, body: local.body }).id);
         } else if (isEd || (local.updated || 0) >= (p.u || 0)) { sy.map[rid] = { s: s, h: h }; return; } /* same text: newest title/folder/pin wins */
       }
       if (local.body !== (p.b || '')) snapshot(local, local.body, true);
@@ -3141,7 +3157,7 @@
     if (syBusy) { syAgain = true; return; }
     if (!manual && navigator.onLine === false) return;
     syBusy = true; syAgain = false; syUI();
-    var stats = { add: 0, upd: 0, del: 0, conf: 0, img: 0, rc: 0, up: 0, bad: 0 };
+    var stats = { add: 0, upd: 0, del: 0, conf: 0, img: 0, rc: 0, up: 0, bad: 0, cids: [] };
     try {
       if (!sy.did) {
         /* one full local copy before this device's first sync, kept in this browser */
@@ -3162,7 +3178,10 @@
         hydrateImgs();
         recallSoon();
       }
-      if (stats.conf) toast(stats.conf === 1 ? 'A note changed on two devices. Both versions are kept (look for \u201c(conflict)\u201d)' : stats.conf + ' notes changed on two devices. Both versions are kept (look for \u201c(conflict)\u201d)');
+      if (stats.conf) {
+        var cid = stats.cids.filter(function (id) { return notes.has(id); })[0];
+        toast(stats.conf === 1 ? 'A note changed on two devices. Both versions are kept' : stats.conf + ' notes changed on two devices. Both versions are kept (look for \u201c(conflict)\u201d)', cid ? { label: 'Merge', fn: function () { var c = notes.get(cid), o = copyOrigin(c); if (c && o) openMerge(o, c); else if (c) go('#/n/' + c.id); } } : null);
+      }
       else if (manual) toast(changed ? 'Synced \u00b7 ' + changed + ' change' + (changed === 1 ? '' : 's') + ' from the cloud' : 'Synced \u00b7 everything is up to date');
       if (stats.bad) sy.err = stats.bad + ' item' + (stats.bad === 1 ? '' : 's') + ' couldn\u2019t be read';
     } catch (e) {
