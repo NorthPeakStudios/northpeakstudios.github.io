@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.6.2 */
+/* Axon · Northpeak Studios · v1.6.3 */
 (function () {
   'use strict';
-  var VERSION = '1.6.2';
+  var VERSION = '1.6.3';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -2637,7 +2637,7 @@
   }
 
   /* ---------- formatting guide (rendered, never saved as a note) ---------- */
-  var GUIDE = '## Fast ways in\n- Type **/** anywhere to insert a block, or tap **+** on the toolbar.\n- **[[** links a note. **![[Note]]** shows another note right inside this one.\n- Press and hold a note in a list for pin, rename, move, duplicate and delete.\n- Pull down on the Notes screen (or tap the search bar) to jump anywhere.\n- Double-tap any paragraph to edit right there.\n\n## Text\n**bold**, *italic*, ~~strike~~, ==highlight==, `code`, [^1] footnotes, $E = mc^2$ math.\n\n## Lists\n- [ ] Checklist item\n  - [x] Nested item (indent with the \u2192 button)\n1. Numbered\n\n## Callouts and toggles\n> [!info] Info\n> Also tip, warning, danger, question and example.\n\n> [!toggle]- Tap to open a toggle\n> Hidden until you need it.\n\n## Recall cards\nWhat does ATP stand for :: adenosine triphosphate\nThe {{c::hippocampus}} helps form new memories.\n\n## Properties\nStart a note with a block like this to get a chip row:\n```yaml\n---\ntags: [biology, exam]\ndate: 2026-10-19\n---\n```\n\n[^1]: Footnotes collect at the bottom of the note.';
+  var GUIDE = '## Fast ways in\n- Type **/** anywhere to insert a block, or tap **+** on the toolbar.\n- **[[** links a note. **![[Note]]** shows another note right inside this one.\n- Press and hold a note in a list for pin, rename, move, duplicate and delete.\n- Pull down on the Notes screen (or tap the search bar) to jump anywhere.\n- Double-tap any paragraph to edit right there.\n\n## Text\n**bold**, *italic*, ~~strike~~, ==highlight==, `code`, [^1] footnotes, $E = mc^2$ math.\n\n## Lists\n- [ ] Checklist item\n  - [x] Nested item (indent with the \u2192 button)\n1. Numbered\n\n## Callouts and toggles\n> [!info] Info\n> Also tip, warning, danger, question and example.\n\n> [!toggle]- Tap to open a toggle\n> Hidden until you need it.\n\n## Recall cards\nWhat does ATP stand for :: adenosine triphosphate\nThe {{c::hippocampus}} helps form new memories.\n\n## Sync\n**Settings \u203a Cloud sync** keeps your notes on every device you log in on. They\u2019re encrypted with your password before they leave this one, so only you can read them.\n\n## Properties\nStart a note with a block like this to get a chip row:\n```yaml\n---\ntags: [biology, exam]\ndate: 2026-10-19\n---\n```\n\n[^1]: Footnotes collect at the bottom of the note.';
   function renderGuide() {
     viewEl.innerHTML = '<div class="page"><div class="nav"><button class="back" data-act="back" data-to="#/settings">' + I.back + '<span>Settings</span></button><div class="acts"></div></div><div class="eyebrow">Axon</div><h1 class="h1">Formatting guide</h1><article class="prose">' + MD.render(GUIDE, { resolve: function () { return true; } }) + '</article></div>';
   }
@@ -2929,7 +2929,8 @@
       sy.did = true; sy.last = Date.now(); sy.err = '';
       var changed = stats.add + stats.upd + stats.del + stats.img;
       if (changed || stats.rc) {
-        if (!editing && !openOverlays.length) render();
+        var ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA)$/.test(ae.tagName);
+        if (!editing && !openOverlays.length && !typing && /^(vault|folder|note|trash|tasks|recall|settings)$/.test(route().v)) render();
         hydrateImgs();
         recallSoon();
       }
