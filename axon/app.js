@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.5.11 */
+/* Axon · Northpeak Studios · v1.5.12 */
 (function () {
   'use strict';
-  var VERSION = '1.5.11';
+  var VERSION = '1.5.12';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -441,7 +441,16 @@
     var o = { id: n.id, title: n.title, folder: n.folder, body: n.body, created: n.created, updated: n.updated, seed: !!n.seed };
     if (n.pinned) o.pinned = true;
     if (n.trashed) o.trashed = n.trashed;
-    return DB.put('notes', o);
+    return DB.put('notes', o).catch(saveFailed);
+  }
+  /* a write that still fails after the storage layer's own reconnect: say so instead of losing it quietly */
+  var saveFailT = 0;
+  function saveFailed(e) {
+    if (Date.now() - saveFailT > 15000) {
+      saveFailT = Date.now();
+      toast(/Quota/i.test(String(e && (e.name + e.message))) ? 'This phone is out of storage space, so that change wasn\u2019t saved' : 'Couldn\u2019t save that change. Close Axon and open it again, your text is still here', { label: 'Back up', fn: function () { exportVault(); } });
+    }
+    try { console.error('save failed', e); } catch (x) {}
   }
   function createNote(o) {
     var now = Date.now();

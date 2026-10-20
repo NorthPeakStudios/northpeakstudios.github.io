@@ -11,17 +11,34 @@
         if (!d.objectStoreNames.contains('folders')) d.createObjectStore('folders', { keyPath: 'path' });
         if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta', { keyPath: 'k' });
       };
-      r.onsuccess = function () { db = r.result; res(db); };
+      r.onsuccess = function () {
+        db = r.result;
+        db.onversionchange = function () { try { db.close(); } catch (e) {} db = null; };
+        db.onclose = function () { db = null; };
+        res(db);
+      };
       r.onerror = function () { rej(r.error); };
     });
   }
-  function tx(store, mode, fn) {
+  /* iOS can drop a home-screen app's database connection while it sits in the background
+     ("connection is closing" / "connection lost"). Without this, every save after that fails
+     silently until the app is restarted. Reopen once and retry; saves are plain puts/deletes,
+     so running one again is harmless. */
+  function lost(e) { var s = String((e && (e.name + ' ' + e.message)) || ''); return /InvalidState|UnknownError|TransactionInactive|clos|lost|connection/i.test(s) && !/Quota/i.test(s); }
+  function run(d, store, mode, fn) {
     return new Promise(function (res, rej) {
-      var t = db.transaction(store, mode), s = t.objectStore(store), out;
-      var r = fn(s);
-      if (r && 'onsuccess' in r) r.onsuccess = function () { out = r.result; };
+      var t, out;
+      try { t = d.transaction(store, mode); var r = fn(t.objectStore(store)); if (r && 'onsuccess' in r) r.onsuccess = function () { out = r.result; }; }
+      catch (e) { rej(e); return; }
       t.oncomplete = function () { res(out); };
-      t.onerror = t.onabort = function () { rej(t.error); };
+      t.onerror = t.onabort = function () { rej(t.error || new Error('Storage transaction aborted')); };
+    });
+  }
+  function tx(store, mode, fn) {
+    return (db ? Promise.resolve(db) : open()).then(function (d) { return run(d, store, mode, fn); }).catch(function (e) {
+      if (!lost(e)) throw e;
+      db = null;
+      return open().then(function (d) { return run(d, store, mode, fn); });
     });
   }
   /* images live in their own database so the notes database is never upgraded or touched */
@@ -36,15 +53,13 @@
     });
   }
   function mtx(mode, fn) {
-    return mopen().then(function (d) {
-      return new Promise(function (res, rej) {
-        var t = d.transaction('images', mode), s = t.objectStore('images'), out, r = fn(s);
-        if (r && 'onsuccess' in r) r.onsuccess = function () { out = r.result; };
-        t.oncomplete = function () { res(out); };
-        t.onerror = t.onabort = function () { rej(t.error); };
-      });
+    return mopen().then(function (d) { return run(d, 'images', mode, fn); }).catch(function (e) {
+      if (!lost(e)) throw e;
+      try { mdb && mdb.close(); } catch (x) {} mdb = null;
+      return mopen().then(function (d) { return run(d, 'images', mode, fn); });
     });
   }
+
   /* Recall schedules live in their own database too: notes are never migrated */
   var rdb = null;
   function ropen() {
@@ -57,15 +72,13 @@
     });
   }
   function rtx(store, mode, fn) {
-    return ropen().then(function (d) {
-      return new Promise(function (res, rej) {
-        var t = d.transaction(store, mode), s = t.objectStore(store), out, r = fn(s);
-        if (r && 'onsuccess' in r) r.onsuccess = function () { out = r.result; };
-        t.oncomplete = function () { res(out); };
-        t.onerror = t.onabort = function () { rej(t.error); };
-      });
+    return ropen().then(function (d) { return run(d, store, mode, fn); }).catch(function (e) {
+      if (!lost(e)) throw e;
+      try { rdb && rdb.close(); } catch (x) {} rdb = null;
+      return ropen().then(function (d) { return run(d, store, mode, fn); });
     });
   }
+
   window.RC = {
     all: function (s) { return rtx(s, 'readonly', function (st) { return st.getAll(); }); },
     put: function (s, o) { return rtx(s, 'readwrite', function (st) { return st.put(o); }); },
@@ -84,15 +97,13 @@
     });
   }
   function dtx(store, mode, fn) {
-    return dopen().then(function (d) {
-      return new Promise(function (res, rej) {
-        var t = d.transaction(store, mode), s = t.objectStore(store), out, r = fn(s);
-        if (r && 'onsuccess' in r) r.onsuccess = function () { out = r.result; };
-        t.oncomplete = function () { res(out); };
-        t.onerror = t.onabort = function () { rej(t.error); };
-      });
+    return dopen().then(function (d) { return run(d, store, mode, fn); }).catch(function (e) {
+      if (!lost(e)) throw e;
+      try { ddb && ddb.close(); } catch (x) {} ddb = null;
+      return dopen().then(function (d) { return run(d, store, mode, fn); });
     });
   }
+
   window.DC = {
     all: function (s) { return dtx(s, 'readonly', function (st) { return st.getAll(); }); },
     get: function (s, k) { return dtx(s, 'readonly', function (st) { return st.get(k); }); },
@@ -118,15 +129,13 @@
     });
   }
   function htx(mode, fn) {
-    return hopen().then(function (d) {
-      return new Promise(function (res, rej) {
-        var t = d.transaction('versions', mode), s = t.objectStore('versions'), out, r = fn(s);
-        if (r && 'onsuccess' in r) r.onsuccess = function () { out = r.result; };
-        t.oncomplete = function () { res(out); };
-        t.onerror = t.onabort = function () { rej(t.error); };
-      });
+    return hopen().then(function (d) { return run(d, 'versions', mode, fn); }).catch(function (e) {
+      if (!lost(e)) throw e;
+      try { hdb && hdb.close(); } catch (x) {} hdb = null;
+      return hopen().then(function (d) { return run(d, 'versions', mode, fn); });
     });
   }
+
   window.HIST = {
     list: function (id) { return htx('readonly', function (s) { return s.index('id').getAll(id); }); },
     all: function () { return htx('readonly', function (s) { return s.getAll(); }); },
