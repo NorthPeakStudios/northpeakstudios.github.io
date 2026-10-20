@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.5.10 */
+/* Axon · Northpeak Studios · v1.5.11 */
 (function () {
   'use strict';
-  var VERSION = '1.5.10';
+  var VERSION = '1.5.11';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -246,7 +246,7 @@
     while ((m = re.exec(t))) { parts.push([t.slice(last, m.index), 0]); parts.push([(m[3] || m[1]).trim(), 1]); last = re.lastIndex; }
     parts.push([t.slice(last), 0]);
     for (var i = 0; i < parts.length && len < max; i++) {
-      var s = parts[i][1] ? parts[i][0] : parts[i][0].replace(/^\s*>\s?(\[!\w+\]\s*)?/g, '').replace(/(^|\s)([-*+]|\d+[.)])\s+(\[[ xX]\]\s+)?/g, '$1').replace(/[*_~=`>]/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+      var s = parts[i][1] ? parts[i][0] : parts[i][0].replace(/^\s*>\s?(\[!\w+\]\s*)?/g, '').replace(/(^|\s)([-*+]|\d+[.)])\s+(\[[ xX]\]\s+)?/g, '$1').replace(/\[([^\]]+)\]\((?:[^\s()]|\([^\s()]*\))+\)/g, '$1').replace(/[\s\S]*/, MD.unmark);
       if (len + s.length > max) s = s.slice(0, max - len) + '…';
       len += s.length;
       out += parts[i][1] ? '<em>' + esc(s) + '</em>' : esc(s);
@@ -1673,7 +1673,7 @@
   function cleanText(body) {
     return MD.stripFront(body).replace(/```[\s\S]*?(```|$)/g, ' ').replace(MD.IMG, ' ').replace(new RegExp(MD.WL.source, 'g'), function (m, t, h, a) { return (a || t).trim(); })
       .replace(/\[([^\]\n]+)\]\([^)]+\)/g, '$1').replace(/^\s*#{1,6}\s+/gm, '').replace(/^\s*>\s?(\[!\w+\]\s*)?/gm, '')
-      .replace(/^\s*([-*+]|\d+[.)])\s+(\[[ xX]\]\s+)?/gm, '').replace(/^\s*\|?\s*:?-{2,}.*$/gm, '').replace(/\|/g, ' ').replace(/[*_~=`]/g, '').replace(/\s*\n\s*/g, ' · ').replace(/^ · | · $/g, '');
+      .replace(/^\s*([-*+]|\d+[.)])\s+(\[[ xX]\]\s+)?/gm, '').replace(/^\s*\|?\s*:?-{2,}.*$/gm, '').replace(/\|/g, ' ').replace(/[\s\S]*/, MD.unmark).replace(/\s*\n\s*/g, ' · ').replace(/^ · | · $/g, '');
   }
   function hitSnippet(body, term) {
     var plain = cleanText(body), i = plain.toLowerCase().indexOf(term);

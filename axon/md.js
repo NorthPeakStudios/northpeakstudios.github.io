@@ -166,6 +166,7 @@
   function inline(text, opt) {
     var codes = [], toks = [];
     text = text.replace(/`([^`\n]+)`/g, function (m, c) { codes.push(c); return '\u0000' + (codes.length - 1) + '\u0000'; });
+    text = text.replace(/\\\$/g, function () { toks.push('$'); return '\u0001' + (toks.length - 1) + '\u0001'; });
     text = text.replace(/!\[([^\]\n]*)\]\(\s*((?:axon-img:[\w-]+)|(?:https?:\/\/(?:[^\s()]|\([^\s()]*\))+))\s*\)/g, function (m, alt, u) {
       var im = /^axon-img:([\w-]+)$/.exec(u);
       toks.push(im ? '<img class="aimg" data-img="' + esc(im[1]) + '" alt="' + esc(alt) + '">' : '<img class="aimg" src="' + esc(u) + '" alt="' + esc(alt) + '" loading="lazy">');
@@ -175,6 +176,8 @@
       toks.push('<span class="math' + (b ? ' mb' : '') + '">' + tex(b || s) + '</span>');
       return (b ? '' : p) + '\u0001' + (toks.length - 1) + '\u0001';
     });
+    /* \* \_ \# \[ … show the character itself (after math, so LaTeX like \{ \} keeps working) */
+    text = text.replace(/\\([\\`*_{}\[\]()#+\-.!|~=<>^:])/g, function (m, c) { toks.push(esc(c)); return '\u0001' + (toks.length - 1) + '\u0001'; });
     text = text.replace(/\{\{c\d*::([\s\S]*?)(?:::([^}]*))?\}\}/g, function (m, a) {
       toks.push('<span class="cloze">' + inline(a, opt) + '</span>');
       return '\u0001' + (toks.length - 1) + '\u0001';
@@ -208,6 +211,8 @@
       return p + '\u0001' + (toks.length - 1) + '\u0001';
     });
     text = esc(text);
+    /* &amp; &copy; &#8594; … typed in a note show as the character they name */
+    text = text.replace(/&amp;(#\d{1,6}|#x[0-9a-fA-F]{1,6}|[a-zA-Z][a-zA-Z0-9]{1,31});/g, '&$1;');
     text = text.replace(/\*\*(?=\S)([\s\S]*?\S)\*\*/g, '<strong>$1</strong>')
       .replace(/(^|[^\w])__(?=\S)([\s\S]*?\S)__(?!\w)/g, '$1<strong>$2</strong>')
       .replace(/(^|[^*\w])\*(?=[^\s*])([^*\n]*?[^\s*])\*(?!\*)/g, '$1<em>$2</em>')
@@ -322,6 +327,12 @@
         out.push('<h' + n + ' id="h-' + slug(m[2]) + '"' + dl(i) + '>' + inline(m[2], opt) + '</h' + n + '>');
         i++; continue;
       }
+      /* setext heading: a paragraph line underlined with === */
+      if (para.length && /^\s{0,3}=+\s*$/.test(line)) {
+        var st1 = para.join(' '); para = [];
+        out.push('<h1 id="h-' + slug(st1) + '"' + dl(paraLine) + '>' + inline(st1, opt) + '</h1>');
+        i++; continue;
+      }
       if (/^\s{0,3}([-*_])(\s*\1){2,}\s*$/.test(line)) { flush(); out.push('<hr' + dl(i) + '>'); i++; continue; }
       if (/^\s*>/.test(line)) {
         flush();
@@ -410,11 +421,17 @@
   }
 
   var IMG = /!\[[^\]\n]*\]\([^)\n]*\)/g;
+  /* strip emphasis markers in pairs only, so snake_case, 5 * 3, a=b and x > y survive */
+  function unmark(s) {
+    return String(s).replace(/(\*\*|__)(?=\S)([\s\S]*?\S)\1/g, '$2').replace(/(^|[^\w*\\])\*(?=[^\s*])([^*\n]*?[^\s*\\])\*(?!\*)/g, '$1$2').replace(/(^|[^\w\\])_(?=\S)([^_\n]*?\S)_(?!\w)/g, '$1$2')
+      .replace(/~~(?=\S)([\s\S]*?\S)~~/g, '$1').replace(/==(?=\S)([\s\S]*?\S)==/g, '$1').replace(/`/g, '').replace(/\\([\\`*_{}\[\]()#+\-.!|~=<>$^:])/g, '$1');
+  }
   function plain(src) {
     return stripCode(stripFront(src)).replace(/^\[\^[^\]]+\]:\s?/gm, '').replace(/\[\^[^\]\s]+\]/g, '').replace(/\{\{c\d*::([\s\S]*?)(?:::[^}]*)?\}\}/g, '$1').replace(IMG, '').replace(WL, function (m, t, h, a) { return a || t; })
       .replace(/^#{1,6}\s+/gm, '').replace(/^\s*>\s?(\[!\w+\]\s*)?/gm, '').replace(/^\s*([-*+]|\d+[.)])\s+(\[[ xX]\]\s+)?/gm, '')
-      .replace(/[*_~=`]/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+      .replace(/\[([^\]]+)\]\((?:[^\s()]|\([^\s()]*\))+\)/g, '$1')
+      .replace(/[\s\S]*/, unmark);
   }
 
-  window.MD = { render: render, inline: inline, links: links, tags: tags, images: images, cards: cards, recall: recall, clozeSide: clozeSide, front: front, stripFront: stripFront, listVal: listVal, headings: headings, IMG: IMG, plain: plain, esc: esc, slug: slug, WL: WL };
+  window.MD = { render: render, inline: inline, links: links, tags: tags, images: images, cards: cards, recall: recall, clozeSide: clozeSide, front: front, stripFront: stripFront, listVal: listVal, headings: headings, IMG: IMG, plain: plain, unmark: unmark, esc: esc, slug: slug, WL: WL };
 })();
