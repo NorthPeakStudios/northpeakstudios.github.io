@@ -319,7 +319,32 @@ body.editing #toast{bottom:auto;top:calc(var(--sat) + 56px)}
 .daynav button svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .daynav .dl{color:var(--faint);letter-spacing:.04em}
 .daynav .dl.on{color:var(--accent)}
-.daynav button.dl{color:var(--dim);text-decoration:underline;text-decoration-color:var(--line2);text-underline-offset:4px}
+.daynav button.dl{color:var(--dim);text-decoration:none;gap:6px;padding:0 10px;border-radius:17px;border:1px solid var(--line)}
+.daynav button.dl.on{color:var(--accent);border-color:transparent;background:rgba(255,255,255,.05)}
+/* calendar sheet */
+.sheet.cal{padding:10px 12px 8px}
+.calh{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.calh b{font-size:16px;font-weight:600}
+.calh button{width:40px;height:40px;display:grid;place-items:center;color:var(--dim)}
+.calh button svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.calg{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.calg .wd{text-align:center;font-size:11px;letter-spacing:.1em;color:var(--faint);padding:4px 0 6px}
+.calg button{position:relative;height:42px;border-radius:10px;font-size:15px;font-variant-numeric:tabular-nums;color:var(--dim)}
+.calg button.has{color:var(--text);font-weight:500}
+.calg button.has::after{content:"";position:absolute;left:50%;bottom:5px;width:4px;height:4px;border-radius:50%;background:var(--accent);transform:translateX(-50%)}
+.calg button.td{color:var(--accent)}
+.calg button.cur{background:rgba(255,255,255,.07)}
+.calg button:active{background:rgba(255,255,255,.1)}
+.calf{display:flex;justify-content:space-between;margin-top:8px;border-top:1px solid var(--line);padding-top:4px}
+.calf button{height:44px;padding:0 12px;font-size:15px;color:var(--accent);font-weight:600}
+.calf button:last-child{color:var(--dim)}
+/* preview: duplicate title heading, folding */
+.prose h1.dup{display:none}
+.prose>h1,.prose>h2,.prose>h3,.prose>h4,.prose>h5,.prose>h6{position:relative;padding-right:36px}
+.prose>h1::after,.prose>h2::after,.prose>h3::after,.prose>h4::after,.prose>h5::after,.prose>h6::after{content:"";position:absolute;right:10px;top:50%;width:7px;height:7px;border-right:1.5px solid var(--line2);border-bottom:1.5px solid var(--line2);transform:translateY(-70%) rotate(45deg);transition:transform .15s}
+.prose>h1.folded::after,.prose>h2.folded::after,.prose>h3.folded::after,.prose>h4.folded::after,.prose>h5.folded::after,.prose>h6.folded::after{transform:translateY(-50%) rotate(-45deg);border-color:var(--accent)}
+.prose>.foldhide{display:none}
+.prose>.folded{opacity:.75}
 .tagwrap{display:flex;flex-wrap:wrap;gap:8px}
 .tagwrap .chip{font-family:var(--mono);font-size:13px;height:32px;padding:0 12px}
 .tagwrap .chip .n{opacity:.5;margin-left:2px}

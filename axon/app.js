@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.4.0 */
+/* Axon · Northpeak Studios · v1.4.1 */
 (function () {
   'use strict';
-  var VERSION = '1.4.0';
+  var VERSION = '1.4.1';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -292,6 +292,37 @@
     var n = byTitle(t);
     if (!n) { n = createNote({ title: t, folder: DAILY, body: '' }); if (t !== ymd(new Date())) autoDaily[n.id] = 1; }
     go('#/n/' + n.id, replace);
+  }
+  /* month calendar for daily notes */
+  function openCalendar(day) {
+    var d = dayOf(day) || new Date(), today = ymd(new Date());
+    var y = d.getFullYear(), mo = d.getMonth();
+    var has = {}; notes.forEach(function (n) { if (isDaily(n) && n.body.trim()) has[n.title] = 1; });
+    return overlay(function (done) {
+      var el = document.createElement('div'); el.className = 'sheet cal'; el.setAttribute('role', 'dialog');
+      function draw() {
+        var first = new Date(y, mo, 1), start = (first.getDay() + 6) % 7, days = new Date(y, mo + 1, 0).getDate();
+        var h = '<div class="calh"><button data-c="prev" aria-label="Previous month">' + I.back + '</button><b>' + first.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) + '</b><button data-c="next" aria-label="Next month">' + I.chev + '</button></div>' +
+          '<div class="calg">' + ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(function (w) { return '<span class="wd">' + w + '</span>'; }).join('');
+        for (var i = 0; i < start; i++) h += '<span></span>';
+        for (var k = 1; k <= days; k++) {
+          var key = ymd(new Date(y, mo, k));
+          h += '<button data-day="' + key + '" class="' + (key === today ? 'td ' : '') + (key === day ? 'cur ' : '') + (has[key] ? 'has' : '') + '"><span>' + k + '</span></button>';
+        }
+        h += '</div><div class="calf"><button data-c="today">Go to today</button><button data-c="close">Close</button></div>';
+        el.innerHTML = h;
+      }
+      el.addEventListener('click', function (e) {
+        var b = e.target.closest('button'); if (!b) return;
+        if (b.dataset.c === 'prev') { mo--; if (mo < 0) { mo = 11; y--; } draw(); }
+        else if (b.dataset.c === 'next') { mo++; if (mo > 11) { mo = 0; y++; } draw(); }
+        else if (b.dataset.c === 'today') done(today);
+        else if (b.dataset.c === 'close') done(null);
+        else if (b.dataset.day) done(b.dataset.day);
+      });
+      draw();
+      return el;
+    }).then(function (pick) { if (pick) openDaily(pick, route().v === 'note' && isDaily(notes.get(route().id))); });
   }
   /* empty daily notes opened only by the prev/next arrows are tidied away when you leave them */
   function tidyDaily(keepId) {
@@ -714,7 +745,7 @@
       (n.folder ? '<div class="crumb">' + esc(crumbOf(n.folder)) + '</div>' : '') + '<h1 class="ntitle">' + esc(n.title) + '</h1>' + dayNav(n) +
       '<div class="meta">' + tags.map(function (t) { return '<span class="tag" data-tag="' + esc(t) + '">#' + esc(t) + '</span>'; }).join('') +
       '<span>' + (tags.length ? '· ' : '') + (n.pinned ? 'pinned · ' : '') + 'edited ' + agoLong(n.updated) + ' · ' + wc + ' word' + (wc === 1 ? '' : 's') + (wc > 150 ? ' · ' + readMin(wc) + ' min read' : '') + (nc ? ' · </span><button class="cardct" data-act="cards" data-id="' + n.id + '">' + I.recall + nc + ' card' + (nc === 1 ? '' : 's') + '</button>' : '</span>') + '</div>' +
-      '<article class="prose" id="prose">' + (n.body.trim() ? MD.render(n.body, mdOpt()) : '<button class="empty-note" data-act="edit">Empty note. Tap here to start writing \u2014 type / for blocks.</button>') + '</article>' +
+      '<article class="prose" id="prose">' + (n.body.trim() ? dedupeTitle(MD.render(n.body, mdOpt()), n.title) : '<button class="empty-note" data-act="edit">Empty note. Tap here to start writing \u2014 type / for blocks.</button>') + '</article>' +
       '<section class="bl" id="backlinks"><h3><span>' + bl.length + ' backlink' + (bl.length === 1 ? '' : 's') + '</span><span>' + out.length + ' outgoing</span></h3>' +
       (bl.length ? bl.map(function (o) { return '<button class="bi" data-act="open" data-id="' + o.id + '"><b>' + esc(o.title) + '</b><span>' + backlinkSnippet(o.body, n.title) + '</span></button>'; }).join('') :
         '<div class="none">No notes link here yet. Link it from another note with [[' + esc(n.title) + ']].</div>') +
@@ -726,11 +757,25 @@
     if (opts.heading) { var hd = document.getElementById('h-' + opts.heading); if (hd) setTimeout(function () { hd.scrollIntoView({ block: 'start' }); }, 30); }
   }
 
+  /* an imported note often starts with "# Title" that repeats the note's name: hide that one heading in preview */
+  function dedupeTitle(html, title) {
+    var m = /^(\s*(?:<div class="props"[\s\S]*?<\/div>\s*)?)<h1( [^>]*)>([\s\S]*?)<\/h1>/.exec(html);
+    if (!m) return html;
+    var txt = m[3].replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+    if (norm(txt) !== norm(title)) return html;
+    return html.slice(0, m.index) + m[1] + '<h1 class="dup"' + m[2] + '>' + m[3] + '</h1>' + html.slice(m.index + m[0].length);
+  }
+  function foldHeading(h) {
+    var lvl = +h.tagName[1], on = !h.classList.contains('folded');
+    h.classList.toggle('folded', on);
+    var el = h.nextElementSibling;
+    while (el && !(/^H[1-6]$/.test(el.tagName) && +el.tagName[1] <= lvl)) { el.classList.toggle('foldhide', on); el = el.nextElementSibling; }
+  }
   function dayNav(n) {
     if (!isDaily(n)) return '';
     var t = n.title, today = ymd(new Date()), p = shiftDay(t, -1), x = shiftDay(t, 1);
     return '<div class="daynav"><button data-act="day" data-day="' + p + '" aria-label="Previous day">' + I.back + '<span>' + esc(dayLabel(p)) + '</span></button>' +
-      (t === today ? '<span class="dl on">Today</span>' : '<button class="dl" data-act="today" aria-label="Go to today">' + esc(dayOf(t).toLocaleDateString(undefined, { weekday: 'long' })) + '</button>') +
+      '<button class="dl' + (t === today ? ' on' : '') + '" data-act="calendar" data-day="' + t + '" aria-label="Open calendar">' + I.cal.replace(' class="fi"', '') + '<span>' + (t === today ? 'Today' : esc(dayOf(t).toLocaleDateString(undefined, { weekday: 'long' }))) + '</span></button>' +
       '<button data-act="day" data-day="' + x + '" aria-label="Next day"><span>' + esc(dayLabel(x)) + '</span>' + I.chev + '</button></div>';
   }
   function openLink(title, heading, from) {
@@ -749,7 +794,7 @@
   function closeFind() {
     if (!findBar) return;
     var fb = findBar; findBar = null; fb.el.remove();
-    if (fb.mode === 'read') { var pr = $('#prose'), n = fb.n; if (pr && n && notes.has(n.id)) { pr.innerHTML = n.body.trim() ? MD.render(n.body, mdOpt()) : ''; hydrateImgs(); } }
+    if (fb.mode === 'read') { var pr = $('#prose'), n = fb.n; if (pr && n && notes.has(n.id)) { pr.innerHTML = n.body.trim() ? dedupeTitle(MD.render(n.body, mdOpt()), n.title) : ''; hydrateImgs(); } }
     document.body.classList.remove('finding');
   }
   function openFind(n) {
@@ -763,7 +808,7 @@
     var inp = $('#fq', el), ct = $('#fct', el);
     function mark() {
       var pr = $('#prose'); if (!pr) return;
-      pr.innerHTML = n.body.trim() ? MD.render(n.body, mdOpt()) : ''; hydrateImgs();
+      pr.innerHTML = n.body.trim() ? dedupeTitle(MD.render(n.body, mdOpt()), n.title) : ''; hydrateImgs();
       var q = inp.value.trim().toLowerCase(); findBar.hits = []; findBar.i = 0;
       if (!q) { ct.textContent = ''; return; }
       var walker = document.createTreeWalker(pr, NodeFilter.SHOW_TEXT, null), tn = [], t;
@@ -2119,7 +2164,7 @@
   /* ---------- quick switcher / command palette ---------- */
   var COMMANDS = [
     ['New note', 'create add write', function () { newNote(); }], ['New note from template', 'template starter', function () { newFromTemplate(); }],
-    ['Today\u2019s note', 'daily journal date', function () { openDaily(); }], ['Start Recall review', 'quiz flashcards study cards', function () { go('#/review/all'); }],
+    ['Today\u2019s note', 'daily journal date', function () { openDaily(); }], ['Calendar', 'daily notes month day journal', function () { openCalendar(ymd(new Date())); }], ['Start Recall review', 'quiz flashcards study cards', function () { go('#/review/all'); }],
     ['Open Recall', 'cards spaced repetition', function () { go('#/recall'); }], ['Discover', 'feed explore wikipedia learn', function () { go('#/discover'); }], ['Graph', 'map links', function () { go('#/graph'); }], ['Random note', 'surprise shuffle lucky', function () { randomNote(); }], ['Auto-link all mentions', 'autolink link everything graph connect', function () { autoLinkAll(); }],
     ['Search text', 'find full', function (q) { go('#/search/' + encodeURIComponent(q || '')); }], ['All notes', 'list every', function () { go('#/f/*'); }],
     ['New folder', 'directory', function () { newFolder(''); }], ['Trash', 'deleted restore bin', function () { go('#/trash'); }],
@@ -2320,6 +2365,7 @@
     },
     gtags: function () { ui.graphTags = !ui.graphTags; saveMeta(); render(); },
     stats: function () { showStats(); },
+    calendar: function (el) { openCalendar(el.dataset.day); },
     findrep: function () { var ed = $('#ed'); if (ed) openFindReplace(ed); },
     findnote: function (el) { var n = notes.get(el.dataset.id); if (n) openFind(n); },
     linkone: function (el) { var o = notes.get(el.dataset.id), n = route().id && notes.get(route().id); if (!o || !n) return; var k = linkMention(o, n.title); toast(k ? 'Linked in \u201c' + o.title + '\u201d' : 'Nothing to link'); render(); },
@@ -2549,6 +2595,17 @@
   });
   document.addEventListener('keydown', function (e) {
     if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); openSwitcher(); return; }
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && !qsOpen) {
+      var k = e.key.toLowerCase(), r = route(), cur = r.v === 'note' && notes.get(r.id);
+      if (k === 'n') { e.preventDefault(); newNote(r.v === 'folder' ? r.path : (cur ? cur.folder : '')); return; }
+      if (k === 'f' && cur) { e.preventDefault(); if (editing) openFindReplace($('#ed')); else openFind(cur); return; }
+      if (k === 'e' && cur) { e.preventDefault(); if (editing) stopEditing(false); else startEditing(cur, false); return; }
+      if (k === 'd' && !editing) { e.preventDefault(); openDaily(); return; }
+      if (k === 'g' && !editing) { e.preventDefault(); go('#/graph'); return; }
+      if (k === 's' && editing) { e.preventDefault(); var ed = $('#ed'); if (ed) { editing.n.body = ed.value; touchIfChanged(editing.n); toast('Saved'); } return; }
+      if (k === 'p' && cur) { e.preventDefault(); togglePin(cur); if (!editing) renderNote(cur.id); return; }
+      if (k === 'o' && !editing) { e.preventDefault(); openSwitcher(); return; }
+    }
     if (route().v === 'review' && rv && rv.q.length && !qsOpen && !e.metaKey && !e.ctrlKey) {
       if ((e.key === ' ' || e.key === 'Enter') && !rv.shown) { e.preventDefault(); rv.shown = true; drawReview(); }
       else if (rv.shown && /^[123]$/.test(e.key)) { e.preventDefault(); rate(rv.mode === 'practice' ? (e.key === '1' ? 'again' : 'good') : ['again', 'good', 'easy'][+e.key - 1]); }
@@ -2557,6 +2614,8 @@
 
   viewEl.addEventListener('click', function (e) {
     if (Date.now() - lpFired < 700) { e.preventDefault(); e.stopPropagation(); return; }
+    var fh = e.target.closest('#prose > h1, #prose > h2, #prose > h3, #prose > h4, #prose > h5, #prose > h6');
+    if (fh && !editing && !e.target.closest('a') && (fh.classList.contains('folded') || e.clientX > fh.getBoundingClientRect().right - 48)) { e.preventDefault(); lastTap = null; foldHeading(fh); return; }
     var fn = e.target.closest('a[data-fn]');
     if (fn) { e.preventDefault(); var t = document.getElementById('fn-' + MD.slug(fn.dataset.fn)); if (t) t.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
     if (tapEdit(e)) return;
