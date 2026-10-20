@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.5.6 */
+/* Axon · Northpeak Studios · v1.5.7 */
 (function () {
   'use strict';
-  var VERSION = '1.5.6';
+  var VERSION = '1.5.7';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -630,6 +630,7 @@
     if (p[0] === 'recall') return { v: 'recall' };
     if (p[0] === 'review') return { v: 'review', deck: decodeURIComponent(p[1] || 'all'), mode: p[2] || '' };
     if (p[0] === 'trash') return { v: 'trash' };
+    if (p[0] === 'tasks') return { v: 'tasks' };
     if (p[0] === 'discover') return { v: 'discover', id: decodeURIComponent(p[1] || '') };
     if (p[0] === 'guide') return { v: 'guide' };
     return { v: 'vault' };
@@ -662,6 +663,7 @@
     else if (r.v === 'recall') renderRecall();
     else if (r.v === 'review') { renderReview(r.deck, r.mode); return; }
     else if (r.v === 'trash') renderTrash();
+    else if (r.v === 'tasks') renderTasks();
     else if (r.v === 'discover') renderDiscover(r.id);
     else if (r.v === 'guide') renderGuide();
     viewEl.scrollTop = scrollMem[currentHash] || 0;
@@ -709,6 +711,7 @@
     var h = '<div class="pullhint" id="pullhint">Release to jump to a note</div><div class="page"><div class="eyebrow">Vault · ' + notes.size + ' note' + (notes.size === 1 ? '' : 's') + '</div><h1 class="h1">Notes</h1>' +
       '<button class="searchbox" data-act="qs" style="width:100%;text-align:left">' + I.search + '<span style="flex:1;font-size:17px">Jump to a note or command</span></button>' + backupRow() +
       '<div class="rows" style="margin-top:14px">' + todayRow() +
+      (function () { var tc = allTasks(); if (!tc.length) return ''; var op = tc.filter(function (t) { return !t.done; }).length; return '<button class="row today" data-act="gotasks">' + I.check.replace('<svg', '<svg class="fi"') + '<span class="nm">Tasks</span><span class="ct">' + (op ? '<i class="duen">' + op + ' open</i>' : 'all done') + '</span><span class="chev">' + I.chev + '</span></button>'; })() +
       (rs.total ? '<button class="row today" data-act="gorecall">' + I.recall.replace('<svg', '<svg class="fi"') + '<span class="nm">Recall</span><span class="ct">' + (rs.due ? '<i class="duen">' + rs.due + ' due</i>' : 'all caught up') + '</span><span class="chev">' + I.chev + '</span></button>' : '') + '</div>' +
       (pins.length ? '<div class="sec"><span>Pinned</span></div><div class="rows">' + pins.map(function (n) { return '<button class="row" data-act="open" data-id="' + n.id + '">' + I.pin.replace('<svg', '<svg class="fi pinfi"') + '<span class="nm">' + esc(n.title) + '</span><span class="chev">' + I.chev + '</span></button>'; }).join('') + '</div>' : '') +
       '<div class="sec"><span>' + (childFolders('').length ? (rootNotes.length ? 'Folders & notes' : 'Folders') : 'Notes') + '</span><span><button class="ib ico" aria-label="New folder" data-act="newfolder" data-path="" style="width:44px;height:36px;margin-right:-10px">' + I.newfolder + '</button></span></div><div class="rows">' + folderRows('', 0);
@@ -2455,6 +2458,7 @@
     ['Find in this note', 'search within replace', function () { var r = route(); if (r.v === 'note' && notes.get(r.id)) { if (editing) openFindReplace($('#ed')); else openFind(notes.get(r.id)); } else toast('Open a note first'); }],
     ['Note history', 'versions restore earlier backup', function () { var r = route(); if (r.v === 'note' && notes.get(r.id)) showHistory(notes.get(r.id)); else toast('Open a note first'); }],
     ['Share this note', 'send export text', function () { var r = route(); if (r.v === 'note' && notes.get(r.id)) shareNote(notes.get(r.id)); else toast('Open a note first'); }],
+    ['Tasks', 'todo checklist open to do homework', function () { go('#/tasks'); }],
     ['Vault stats', 'count words statistics', function () { showStats(); }],
     ['Export vault (.zip)', 'backup download', function () { exportVault(); }], ['Export flashcards (CSV for Synapse)', 'synapse anki csv', function () { exportCards(null); }]
   ];
@@ -2532,6 +2536,43 @@
         h += '<button class="nl" data-act="trashitem" data-id="' + n.id + '"><div class="t"><b>' + esc(n.title) + '</b><time>' + left + 'd left</time></div><div class="s">' + snippetHTML(n.body) + '</div>' + (n.folder ? '<div class="f">' + esc(crumbOf(n.folder)) + '</div>' : '') + '</button>';
       });
     }
+    viewEl.innerHTML = h + '</div>';
+  }
+
+  /* ---------- tasks: every checklist item across the vault ---------- */
+  var TASK_RE = /^(\s*(?:>\s*)*(?:[-*+]|\d+[.)])\s+)\[( |x|X)\]\s+(.*)$/;
+  function allTasks() {
+    var out = [];
+    notes.forEach(function (n) {
+      if (n.body.indexOf('[') < 0) return;
+      var fence = false;
+      n.body.split('\n').forEach(function (l, i) {
+        if (/^\s*(```|~~~)/.test(l)) { fence = !fence; return; }
+        if (fence) return;
+        var m = TASK_RE.exec(l);
+        if (m && m[3].trim()) out.push({ n: n, line: i, done: m[2] !== ' ', text: m[3] });
+      });
+    });
+    return out;
+  }
+  function openTaskCount() { var c = 0; allTasks().forEach(function (t) { if (!t.done) c++; }); return c; }
+  function renderTasks() {
+    var list = allTasks(), open = list.filter(function (t) { return !t.done; }), done = list.length - open.length;
+    var show = ui.tasksDone ? list : open, groups = [], byNote = {};
+    show.forEach(function (t) { if (!byNote[t.n.id]) { byNote[t.n.id] = []; groups.push(t.n); } byNote[t.n.id].push(t); });
+    groups.sort(function (a, b) { return b.updated - a.updated; });
+    var o = mdOpt();
+    var h = '<div class="page"><div class="nav"><button class="back" data-act="back" data-to="#/">' + I.back + '<span>Notes</span></button><div class="acts">' +
+      (done ? '<button class="pill" data-act="tasksdone" style="margin-right:8px">' + (ui.tasksDone ? 'Hide done' : 'Show done (' + done + ')') + '</button>' : '') + '</div></div>' +
+      '<div class="eyebrow">' + open.length + ' open</div><h1 class="h1">Tasks</h1>';
+    if (!list.length) h += '<div class="empty"><b>No tasks yet</b>Any checklist line in any note shows up here. Type <span class="kbd">- [ ]</span> or pick Checklist from the <span class="kbd">/</span> menu.</div>';
+    else if (!show.length) h += '<div class="empty"><b>All done</b>Every checklist item in your notes is ticked off.</div>';
+    groups.forEach(function (n) {
+      h += '<div class="tkg"><button class="tkn" data-act="open" data-id="' + n.id + '">' + esc(n.title) + (n.folder ? '<small>' + esc(folderName(n.folder)) + '</small>' : '') + I.chev + '</button><div class="prose tkl"><ul>' +
+        byNote[n.id].map(function (t) {
+          return '<li class="task' + (t.done ? ' done' : '') + '"><label class="cb"><input type="checkbox" data-nid="' + n.id + '" data-line="' + t.line + '"' + (t.done ? ' checked' : '') + '><span class="box"></span></label><span class="tt">' + MD.inline(t.text, o) + '</span></li>';
+        }).join('') + '</ul></div></div>';
+    });
     viewEl.innerHTML = h + '</div>';
   }
 
@@ -2761,6 +2802,8 @@
     fs: function (el) { settings.fs = +el.dataset.v; saveSettings(); renderSettings(); },
     accent: function (el) { settings.accent = el.dataset.v; saveSettings(); renderSettings(); },
     export: exportVault,
+    gotasks: function () { go('#/tasks'); },
+    tasksdone: function () { ui.tasksDone = !ui.tasksDone; renderTasks(); },
     bksnooze: function () { settings.backupSnooze = Date.now(); saveSettings(); render(); toast('I\u2019ll remind you in a week'); },
     import: function () { $('#file').click(); },
     wipe: async function () {
@@ -2947,12 +2990,13 @@
   viewEl.addEventListener('change', function (e) {
     var cb = e.target.closest('input[type=checkbox][data-line]');
     if (!cb) return;
-    var r = route(), n = notes.get(r.id); if (!n) return;
+    var r = route(), n = notes.get(cb.dataset.nid || r.id); if (!n) return;
     var lines = n.body.split('\n'), i = +cb.dataset.line;
     if (lines[i] === undefined) return;
     lines[i] = lines[i].replace(/^(\s*(?:>\s*)*(?:[-*+]|\d+[.)])\s+)\[( |x|X)\]/, function (m, p, s) { return p + (s === ' ' ? '[x]' : '[ ]'); });
     n.body = lines.join('\n'); touch(n);
     var li = cb.closest('li'); if (li) li.classList.toggle('done', cb.checked);
+    if (r.v === 'tasks') { var eb = viewEl.querySelector('.eyebrow'); if (eb) eb.textContent = openTaskCount() + ' open'; }
   });
   document.querySelectorAll('.tb').forEach(function (b) {
     b.addEventListener('click', function () {

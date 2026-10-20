@@ -19,6 +19,10 @@
 html.vp-short{--bpad:0px}
 /* no overflow clip on the root: a clipped root also clips fixed UI at the layout-viewport edge (the half-cut + button) */
 html,body{margin:0;height:100%;max-width:100%;background:var(--bg);color:var(--text);overscroll-behavior:none}
+/* home-screen app: with black-translucent + viewport-fit=cover, a root sized height:100% makes iOS lay the page out one status bar short,
+   leaving a dead strip under the tab bar. Sizing the root to the full screen (100vh) lets the page reach the physical bottom edge. */
+html.pwa,html.pwa body{height:100vh}
+@media (display-mode:standalone){html,body{height:100vh}}
 body{font-family:var(--sans);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
 button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
 input,textarea{font:inherit;color:inherit}
@@ -615,3 +619,13 @@ body.reviewing #view{padding-bottom:calc(var(--bpad) + 16px)}
 .bkup .bkgo{flex:none;height:32px;padding:0 12px;border-radius:16px;background:var(--text);color:#0b0b0c;font-size:13.5px;font-weight:600}
 .bkup .bkx{flex:none;width:32px;height:32px;display:grid;place-items:center;color:var(--faint)}
 .bkup .bkx svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+
+/* Tasks screen */
+.tkg{margin:0 0 18px}
+.tkn{display:flex;align-items:center;gap:6px;width:100%;text-align:left;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);padding:6px 0;font-weight:500}
+.tkn small{font-size:12px;letter-spacing:0;text-transform:none;color:var(--faint);margin-left:4px}
+.tkn svg{width:14px;height:14px;margin-left:auto;fill:none;stroke:var(--faint);stroke-width:2}
+.tkl{background:var(--card);border:1px solid var(--line2);border-radius:14px;padding:6px 14px 6px 34px}
+.tkl ul{margin:0;padding:0}
+.tkl li.task{padding:7px 0;margin-top:0;margin-bottom:0;border-bottom:1px solid var(--line)}
+.tkl li.task:last-child{border-bottom:0}
