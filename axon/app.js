@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.3.1 */
+/* Axon · Northpeak Studios · v1.4.0 */
 (function () {
   'use strict';
-  var VERSION = '1.3.1';
+  var VERSION = '1.4.0';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -77,29 +77,122 @@
     notes.forEach(function (n) { unresolvedOf(n).forEach(function (t) { var k = norm(t); if (!g[k]) g[k] = { title: t, n: 0, from: [] }; g[k].n++; g[k].from.push(n.id); }); });
     return g;
   }
-  /* notes that mention this title in plain text without linking it */
-  function mentionRe(title) { return new RegExp('(^|[^\\[\\w#/])(' + escRe(title) + ')(?![\\w\\]])', 'i'); }
-  function unlinkedMentions(n) {
-    if (!n.title || n.title.length < 3 || isDaily(n)) return [];
-    var re = mentionRe(n.title), out = [];
-    notes.forEach(function (o) {
-      if (o === n || inTemplates(o)) return;
-      var body = MD.stripLinks ? MD.stripLinks(o.body) : o.body.replace(/\[\[[^\]]*\]\]/g, '');
-      var m = re.exec(body); if (!m) return;
-      out.push({ note: o, text: m[2] });
-    });
+  /* ---------- auto-link: plain-text mentions of other notes' titles and aliases ---------- */
+  var AL = { re: null, map: null, sig: '', ver: 0, cache: {} };
+  var PROT = /```[\s\S]*?(?:```|$)|~~~[\s\S]*?(?:~~~|$)|`[^`\n]*`|\[\[[^\]]*\]\]|!\[[^\]]*\]\([^)]*\)|\[[^\]]*\]\([^)]*\)|<[^>\n]+>|https?:\/\/[^\s)]+|axon-img:\S+|^#{1,6} .*$|^\s*(?:[-*]\s+)?\w[\w -]*::.*$/gm;
+  function aliasesOf(n) {
+    if (n.body.slice(0, 3) !== '---') return [];
+    var f = MD.front(n.body); if (!f) return [];
+    var out = [];
+    f.props.forEach(function (p) { if (/^alias(es)?$/i.test(p.k)) p.v.split(/\s*,\s*/).forEach(function (a) { a = a.replace(/^["'\[]+|["'\]]+$/g, '').trim(); if (a) out.push(a); }); });
+    return out;
+  }
+  function noteNames(n) { return [n.title].concat(aliasesOf(n)); }
+  /* the text of a note split into protected spans (code, links, urls, headings, front matter, card lines) and plain spans */
+  function segments(body) {
+    var out = [], last = 0, m, src = String(body);
+    var fm = src.slice(0, 3) === '---' ? MD.front(src) : null;
+    if (fm) { var endIdx = src.split('\n').slice(0, fm.end + 1).join('\n').length; out.push({ p: 1, t: src.slice(0, endIdx), at: 0 }); last = endIdx; }
+    PROT.lastIndex = last;
+    while ((m = PROT.exec(src))) {
+      if (m.index > last) out.push({ p: 0, t: src.slice(last, m.index), at: last });
+      out.push({ p: 1, t: m[0], at: m.index }); last = m.index + m[0].length;
+      if (!m[0].length) PROT.lastIndex++;
+    }
+    if (last < src.length) out.push({ p: 0, t: src.slice(last), at: last });
+    return out;
+  }
+  function ensureAL() {
+    var names = [];
+    notes.forEach(function (n) { if (inTemplates(n)) return; noteNames(n).forEach(function (nm) { nm = nm.trim(); if (nm.length >= 2 && !/^\d+$/.test(nm)) names.push([nm, n.id]); }); });
+    var sig = names.map(function (e) { return e[1] + '\u0001' + e[0]; }).sort().join('\u0002');
+    if (sig === AL.sig && AL.re !== undefined) return;
+    AL.sig = sig; AL.ver++; AL.cache = {};
+    names.sort(function (a, b) { return b[0].length - a[0].length || a[0].localeCompare(b[0]); });
+    AL.map = {}; names.forEach(function (e) { var k = norm(e[0]); if (!(k in AL.map)) AL.map[k] = e[1]; });
+    var uniq = {}; var alts = names.map(function (e) { return norm(e[0]); }).filter(function (k) { if (uniq[k]) return false; uniq[k] = 1; return true; });
+    AL.re = alts.length ? new RegExp('(^|[^\\w\\[#/@])(' + alts.map(function (k) { return escRe(k).replace(/ /g, '[ \\t]+'); }).join('|') + ')(?![\\w\\]])', 'gi') : null;
+  }
+  /* mentions in n of other notes that are not already [[linked]] from n: one per target, first occurrence */
+  function mentionsOf(n) {
+    ensureAL();
+    var c = AL.cache[n.id]; if (c && c.body === n.body) return c.hits;
+    var hits = [];
+    if (AL.re && !inTemplates(n)) {
+      var self = {}; noteNames(n).forEach(function (nm) { self[norm(nm)] = 1; });
+      var explicit = {}; outNotes(n).forEach(function (o) { explicit[o.id] = 1; });
+      var seen = {};
+      segments(n.body).forEach(function (seg) {
+        if (seg.p) return;
+        AL.re.lastIndex = 0; var m;
+        while ((m = AL.re.exec(seg.t))) {
+          var key = norm(m[2]), id = AL.map[key];
+          if (!id || id === n.id || self[key] || explicit[id] || seen[id] || !notes.has(id)) continue;
+          seen[id] = 1; hits.push({ id: id, text: m[2], at: seg.at + m.index + m[1].length });
+        }
+      });
+    }
+    AL.cache[n.id] = { body: n.body, hits: hits };
+    return hits;
+  }
+  function autoOut(n) { return mentionsOf(n).map(function (h) { return notes.get(h.id); }).filter(Boolean); }
+  function autoIn(n) {
+    var out = [];
+    notes.forEach(function (o) { if (o === n) return; var h = mentionsOf(o).filter(function (x) { return x.id === n.id; })[0]; if (h) out.push({ note: o, text: h.text, at: h.at }); });
     return out.sort(function (a, b) { return a.note.title.localeCompare(b.note.title); });
   }
-  function linkMention(o, title, all) {
-    var re = new RegExp('(^|[^\\[\\w#/])(' + escRe(title) + ')(?![\\w\\]])', all ? 'gi' : 'i');
-    var parts = o.body.split(/(\[\[[^\]]*\]\]|`[^`]*`|!\[[^\]]*\]\([^)]*\))/), done = 0;
-    for (var i = 0; i < parts.length; i += 2) {
-      if (!all && done) break;
-      parts[i] = parts[i].replace(re, function (m, pre, t) { done++; return pre + '[[' + (t === title ? title : title + '|' + t) + ']]'; });
-    }
-    if (!done) return 0;
-    o.body = parts.join(''); touch(o);
-    return done;
+  function unlinkedMentions(n) { return autoIn(n); }
+  function mentionSnippet(src, hit) {
+    var s = String(src), a = hit.at, b = a + hit.text.length;
+    var ls = s.lastIndexOf('\n', a - 1) + 1, le = s.indexOf('\n', b); if (le < 0) le = s.length;
+    var start = Math.max(ls, a - 50), end = Math.min(le, b + 60);
+    return (start > ls ? '\u2026' : '') + esc(MD.plain(s.slice(start, a))) + '<mark>' + esc(hit.text) + '</mark>' + esc(MD.plain(s.slice(b, end))) + (end < le ? '\u2026' : '');
+  }
+  /* write [[links]] for the given hits (first mention of each note); returns the new body */
+  function applyHits(body, hits) {
+    var s = String(body), hs = hits.slice().sort(function (a, b) { return b.at - a.at; });
+    hs.forEach(function (h) {
+      var t = notes.get(h.id); if (!t) return;
+      if (s.substr(h.at, h.text.length) !== h.text) return;
+      var link = h.text === t.title ? '[[' + t.title + ']]' : '[[' + t.title + '|' + h.text + ']]';
+      s = s.slice(0, h.at) + link + s.slice(h.at + h.text.length);
+    });
+    return s;
+  }
+  function linkMention(o, title) {
+    var t = byTitle(title); if (!t) return 0;
+    var hits = mentionsOf(o).filter(function (h) { return h.id === t.id; });
+    if (!hits.length) return 0;
+    o.body = applyHits(o.body, hits); touch(o);
+    return hits.length;
+  }
+  async function autoLinkAll() {
+    ensureAL();
+    var plan = [], count = 0;
+    notes.forEach(function (o) { var h = mentionsOf(o); if (h.length) { plan.push([o, h]); count += h.length; } });
+    if (!count) { toast('Nothing to link \u2014 every mention is already a link'); return; }
+    var ok = await dialog({ title: 'Auto-link ' + count + ' mention' + (count === 1 ? '' : 's') + '?', message: 'The first mention of each note inside ' + plan.length + ' note' + (plan.length === 1 ? '' : 's') + ' becomes a [[link]]. Code, headings and existing links are left alone. You can undo this from Settings.', ok: 'Link them' });
+    if (!ok) return;
+    var backup = { ts: Date.now(), count: count, notes: [] };
+    plan.forEach(function (pr) { var o = pr[0], nb = applyHits(o.body, pr[1]); backup.notes.push({ id: o.id, before: o.body, after: nb }); });
+    try { await DB.put('meta', { k: 'autolink-backup', v: backup }); } catch (e) { toast('Couldn\u2019t save a backup, nothing changed'); return; }
+    backup.notes.forEach(function (b) { var o = notes.get(b.id); if (o) { o.body = b.after; lastSaved[o.id] = b.after; touch(o); } });
+    alBackup = backup;
+    toast('Linked ' + count + ' mention' + (count === 1 ? '' : 's') + ' in ' + plan.length + ' note' + (plan.length === 1 ? '' : 's'));
+    render();
+  }
+  var alBackup = null;
+  async function undoAutoLink() {
+    var b = alBackup; if (!b) { toast('Nothing to undo'); return; }
+    var restorable = b.notes.filter(function (x) { var o = notes.get(x.id); return o && o.body === x.after; });
+    var skipped = b.notes.length - restorable.length;
+    if (!restorable.length) { toast(skipped ? 'Those notes were edited since, so nothing was undone' : 'Nothing to undo'); return; }
+    var ok = await dialog({ title: 'Undo auto-link?', message: 'Removes the links added ' + agoLong(b.ts) + ' from ' + restorable.length + ' note' + (restorable.length === 1 ? '' : 's') + (skipped ? ' (' + skipped + ' edited since, left as is)' : '') + '.', ok: 'Undo' });
+    if (!ok) return;
+    restorable.forEach(function (x) { var o = notes.get(x.id); o.body = x.before; lastSaved[o.id] = x.before; touch(o); });
+    alBackup = null; DB.del('meta', 'autolink-backup');
+    toast('Undone in ' + restorable.length + ' note' + (restorable.length === 1 ? '' : 's'));
+    render();
   }
   function backlinks(n) {
     var key = norm(n.title), out = [];
@@ -171,16 +264,6 @@
         // keep wikilinks whole at the edges
         return (start > 0 ? '…' : '') + inlineSnippet(cut.replace(/^[^\[]*\]\]/, ''), 200) + (end < line.length ? '…' : '');
       }
-    }
-    return '';
-  }
-  function mentionSnippet(src, title) {
-    var re = mentionRe(title), lines = String(src).replace(MD.IMG, '').replace(/\[\[([^\]|#]*)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]/g, function (m, t, l) { return '\u2063' + (l || t) + '\u2063'; }).split('\n');
-    for (var i = 0; i < lines.length; i++) {
-      var m = re.exec(lines[i]); if (!m) continue;
-      var line = lines[i], idx = m.index + m[1].length, start = Math.max(0, idx - 50), end = Math.min(line.length, idx + m[2].length + 60);
-      var cut = line.slice(start, end);
-      return (start > 0 ? '\u2026' : '') + hl(MD.plain ? MD.plain(cut) : cut, m[2]) + (end < line.length ? '\u2026' : '');
     }
     return '';
   }
@@ -291,7 +374,7 @@
     deliver(new Blob([r.csv], { type: 'text/csv' }), (n ? safeName(n.title) : 'Axon flashcards') + '.csv', 'text/csv', 'Exported ' + r.count + ' card' + (r.count === 1 ? '' : 's') + ' · import the file in Synapse');
   }
   function persist() { try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {} }
-  function saveMeta() { DB.put('meta', { k: 'ui', v: { open: ui.open, lastNote: ui.lastNote, graphMode: ui.graphMode, graphTags: ui.graphTags, graphGhosts: ui.graphGhosts, sort: ui.sort } }); }
+  function saveMeta() { DB.put('meta', { k: 'ui', v: { open: ui.open, lastNote: ui.lastNote, graphMode: ui.graphMode, graphTags: ui.graphTags, graphGhosts: ui.graphGhosts, graphAuto: ui.graphAuto, sort: ui.sort } }); }
 
   /* ---------- data ops ---------- */
   function ensureFolder(p) {
@@ -410,8 +493,11 @@
       requestAnimationFrame(function () { scrim.classList.add('show'); box.classList.add('show'); });
       scrim.addEventListener('click', function () { done(null); });
       var closed = false;
+      function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); done(null); } }
+      document.addEventListener('keydown', onKey);
       function done(v) {
         if (closed) return; closed = true;
+        document.removeEventListener('keydown', onKey);
         scrim.classList.remove('show'); box.classList.remove('show');
         setTimeout(function () { scrim.remove(); box.remove(); }, 230);
         resolve(v);
@@ -433,9 +519,9 @@
   function dialog(o) {
     return overlay(function (done) {
       var el = document.createElement('div'); el.className = 'dialog'; el.setAttribute('role', 'dialog');
-      el.innerHTML = '<h4>' + esc(o.title) + '</h4>' + (o.message ? '<p>' + esc(o.message) + '</p>' : '') +
+      el.innerHTML = '<h4>' + esc(o.title) + '</h4>' + (o.message ? '<p>' + esc(o.message) + '</p>' : '') + (o.html || '') +
         (o.input ? '<input type="text" autocomplete="off" autocapitalize="sentences" spellcheck="false" enterkeyhint="done"><div class="err"></div>' : '') +
-        '<div class="db"><button data-v="0">' + esc(o.cancel || 'Cancel') + '</button><button class="acc" data-v="1"' + (o.danger ? ' style="background:#ff5a52;border-color:#ff5a52"' : '') + '>' + esc(o.ok || 'OK') + '</button></div>';
+        '<div class="db">' + (o.noCancel ? '' : '<button data-v="0">' + esc(o.cancel || 'Cancel') + '</button>') + '<button class="acc" data-v="1"' + (o.danger ? ' style="background:#ff5a52;border-color:#ff5a52"' : '') + '>' + esc(o.ok || 'OK') + '</button></div>';
       var inp = $('input', el), err = $('.err', el);
       if (inp) { inp.value = o.value || ''; inp.placeholder = o.placeholder || ''; setTimeout(function () { inp.focus(); inp.select(); }, 60); }
       function submit() {
@@ -451,9 +537,11 @@
     });
   }
   var toastT;
-  function toast(msg) {
-    var t = $('#toast'); t.textContent = msg; t.classList.add('show');
-    clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  function toast(msg, act) {
+    var t = $('#toast'); t.textContent = msg; t.classList.toggle('act', !!act);
+    if (act) { var b = document.createElement('button'); b.textContent = act.label; b.addEventListener('click', function () { t.classList.remove('show'); clearTimeout(toastT); act.fn(); }); t.appendChild(b); }
+    t.classList.add('show');
+    clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove('show'); }, act ? 5200 : 2200);
   }
 
   /* ---------- routing ---------- */
@@ -495,7 +583,7 @@
     if (currentHash !== null) scrollMem[currentHash] = viewEl.scrollTop;
     if (editing) stopEditing(true);
     if (graphCtl) { graphCtl.destroy(); graphCtl = null; }
-    closePeek();
+    closePeek(); closeFind();
     document.body.classList.remove('reviewing');
     if (ds && ds.ctrl) { ds.ctrl.abort(); ds = null; }
     if (dObs) { dObs.disconnect(); dObs = null; }
@@ -565,7 +653,7 @@
       '<div class="rows" style="margin-top:14px">' + todayRow() +
       (rs.total ? '<button class="row today" data-act="gorecall">' + I.recall.replace('<svg', '<svg class="fi"') + '<span class="nm">Recall</span><span class="ct">' + (rs.due ? '<i class="duen">' + rs.due + ' due</i>' : 'all caught up') + '</span><span class="chev">' + I.chev + '</span></button>' : '') + '</div>' +
       (pins.length ? '<div class="sec"><span>Pinned</span></div><div class="rows">' + pins.map(function (n) { return '<button class="row" data-act="open" data-id="' + n.id + '">' + I.pin.replace('<svg', '<svg class="fi pinfi"') + '<span class="nm">' + esc(n.title) + '</span><span class="chev">' + I.chev + '</span></button>'; }).join('') + '</div>' : '') +
-      '<div class="sec"><span>Folders</span><span><button class="ib ico" aria-label="New folder" data-act="newfolder" data-path="" style="width:44px;height:36px;margin-right:-10px">' + I.newfolder + '</button></span></div><div class="rows">' + folderRows('', 0);
+      '<div class="sec"><span>' + (childFolders('').length ? (rootNotes.length ? 'Folders & notes' : 'Folders') : 'Notes') + '</span><span><button class="ib ico" aria-label="New folder" data-act="newfolder" data-path="" style="width:44px;height:36px;margin-right:-10px">' + I.newfolder + '</button></span></div><div class="rows">' + folderRows('', 0);
     rootNotes.forEach(function (n) {
       h += '<button class="row" data-act="open" data-id="' + n.id + '">' + I.doc + '<span class="nm">' + esc(n.title) + '</span><span class="chev">' + I.chev + '</span></button>';
     });
@@ -631,7 +719,7 @@
       (bl.length ? bl.map(function (o) { return '<button class="bi" data-act="open" data-id="' + o.id + '"><b>' + esc(o.title) + '</b><span>' + backlinkSnippet(o.body, n.title) + '</span></button>'; }).join('') :
         '<div class="none">No notes link here yet. Link it from another note with [[' + esc(n.title) + ']].</div>') +
       (um.length ? '<h3 class="umh"><span>' + um.length + ' unlinked mention' + (um.length === 1 ? '' : 's') + '</span>' + (um.length > 1 ? '<button data-act="linkall" data-id="' + n.id + '">Link all</button>' : '') + '</h3>' +
-        um.map(function (m) { return '<div class="bi um"><button class="umt" data-act="open" data-id="' + m.note.id + '"><b>' + esc(m.note.title) + '</b><span>' + mentionSnippet(m.note.body, n.title) + '</span></button><button class="umb" data-act="linkone" data-id="' + m.note.id + '" data-t="' + esc(n.title) + '">Link</button></div>'; }).join('') : '') +
+        um.map(function (m) { return '<div class="bi um"><button class="umt" data-act="open" data-id="' + m.note.id + '"><b>' + esc(m.note.title) + '</b><span>' + mentionSnippet(m.note.body, m) + '</span></button><button class="umb" data-act="linkone" data-id="' + m.note.id + '" data-t="' + esc(n.title) + '">Link</button></div>'; }).join('') : '') +
       '</section></div>';
     viewEl.innerHTML = h;
     hydrateImgs();
@@ -656,6 +744,107 @@
     startEditing(nn, false);
   }
 
+  /* ---------- find in note / find & replace ---------- */
+  var findBar = null;
+  function closeFind() {
+    if (!findBar) return;
+    var fb = findBar; findBar = null; fb.el.remove();
+    if (fb.mode === 'read') { var pr = $('#prose'), n = fb.n; if (pr && n && notes.has(n.id)) { pr.innerHTML = n.body.trim() ? MD.render(n.body, mdOpt()) : ''; hydrateImgs(); } }
+    document.body.classList.remove('finding');
+  }
+  function openFind(n) {
+    closeFind();
+    var el = document.createElement('div'); el.className = 'findbar';
+    el.innerHTML = '<label class="fin">' + I.search + '<input id="fq" type="search" placeholder="Find in note" autocomplete="off" autocapitalize="none" enterkeyhint="search"><span class="fct" id="fct"></span></label>' +
+      '<button class="ib" data-f="prev" aria-label="Previous">' + I.back + '</button><button class="ib" data-f="next" aria-label="Next">' + I.chev + '</button><button class="fx" data-f="close">Done</button>';
+    var nav = $('.nav.stick'); if (nav) nav.insertAdjacentElement('afterend', el); else viewEl.firstChild.prepend(el);
+    findBar = { el: el, mode: 'read', n: n, hits: [], i: 0 };
+    document.body.classList.add('finding');
+    var inp = $('#fq', el), ct = $('#fct', el);
+    function mark() {
+      var pr = $('#prose'); if (!pr) return;
+      pr.innerHTML = n.body.trim() ? MD.render(n.body, mdOpt()) : ''; hydrateImgs();
+      var q = inp.value.trim().toLowerCase(); findBar.hits = []; findBar.i = 0;
+      if (!q) { ct.textContent = ''; return; }
+      var walker = document.createTreeWalker(pr, NodeFilter.SHOW_TEXT, null), tn = [], t;
+      while ((t = walker.nextNode())) if (t.nodeValue.toLowerCase().indexOf(q) >= 0 && !t.parentNode.closest('script,style')) tn.push(t);
+      tn.forEach(function (node) {
+        var s = node.nodeValue, low = s.toLowerCase(), idx = 0, frag = document.createDocumentFragment(), p;
+        while ((p = low.indexOf(q, idx)) >= 0) {
+          frag.appendChild(document.createTextNode(s.slice(idx, p)));
+          var m = document.createElement('mark'); m.className = 'fm'; m.textContent = s.slice(p, p + q.length); frag.appendChild(m); findBar.hits.push(m);
+          idx = p + q.length;
+        }
+        frag.appendChild(document.createTextNode(s.slice(idx)));
+        node.parentNode.replaceChild(frag, node);
+      });
+      show();
+    }
+    function show() {
+      var h = findBar.hits; ct.textContent = h.length ? (findBar.i + 1) + ' / ' + h.length : 'none';
+      h.forEach(function (m, k) { m.classList.toggle('cur', k === findBar.i); });
+      if (h[findBar.i]) h[findBar.i].scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+    var tmr = null;
+    inp.addEventListener('input', function () { clearTimeout(tmr); tmr = setTimeout(mark, 120); });
+    inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); step(e.shiftKey ? -1 : 1); } else if (e.key === 'Escape') closeFind(); });
+    function step(d) { var h = findBar.hits; if (!h.length) return; findBar.i = (findBar.i + d + h.length) % h.length; show(); }
+    el.addEventListener('click', function (e) { var b = e.target.closest('[data-f]'); if (!b) return; if (b.dataset.f === 'close') closeFind(); else step(b.dataset.f === 'next' ? 1 : -1); });
+    inp.focus();
+  }
+  function openFindReplace(ed) {
+    closeFind();
+    var el = document.createElement('div'); el.className = 'findbar rep';
+    el.innerHTML = '<div class="frow"><label class="fin">' + I.search + '<input id="fq" type="search" placeholder="Find" autocomplete="off" autocapitalize="none" enterkeyhint="search"><span class="fct" id="fct"></span></label>' +
+      '<button class="ib" data-f="prev" aria-label="Previous">' + I.back + '</button><button class="ib" data-f="next" aria-label="Next">' + I.chev + '</button><button class="fx" data-f="close">Done</button></div>' +
+      '<div class="frow"><label class="fin">' + I.edit + '<input id="fr" type="text" placeholder="Replace with" autocomplete="off" autocapitalize="none" enterkeyhint="done"></label><button class="fx" data-f="rep1">Replace</button><button class="fx" data-f="repall">All</button></div>';
+    var nav = $('.nav.stick'); if (nav) nav.insertAdjacentElement('afterend', el);
+    findBar = { el: el, mode: 'edit', hits: [], i: 0 };
+    document.body.classList.add('finding');
+    var inp = $('#fq', el), rin = $('#fr', el), ct = $('#fct', el);
+    function scan() {
+      var q = inp.value.toLowerCase(), v = ed.value.toLowerCase(), hits = [], p = 0;
+      if (q) while ((p = v.indexOf(q, p)) >= 0) { hits.push(p); p += q.length; }
+      findBar.hits = hits;
+      if (findBar.i >= hits.length) findBar.i = 0;
+      ct.textContent = q ? (hits.length ? (findBar.i + 1) + ' / ' + hits.length : 'none') : '';
+    }
+    function sel() {
+      var p = findBar.hits[findBar.i]; if (p === undefined) return;
+      var L = inp.value.length;
+      try { ed.focus({ preventScroll: true }); ed.setSelectionRange(p, p + L); } catch (e) {}
+      var line = ed.value.slice(0, p).split('\n').length - 1, tops = lineTops(ed), vr = viewEl.getBoundingClientRect(), edTop = ed.getBoundingClientRect().top - vr.top + viewEl.scrollTop;
+      viewEl.scrollTop = Math.max(0, edTop + (tops[line] || 0) - vr.height * 0.35);
+    }
+    function step(d) { scan(); if (!findBar.hits.length) return; findBar.i = (findBar.i + d + findBar.hits.length) % findBar.hits.length; ct.textContent = (findBar.i + 1) + ' / ' + findBar.hits.length; sel(); }
+    function replaceOne() {
+      scan(); var p = findBar.hits[findBar.i]; if (p === undefined) return;
+      var L = inp.value.length, r = rin.value;
+      ed.value = ed.value.slice(0, p) + r + ed.value.slice(p + L);
+      ed.dispatchEvent(new Event('input'));
+      scan(); if (findBar.i >= findBar.hits.length) findBar.i = 0; sel();
+    }
+    function replaceAll() {
+      scan(); var k = findBar.hits.length; if (!k) return;
+      var q = inp.value, r = rin.value, re = new RegExp(escRe(q), 'gi');
+      ed.value = ed.value.replace(re, function () { return r; });
+      ed.dispatchEvent(new Event('input'));
+      scan(); toast('Replaced ' + k + ' match' + (k === 1 ? '' : 'es'));
+    }
+    inp.addEventListener('input', function () { findBar.i = 0; scan(); });
+    inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); step(e.shiftKey ? -1 : 1); } else if (e.key === 'Escape') closeFind(); });
+    rin.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); replaceOne(); } else if (e.key === 'Escape') closeFind(); });
+    el.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-f]'); if (!b) return;
+      var f = b.dataset.f;
+      if (f === 'close') closeFind(); else if (f === 'next') step(1); else if (f === 'prev') step(-1); else if (f === 'rep1') replaceOne(); else if (f === 'repall') replaceAll();
+    });
+    var s0 = ed.selectionStart, s1 = ed.selectionEnd;
+    if (s1 > s0 && s1 - s0 < 80 && ed.value.slice(s0, s1).indexOf('\n') < 0) inp.value = ed.value.slice(s0, s1);
+    scan();
+    inp.focus(); if (inp.value) inp.select();
+  }
+
   /* ---------- editor ---------- */
   var kb = null, ac = null, saveT = null, hist = { s: [], i: 0, t: 0, force: false, co: false };
   function startEditing(n, focusTitle, at) {
@@ -663,9 +852,10 @@
     document.body.classList.add('editing');
     setFab(false);
     viewEl.innerHTML = '<div class="page"><div class="nav stick"><button class="back" data-act="donebtn">' + I.back + '<span>' + esc(n.folder ? folderName(n.folder) : 'Notes') + '</span></button><div class="acts">' +
+      '<button class="ib" aria-label="Find and replace" data-act="findrep">' + I.search + '</button>' +
       '<button class="ib" aria-label="Outline" data-act="outline">' + I.outline + '</button>' +
       '<button class="ib on" aria-label="Preview" data-act="donebtn">' + I.eye + '</button></div></div>' +
-      '<div class="crumb">' + esc(crumbOf(n.folder)) + '</div>' +
+      (n.folder ? '<div class="crumb">' + esc(crumbOf(n.folder)) + '</div>' : '') +
       '<input class="ntitle" id="ttl" aria-label="Note title" autocomplete="off" spellcheck="false" enterkeyhint="next">' +
       (n.body.trim() ? '' : '<div class="tchips" id="tchips"><span>Start from</span>' + allTemplates().slice(0, 6).map(function (t, i) { return '<button class="chip" data-act="usetmpl" data-i="' + i + '">' + esc(t.name) + '</button>'; }).join('') + '</div>') +
       '<textarea class="editor" id="ed" aria-label="Note text" placeholder="Start writing. Type / for blocks, [[ to link a note." spellcheck="true" autocapitalize="sentences"></textarea></div>';
@@ -757,7 +947,7 @@
     if (ed) touchIfChanged(n);
     editing = null;
     document.body.classList.remove('editing');
-    hideAC(); hideSlash();
+    hideAC(); hideSlash(); closeFind();
     if (kb) { kb.remove(); kb = null; }
     /* a brand-new note you leave blank and unnamed isn't kept */
     if (freshNote[n.id]) {
@@ -1098,7 +1288,7 @@
     if (ui.graphMode === 'local' && cur) {
       include = {}; include[cur.id] = 0;
       var adj = {};
-      notes.forEach(function (n) { adj[n.id] = adj[n.id] || {}; outNotes(n).forEach(function (o) { adj[n.id][o.id] = 1; (adj[o.id] = adj[o.id] || {})[n.id] = 1; }); });
+      notes.forEach(function (n) { adj[n.id] = adj[n.id] || {}; outNotes(n).concat(ui.graphAuto !== false ? autoOut(n) : []).forEach(function (o) { adj[n.id][o.id] = 1; (adj[o.id] = adj[o.id] || {})[n.id] = 1; }); });
       var frontier = [cur.id];
       for (var d = 1; d <= 2; d++) {
         var next = [];
@@ -1111,6 +1301,7 @@
       if (include && !(n.id in include)) return;
       nodes.push({ id: n.id, label: n.title });
       outNotes(n).forEach(function (o) { if (!include || o.id in include) links.push([n.id, o.id]); });
+      if (ui.graphAuto !== false) autoOut(n).forEach(function (o) { if (!include || o.id in include) links.push([n.id, o.id, 'auto']); });
       if (ui.graphGhosts !== false) unresolvedOf(n).forEach(function (t) {
         var id = 'ghost:' + norm(t);
         if (!ghosts[id]) { ghosts[id] = 1; nodes.push({ id: id, label: t, kind: 'ghost' }); }
@@ -1135,12 +1326,13 @@
     var cur = ui.lastNote && notes.get(ui.lastNote);
     if (ui.graphMode === 'local' && !cur) ui.graphMode = 'global';
     var data = graphData();
-    var nN = data.nodes.filter(function (x) { return !x.kind; }).length, nG = data.nodes.filter(function (x) { return x.kind === 'ghost'; }).length, eSeen = {}, nL = 0;
-    data.links.forEach(function (l) { var k = l[0] < l[1] ? l[0] + '\u0001' + l[1] : l[1] + '\u0001' + l[0]; if (!eSeen[k] && l[0] !== l[1]) { eSeen[k] = 1; nL++; } });
-    var h = '<div class="gwrap"><canvas id="gc" aria-label="Graph of linked notes"></canvas><div class="ghead"><div class="eyebrow">' + nN + ' note' + (nN === 1 ? '' : 's') + ' · ' + nL + ' link' + (nL === 1 ? '' : 's') + (nG ? ' · ' + nG + ' unresolved' : '') + '</div><h1 class="h1">Graph</h1>' +
+    var nN = data.nodes.filter(function (x) { return !x.kind; }).length, nG = data.nodes.filter(function (x) { return x.kind === 'ghost'; }).length, eSeen = {}, nL = 0, nA = 0;
+    data.links.filter(function (l) { return !l[2]; }).concat(data.links.filter(function (l) { return l[2]; })).forEach(function (l) { var k = l[0] < l[1] ? l[0] + '\u0001' + l[1] : l[1] + '\u0001' + l[0]; if (!eSeen[k] && l[0] !== l[1]) { eSeen[k] = 1; if (l[2]) nA++; else if (String(l[1]).indexOf('ghost:') !== 0) nL++; } });
+    var h = '<div class="gwrap"><canvas id="gc" aria-label="Graph of linked notes"></canvas><div class="ghead"><div class="eyebrow">' + nN + ' note' + (nN === 1 ? '' : 's') + ' · ' + nL + ' link' + (nL === 1 ? '' : 's') + (nA ? ' · ' + nA + ' auto' : '') + (nG ? ' · ' + nG + ' unresolved' : '') + '</div><h1 class="h1">Graph</h1>' +
       '<div class="chips"><button class="chip' + (ui.graphMode === 'global' ? ' on' : '') + '" data-act="gmode" data-m="global">Global</button>' +
       '<button class="chip' + (ui.graphMode === 'local' ? ' on' : '') + '" data-act="gmode" data-m="local">Local</button>' +
       '<button class="chip' + (ui.graphTags ? ' on' : '') + '" data-act="gtags">Tags</button>' +
+      '<button class="chip' + (ui.graphAuto !== false ? ' on' : '') + '" data-act="gauto" title="Notes that mention each other by name">Auto-link</button>' +
       '<button class="chip' + (ui.graphGhosts !== false ? ' on' : '') + '" data-act="gghosts" title="Links to notes that don\u2019t exist yet">Unresolved</button></div></div>' +
       (data.nodes.length ? '<div class="gtools"><button class="ib" aria-label="Fit" data-act="gfit">' + I.fit + '</button><button class="ib" aria-label="Zoom in" data-act="gzin">' + I.zin + '</button><button class="ib" aria-label="Zoom out" data-act="gzout">' + I.zout + '</button></div>' : '') +
       (data.nodes.length ? '<div class="ghint" id="ghint">Tap a node · tap again to open · pinch to zoom</div>' : '<div class="gempty">' + EMPTY_ART + '<b>Nothing to map yet</b><p>Each note becomes a dot, and every <span class="kbd">[[link]]</span> draws a line between them.</p><button class="bignew" data-act="newempty">' + I.plus + '<span>New note</span></button></div>') +
@@ -1169,8 +1361,8 @@
       s.innerHTML = '<div class="gt"><i style="background:transparent;border:1.5px solid var(--text)"></i>#' + esc(t) + '</div><div class="gm">Tag · ' + c + ' note' + (c === 1 ? '' : 's') + '</div><div class="gb"><button class="acc" data-act="gopen" data-id="' + esc(id) + '">Show notes</button></div>';
     } else {
       var n = notes.get(id); if (!n) return;
-      var out = outNotes(n).length, bl = backlinks(n).length;
-      s.innerHTML = '<div class="gt"><i></i>' + esc(n.title) + '</div><div class="gm">' + esc(n.folder ? folderName(n.folder) : 'Vault') + ' · ' + out + ' link' + (out === 1 ? '' : 's') + ' · ' + bl + ' backlink' + (bl === 1 ? '' : 's') + '</div>' +
+      var out = outNotes(n).length, bl = backlinks(n).length, au = ui.graphAuto !== false ? autoOut(n).length + autoIn(n).length : 0;
+      s.innerHTML = '<div class="gt"><i></i>' + esc(n.title) + '</div><div class="gm">' + esc(n.folder ? folderName(n.folder) : 'Vault') + ' · ' + out + ' link' + (out === 1 ? '' : 's') + ' · ' + bl + ' backlink' + (bl === 1 ? '' : 's') + (au ? ' · ' + au + ' auto' : '') + '</div>' +
         '<div class="gb"><button class="acc" data-act="gopen" data-id="' + n.id + '">Open note</button><button data-act="glocal" data-id="' + n.id + '">Local graph</button></div>';
     }
     s.classList.add('show');
@@ -1260,6 +1452,10 @@
       '<button class="item" data-act="newfolder" data-path=""><span>New folder</span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<button class="item" data-act="gotrash"><span>Trash<small>' + (trash.size ? trash.size + ' note' + (trash.size === 1 ? '' : 's') + ' \u00b7 kept ' + TRASH_DAYS + ' days, then removed' : 'Deleted notes wait here ' + TRASH_DAYS + ' days') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
             '<button class="item danger" data-act="wipe"><span>Delete all notes</span></button></div>' +
+      '<div class="sec"><span>Links</span></div><div class="group">' +
+      '<button class="item" data-act="autolink"><span>Auto-link mentions<small>' + (function () { var c = 0, m = 0; notes.forEach(function (o) { var k = mentionsOf(o).length; c += k; if (k) m++; }); return c ? c + ' plain mention' + (c === 1 ? '' : 's') + ' of other notes in ' + m + ' note' + (m === 1 ? '' : 's') + ' \u2014 turn them into [[links]]' : 'Every mention of another note is already a link'; })() + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
+      (alBackup ? '<button class="item" data-act="autoundo"><span>Undo last auto-link<small>' + alBackup.count + ' link' + (alBackup.count === 1 ? '' : 's') + ' added ' + agoLong(alBackup.ts) + '</small></span></button>' : '') +
+      '<div class="item"><span>Auto-link in the graph<small>Notes that mention another note by name (or an alias from its front matter) are drawn as dotted lines, without changing your text. Toggle it with the Auto-link chip on the graph.</small></span></div></div>' +
       '<div class="sec"><span>Discover</span></div><div class="group">' +
       '<div class="item"><span>Discover uses the internet<small>Looks up your note topics on Wikipedia while Discover is open. Only the search words are sent.</small></span><div class="seg">' + [['1', 'On'], ['0', 'Off']].map(function (s) { return '<button class="' + ((settings.discoverNet !== false) === (s[0] === '1') ? 'on' : '') + '" data-act="dnet" data-v="' + s[0] + '" style="font-family:var(--sans);font-size:13px">' + s[1] + '</button>'; }).join('') + '</div></div>' +
       '<button class="item" data-act="dclear"><span>Clear Discover history<small>Forget saved cards and \u201cnot for me\u201d picks</small></span></button></div>' +
@@ -1271,12 +1467,38 @@
       '<button class="item" data-act="guide"><span>Formatting guide<small>Every block you can put in a note, and the shortcuts</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<div class="item"><span>Templates<small>Make a folder called \u201cTemplates\u201d. Notes in it appear in New from template. {{date}}, {{time}} and {{title}} fill in for you.</small></span></div></div>' +
       '<div class="sec"><span>About</span></div><div class="group">' +
+      '<button class="item" data-act="stats"><span>Vault stats<small>' + (function () { var s = vaultStats(); return s.notes + ' note' + (s.notes === 1 ? '' : 's') + ' \u00b7 ' + s.words.toLocaleString() + ' word' + (s.words === 1 ? '' : 's') + ' \u00b7 ' + s.links + ' link' + (s.links === 1 ? '' : 's'); })() + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<div class="item"><span>Storage<small>Notes live only on this device and work offline. Export now and then to keep a backup.</small></span></div>' +
       (isStandalone() ? '' : '<div class="item"><span>Install on iPhone<small>In Safari tap Share, then Add to Home Screen.</small></span></div>') +
       '</div><input type="file" id="file" accept=".md,.markdown,.txt,.zip,.jpg,.jpeg,.png,.webp,.gif,text/markdown,text/plain,application/zip" multiple hidden>' +
       '<div class="foot"><b>Axon<i>.</i></b>by Northpeak Studios · v' + VERSION + '</div></div>';
     viewEl.innerHTML = h;
     $('#file').addEventListener('change', function (e) { importFiles(Array.from(e.target.files || [])); e.target.value = ''; });
+  }
+  function vaultStats() {
+    var s = { notes: 0, words: 0, links: 0, auto: 0, unresolved: 0, tags: 0, cards: 0, images: 0, folders: folders.size, longest: null, oldest: null, newest: null, daily: 0, orphans: 0 };
+    var tagset = {}, linked = {};
+    notes.forEach(function (n) {
+      s.notes++; var w = words(n.body); s.words += w;
+      var ls = linksOf(n); s.links += outNotes(n).length; s.unresolved += unresolvedOf(n).length;
+      outNotes(n).forEach(function (o) { linked[o.id] = 1; }); if (ls.length) linked[n.id] = 1;
+      MD.tags(n.body).forEach(function (t) { tagset[t] = 1; });
+      s.cards += MD.cards(n.body).length; s.images += MD.images(n.body).length;
+      if (isDaily(n)) s.daily++;
+      if (!s.longest || w > s.longest.w) s.longest = { n: n, w: w };
+      if (!s.oldest || (n.created || n.updated) < (s.oldest.created || s.oldest.updated)) s.oldest = n;
+      if (!s.newest || n.updated > s.newest.updated) s.newest = n;
+    });
+    notes.forEach(function (n) { if (!linked[n.id] && !isDaily(n) && !inTemplates(n)) s.orphans++; s.auto += mentionsOf(n).length; });
+    s.tags = Object.keys(tagset).length;
+    return s;
+  }
+  async function showStats() {
+    var s = vaultStats();
+    var rows = [['Notes', s.notes + (s.daily ? ' (' + s.daily + ' daily)' : '')], ['Words', s.words.toLocaleString()], ['Folders', s.folders], ['Links between notes', s.links], ['Unresolved links', s.unresolved], ['Mentions not yet linked', s.auto], ['Notes with no links', s.orphans], ['Tags', s.tags], ['Recall cards', s.cards], ['Images', s.images]];
+    if (s.longest && s.longest.w) rows.push(['Longest note', s.longest.n.title + ' \u00b7 ' + s.longest.w.toLocaleString() + ' words']);
+    if (s.newest) rows.push(['Last edited', s.newest.title + ' \u00b7 ' + agoLong(s.newest.updated)]);
+    await dialog({ title: 'Vault stats', html: '<div class="stats">' + rows.map(function (r) { return '<div><span>' + esc(String(r[0])) + '</span><b>' + esc(String(r[1])) + '</b></div>'; }).join('') + '</div>', ok: 'Done', noCancel: true });
   }
   function applySettings() {
     var r = document.documentElement.style;
@@ -1424,11 +1646,14 @@
   }
   async function noteMenu(n, preset) {
     var nc = MD.cards(n.body).length;
-    var a = preset || await sheet({ title: n.title, left: true, actions: [{ label: n.pinned ? 'Unpin' : 'Pin to top', value: 'pin', icon: I.pin }, { label: 'Rename', value: 'rename', icon: I.edit }, { label: 'Move to folder', value: 'move', icon: I.folder.replace(' class="fi"', '') }, { label: 'Duplicate', value: 'dup', icon: I.copy }]
+    var a = preset || await sheet({ title: n.title, left: true, actions: [{ label: n.pinned ? 'Unpin' : 'Pin to top', value: 'pin', icon: I.pin }, { label: 'Find in note', value: 'find', icon: I.search }, { label: 'Share\u2026', value: 'share', icon: I.ext }, { label: 'Copy as Markdown', value: 'copy', icon: I.copy }, { label: 'Rename', value: 'rename', icon: I.edit }, { label: 'Move to folder', value: 'move', icon: I.folder.replace(' class="fi"', '') }, { label: 'Duplicate', value: 'dup', icon: I.copy }]
       .concat(inTemplates(n) ? [] : [{ label: 'Save as template', value: 'tmpl', icon: I.tmpl }])
       .concat(nc ? [{ label: 'Review ' + nc + ' card' + (nc === 1 ? '' : 's') + ' now', value: 'review', icon: I.recall }, { label: 'Export ' + nc + ' card' + (nc === 1 ? '' : 's') + ' (CSV for Synapse)', value: 'cards', icon: I.copy }] : [])
       .concat([{ label: 'Local graph', value: 'lg', icon: I.graph }, { label: 'Move to Trash', value: 'delete', danger: true, icon: I.trash }]) });
     if (a === 'cards') { exportCards(n); return; }
+    if (a === 'find') { if (route().v !== 'note') go('#/n/' + n.id); openFind(n); return; }
+    if (a === 'share') { shareNote(n); return; }
+    if (a === 'copy') { copyNote(n); return; }
     if (a === 'pin') { togglePin(n); renderNote(n.id); return; }
     if (a === 'dup') { var c = await duplicateNote(n); go('#/n/' + c.id); return; }
     if (a === 'review') { go('#/review/' + encodeURIComponent(n.id)); return; }
@@ -1895,10 +2120,13 @@
   var COMMANDS = [
     ['New note', 'create add write', function () { newNote(); }], ['New note from template', 'template starter', function () { newFromTemplate(); }],
     ['Today\u2019s note', 'daily journal date', function () { openDaily(); }], ['Start Recall review', 'quiz flashcards study cards', function () { go('#/review/all'); }],
-    ['Open Recall', 'cards spaced repetition', function () { go('#/recall'); }], ['Discover', 'feed explore wikipedia learn', function () { go('#/discover'); }], ['Graph', 'map links', function () { go('#/graph'); }],
+    ['Open Recall', 'cards spaced repetition', function () { go('#/recall'); }], ['Discover', 'feed explore wikipedia learn', function () { go('#/discover'); }], ['Graph', 'map links', function () { go('#/graph'); }], ['Random note', 'surprise shuffle lucky', function () { randomNote(); }], ['Auto-link all mentions', 'autolink link everything graph connect', function () { autoLinkAll(); }],
     ['Search text', 'find full', function (q) { go('#/search/' + encodeURIComponent(q || '')); }], ['All notes', 'list every', function () { go('#/f/*'); }],
     ['New folder', 'directory', function () { newFolder(''); }], ['Trash', 'deleted restore bin', function () { go('#/trash'); }],
     ['Formatting guide', 'help markdown how syntax', function () { go('#/guide'); }], ['Settings', 'preferences accent text size', function () { go('#/settings'); }],
+    ['Find in this note', 'search within replace', function () { var r = route(); if (r.v === 'note' && notes.get(r.id)) { if (editing) openFindReplace($('#ed')); else openFind(notes.get(r.id)); } else toast('Open a note first'); }],
+    ['Share this note', 'send export text', function () { var r = route(); if (r.v === 'note' && notes.get(r.id)) shareNote(notes.get(r.id)); else toast('Open a note first'); }],
+    ['Vault stats', 'count words statistics', function () { showStats(); }],
     ['Export vault (.zip)', 'backup download', function () { exportVault(); }], ['Export flashcards (CSV for Synapse)', 'synapse anki csv', function () { exportCards(null); }]
   ];
   var qsOpen = false;
@@ -2025,6 +2253,25 @@
     var c = createNote({ title: uniqueTitle(n.title + ' copy'), folder: n.folder, body: n.body });
     toast('Duplicated'); return c;
   }
+  function noteMD(n) { return '# ' + n.title + '\n\n' + n.body.replace(/^\s+/, ''); }
+  function shareNote(n) {
+    var text = noteMD(n);
+    if (navigator.share) { navigator.share({ title: n.title, text: text }).then(function () { toast('Shared'); }).catch(function (e) { if (e && e.name !== 'AbortError') copyNote(n); }); return; }
+    copyNote(n);
+  }
+  function copyNote(n) {
+    var text = noteMD(n);
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { toast('Copied as Markdown'); }, function () { toast('Couldn\u2019t copy'); });
+    else { var ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast('Copied as Markdown'); } catch (e) { toast('Couldn\u2019t copy'); } ta.remove(); }
+  }
+  function randomNote() {
+    var all = Array.from(notes.values()).filter(function (n) { return !inTemplates(n) && !isDaily(n); });
+    if (!all.length) all = Array.from(notes.values());
+    if (!all.length) { toast('No notes yet'); return; }
+    var cur = route().v === 'note' ? route().id : null, pick = all[Math.floor(Math.random() * all.length)];
+    if (all.length > 1 && pick.id === cur) pick = all[(all.indexOf(pick) + 1) % all.length];
+    go('#/n/' + pick.id);
+  }
   function togglePin(n) { n.pinned = !n.pinned; putNote(n); toast(n.pinned ? 'Pinned to the top' : 'Unpinned'); }
   async function askTrash(n, after) {
     var bl = backlinks(n).length;
@@ -2072,9 +2319,15 @@
       ui.graphMode = el.dataset.m; saveMeta(); render();
     },
     gtags: function () { ui.graphTags = !ui.graphTags; saveMeta(); render(); },
-    linkone: function (el) { var o = notes.get(el.dataset.id), n = route().id && notes.get(route().id); if (!o || !n) return; var k = linkMention(o, n.title, false); toast(k ? 'Linked in \u201c' + o.title + '\u201d' : 'Nothing to link'); render(); },
-    linkall: function (el) { var n = notes.get(el.dataset.id); if (!n) return; var k = 0; unlinkedMentions(n).forEach(function (m) { k += linkMention(m.note, n.title, true); }); toast('Linked ' + k + ' mention' + (k === 1 ? '' : 's')); render(); },
+    stats: function () { showStats(); },
+    findrep: function () { var ed = $('#ed'); if (ed) openFindReplace(ed); },
+    findnote: function (el) { var n = notes.get(el.dataset.id); if (n) openFind(n); },
+    linkone: function (el) { var o = notes.get(el.dataset.id), n = route().id && notes.get(route().id); if (!o || !n) return; var k = linkMention(o, n.title); toast(k ? 'Linked in \u201c' + o.title + '\u201d' : 'Nothing to link'); render(); },
+    linkall: function (el) { var n = notes.get(el.dataset.id); if (!n) return; var k = 0; unlinkedMentions(n).forEach(function (m) { k += linkMention(m.note, n.title); }); toast('Linked ' + k + ' mention' + (k === 1 ? '' : 's')); render(); },
     gghosts: function () { ui.graphGhosts = ui.graphGhosts === false; saveMeta(); render(); },
+    gauto: function () { ui.graphAuto = ui.graphAuto === false; saveMeta(); render(); },
+    autolink: function () { autoLinkAll(); },
+    autoundo: function () { undoAutoLink(); },
     gfit: function () { graphCtl && graphCtl.fit(); },
     gzin: function () { graphCtl && graphCtl.zoom(1.3); },
     gzout: function () { graphCtl && graphCtl.zoom(1 / 1.3); },
@@ -2164,6 +2417,80 @@
       toast('Vault erased'); renderSettings();
     }
   };
+
+  /* swipe a note row to the right to delete it (goes to Trash, with Undo) */
+  var sw = null, swOpen = null, swDone = 0;
+  function swRow(t) { return t.closest('.rows>[data-act=open][data-id], .nl[data-act=open][data-id]'); }
+  function swWrap(row) {
+    if (row.parentNode.classList.contains('swwrap')) return row.parentNode;
+    var w = document.createElement('div'); w.className = 'swwrap';
+    row.parentNode.insertBefore(w, row); w.appendChild(row);
+    w.insertAdjacentHTML('afterbegin', '<div class="swbg"><button type="button" class="swdel">' + I.trash + '<span>Delete</span></button></div>');
+    return w;
+  }
+  function swUnwrap(w) { if (!w || !w.parentNode) return; var row = w.querySelector('[data-act=open]'); if (row) { row.style.transform = ''; row.style.transition = ''; w.parentNode.insertBefore(row, w); } w.remove(); }
+  function swClose(now) {
+    var w = swOpen; swOpen = null; if (!w) return;
+    var row = w.querySelector('[data-act=open]'); if (!row) { swUnwrap(w); return; }
+    row.style.transition = now ? '' : 'transform .18s ease'; row.style.transform = '';
+    setTimeout(function () { swUnwrap(w); }, now ? 0 : 190);
+  }
+  function swDelete(w, row) {
+    var n = notes.get(row.dataset.id); if (!n) { swClose(true); return; }
+    swOpen = null;
+    row.style.transition = 'transform .16s ease, opacity .16s'; row.style.transform = 'translateX(' + (row.offsetWidth + 20) + 'px)'; row.style.opacity = '0';
+    w.style.transition = 'height .18s ease .1s, opacity .18s'; w.style.height = w.offsetHeight + 'px';
+    requestAnimationFrame(function () { w.style.height = '0px'; w.style.opacity = '0'; w.style.overflow = 'hidden'; });
+    var bl = backlinks(n).length;
+    trashNote(n); swDone = Date.now();
+    setTimeout(function () {
+      render();
+      toast('Moved \u201c' + (n.title.length > 24 ? n.title.slice(0, 22) + '\u2026' : n.title) + '\u201d to Trash', { label: 'Undo', fn: function () { if (trash.has(n.id)) { restoreNote(n); render(); toast('Restored'); } } });
+    }, 220);
+  }
+  viewEl.addEventListener('pointerdown', function (e) {
+    if (editing || e.button > 0 || e.pointerType === 'mouse' && e.buttons !== 1) { return; }
+    var row = swRow(e.target);
+    if (swOpen && (!row || row.parentNode !== swOpen)) swClose(false);
+    if (!row || e.target.closest('.swdel')) { sw = null; return; }
+    sw = { row: row, x: e.clientX, y: e.clientY, on: false, id: e.pointerId, w: row.parentNode.classList.contains('swwrap') ? row.parentNode : null, base: row.parentNode.classList.contains('swwrap') ? 100 : 0 };
+  });
+  viewEl.addEventListener('pointermove', function (e) {
+    if (!sw || e.pointerId !== sw.id) return;
+    var dx = e.clientX - sw.x, dy = e.clientY - sw.y;
+    if (!sw.on) {
+      if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { sw = null; return; }
+      if (dx + sw.base < 14) return;
+      sw.on = true; lpCancel(); lastTap = null;
+      sw.w = swWrap(sw.row); sw.row.style.transition = 'none';
+      try { sw.row.setPointerCapture(e.pointerId); } catch (x) {}
+    }
+    var d = Math.max(0, dx + sw.base), W = sw.row.offsetWidth, full = Math.min(W * 0.55, 190);
+    if (d > full) d = full + (d - full) * 0.35;
+    sw.row.style.transform = 'translateX(' + d + 'px)';
+    sw.w.classList.toggle('far', dx + sw.base >= full);
+    sw.d = dx + sw.base;
+    e.preventDefault();
+  });
+  function swEnd(e) {
+    if (!sw || (e && e.pointerId !== sw.id)) return;
+    var s = sw; sw = null;
+    if (!s.on) return;
+    var W = s.row.offsetWidth, full = Math.min(W * 0.55, 190), d = s.d || 0;
+    s.row.style.transition = 'transform .18s ease';
+    if (e && e.type === 'pointercancel') { d = 0; }
+    if (d >= full) { swOpen = s.w; swDelete(s.w, s.row); }
+    else if (d >= 56) { swOpen = s.w; s.row.style.transform = 'translateX(100px)'; }
+    else { swOpen = s.w; swClose(false); }
+    swDone = Date.now();
+  }
+  viewEl.addEventListener('pointerup', swEnd);
+  viewEl.addEventListener('pointercancel', swEnd);
+  viewEl.addEventListener('click', function (e) {
+    var del = e.target.closest('.swdel');
+    if (del) { e.preventDefault(); e.stopPropagation(); var w = del.closest('.swwrap'), row = w && w.querySelector('[data-act=open]'); if (row) swDelete(w, row); return; }
+    if (Date.now() - swDone < 400 && e.target.closest('[data-act=open]')) { e.preventDefault(); e.stopPropagation(); }
+  }, true);
 
   /* press and hold: notes -> actions, [[links]] -> preview */
   var lp = null, lpFired = 0;
@@ -2288,6 +2615,7 @@
       var m = {}; meta.forEach(function (x) { m[x.k] = x.v; });
       if (m.settings) settings = Object.assign(settings, m.settings);
       if (m.ui) ui = Object.assign(ui, m.ui);
+      if (m['autolink-backup'] && m['autolink-backup'].notes) alBackup = m['autolink-backup'];
       rebuildIdx();
       if (m.seeded && !m.starterRemoved) { removeOldStarter(); }
       if (!m.starterRemoved) DB.put('meta', { k: 'starterRemoved', v: Date.now() });

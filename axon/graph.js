@@ -23,12 +23,14 @@
       byId = {}; adj = {};
       nodes.forEach(function (n) { byId[n.id] = n; adj[n.id] = {}; });
       links = [];
-      data.links.forEach(function (l) {
+      var ordered = data.links.filter(function (l) { return !l[2]; }).concat(data.links.filter(function (l) { return l[2]; }));
+      ordered.forEach(function (l) {
         var a = byId[l[0]], b = byId[l[1]];
         if (!a || !b || a === b || adj[a.id][b.id]) return;
         adj[a.id][b.id] = adj[b.id][a.id] = 1;
         a.deg++; b.deg++;
-        links.push([a, b]);
+        var e = [a, b]; e.auto = !!l[2];
+        links.push(e);
       });
       nodes.forEach(function (n) {
         n.r = n.kind === 'tag' ? 3.5 : n.kind === 'ghost' ? 4 : 4 + Math.min(9, Math.sqrt(n.deg) * 2.4);
@@ -124,8 +126,9 @@
         ctx.lineWidth = hot ? 1.4 : 1;
         var gh = l[0].kind === 'ghost' || l[1].kind === 'ghost';
         if (gh) ctx.setLineDash([3, 4]);
+        else if (l.auto) { ctx.setLineDash([1.5, 3.5]); ctx.strokeStyle = hot ? hexA(accent, 0.6) : 'rgba(237,235,230,0.22)'; ctx.lineWidth = hot ? 1.2 : 1; }
         ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-        if (gh) ctx.setLineDash([]);
+        if (gh || l.auto) ctx.setLineDash([]);
       });
       var showAll = view.k > 0.75 || nodes.length < 40;
       var order = nodes.slice().sort(function (a, b) { var ra = a === focus ? 2 : nb[a.id] ? 1 : 0, rb = b === focus ? 2 : nb[b.id] ? 1 : 0; return ra - rb; });
