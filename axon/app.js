@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.6.13 */
+/* Axon · Northpeak Studios · v1.6.14 */
 (function () {
   'use strict';
-  var VERSION = '1.6.13';
+  var VERSION = '1.6.14';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -724,7 +724,7 @@
       if (folders.size) e += '<div class="sec"><span>Folders</span></div><div class="rows">' + folderRows('', 0) + '</div>';
       e += emptyHero('Write your first note. Type <span class="kbd">/</span> for blocks and <span class="kbd">[[</span> to link ideas. ' + (syOn() ? 'It syncs to your other devices.' : 'Everything stays on this device.'));
       if (trash.size) e += '<div class="rows" style="margin-top:20px">' + trashRow() + '</div>';
-      e += '<input type="file" id="file" accept=".md,.markdown,.txt,.zip,.jpg,.jpeg,.png,.webp,.gif,text/markdown,text/plain,application/zip" multiple hidden></div>';
+      e += '<input type="file" id="file" accept=".md,.markdown,.txt,.zip,.jpg,.jpeg,.png,.webp,.gif,text/markdown,text/plain,application/zip,application/x-zip-compressed,application/octet-stream" multiple hidden></div>';
       viewEl.innerHTML = e;
       $('#file').addEventListener('change', function (ev) { importFiles(Array.from(ev.target.files || [])); ev.target.value = ''; });
       return;
@@ -1998,7 +1998,7 @@
       '<button class="item" data-act="stats"><span>Vault stats<small>' + (function () { var s = vaultStats(); return s.notes + ' note' + (s.notes === 1 ? '' : 's') + ' \u00b7 ' + s.words.toLocaleString() + ' word' + (s.words === 1 ? '' : 's') + ' \u00b7 ' + s.links + ' link' + (s.links === 1 ? '' : 's'); })() + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<div class="item"><span>Storage<small>' + (syOn() ? 'Notes live on this device, work offline, and sync encrypted to your account.' : 'Notes live only on this device and work offline.') + ' Each note keeps up to 30 days of earlier versions (note menu \u203a History). Tap Back up vault now and then to keep a copy off this phone.</small></span></div>' +
       (isStandalone() ? '' : '<div class="item"><span>Install on iPhone<small>In Safari tap Share, then Add to Home Screen.</small></span></div>') +
-      '</div><input type="file" id="file" accept=".md,.markdown,.txt,.zip,.jpg,.jpeg,.png,.webp,.gif,text/markdown,text/plain,application/zip" multiple hidden>' +
+      '</div><input type="file" id="file" accept=".md,.markdown,.txt,.zip,.jpg,.jpeg,.png,.webp,.gif,text/markdown,text/plain,application/zip,application/x-zip-compressed,application/octet-stream" multiple hidden>' +
       '<div class="foot"><b>Axon<i>.</i></b>by Northpeak Studios · v' + VERSION + '<span class="vinfo">' + esc(viewportInfo()) + '</span></div></div>';
     viewEl.innerHTML = h;
     $('#file').addEventListener('change', function (e) { importFiles(Array.from(e.target.files || [])); e.target.value = ''; });
@@ -2110,12 +2110,20 @@
   async function importFiles(list) {
     if (!list.length) return;
     var entries = [], images = [], keeps = [], meta = null, metaRoot = '', dec = new TextDecoder();
+    var zipSeen = 0, zipFilesN = 0, otherN = 0, strictDec = null;
+    try { strictDec = new TextDecoder('utf-8', { fatal: true }); } catch (e) {}
     for (var i = 0; i < list.length; i++) {
       var f = list[i];
       try {
-        if (/\.zip$/i.test(f.name) || f.type === 'application/zip') {
-          var z = await Zip.read(await f.arrayBuffer());
+        /* iOS can hand a file over renamed, without its extension or with an empty type, so look at the bytes:
+           a zip starts with PK\x03\x04 (or PK\x05\x06 when empty) whatever it's called */
+        var buf = await f.arrayBuffer(), head = new Uint8Array(buf, 0, Math.min(4, buf.byteLength));
+        var isZip = head.length === 4 && head[0] === 0x50 && head[1] === 0x4b && ((head[2] === 3 && head[3] === 4) || (head[2] === 5 && head[3] === 6));
+        if (isZip) {
+          zipSeen++;
+          var z = await Zip.read(buf);
           z.forEach(function (e) {
+            if (!/\/$/.test(e.name)) zipFilesN++;
             var mm = /(^|\/)\.axon\/vault\.json$/.exec(e.name);
             if (mm && !meta) { try { var j = JSON.parse(dec.decode(e.data)); if (j && j.app === 'axon' && Array.isArray(j.notes)) { meta = j; metaRoot = e.name.slice(0, mm.index + mm[1].length); } } catch (err) {} return; }
             if (/(^|\/)\.keep$/.test(e.name) && !/__MACOSX/.test(e.name)) { keeps.push(e.name.replace(/\/?\.keep$/, '')); return; }
@@ -2124,13 +2132,22 @@
             else if (IMG_EXT.test(e.name)) images.push({ path: e.name, data: e.data });
           });
         } else if (/\.(md|markdown|txt)$/i.test(f.name) || /^text\//.test(f.type)) {
-          entries.push({ path: f.name, text: await f.text(), date: f.lastModified || 0 });
+          entries.push({ path: f.name, text: dec.decode(buf), date: f.lastModified || 0 });
         } else if (IMG_EXT.test(f.name)) {
-          images.push({ path: f.name, data: new Uint8Array(await f.arrayBuffer()) });
+          images.push({ path: f.name, data: new Uint8Array(buf) });
+        } else {
+          /* no (or an unknown) extension: if the bytes are plain UTF-8 text, it's a note */
+          var txt = null;
+          if (strictDec && buf.byteLength) { try { txt = strictDec.decode(buf); } catch (e2) { txt = null; } }
+          if (txt !== null && txt.indexOf('\u0000') < 0) entries.push({ path: f.name.replace(/\.[^.\/]{1,8}$/, '') + '.md', text: txt, date: f.lastModified || 0 });
+          else otherN++;
         }
-      } catch (err) { toast('Couldn\u2019t read ' + f.name + ': ' + err.message); }
+      } catch (err) { toast('Couldn\u2019t read ' + (f.name || 'that file') + ': ' + err.message); }
     }
-    if (!entries.length) { toast('No markdown files found'); return; }
+    if (!entries.length) {
+      toast(zipSeen ? 'That zip had 0 notes (' + zipFilesN + ' file' + (zipFilesN === 1 ? '' : 's') + ', none ending in .md or .txt)' : otherN ? 'That file isn\u2019t a zip or a text note' : 'No markdown files found');
+      return;
+    }
     // images: keep Axon's own ids so a re-import never duplicates them
     var byPath = {}, byBase = {}, nimg = 0;
     for (var k = 0; k < images.length; k++) {
