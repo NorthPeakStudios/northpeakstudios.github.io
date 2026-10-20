@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.6.3 */
+/* Axon · Northpeak Studios · v1.6.4 */
 (function () {
   'use strict';
-  var VERSION = '1.6.3';
+  var VERSION = '1.6.4';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -443,6 +443,7 @@
     var o = { id: n.id, title: n.title, folder: n.folder, body: n.body, created: n.created, updated: n.updated, seed: !!n.seed };
     if (n.pinned) o.pinned = true;
     if (n.trashed) o.trashed = n.trashed;
+    if (n.rf) o.rf = n.rf;
     sySoon();
     return DB.put('notes', o).catch(saveFailed);
   }
@@ -793,7 +794,7 @@
       (n.folder ? '<div class="crumb">' + esc(crumbOf(n.folder)) + '</div>' : '') + '<h1 class="ntitle">' + esc(n.title) + '</h1>' + dayNav(n) +
       '<div class="meta">' + tags.map(function (t) { return '<span class="tag" data-tag="' + esc(t) + '">#' + esc(t) + '</span>'; }).join('') +
       '<span>' + (tags.length ? '· ' : '') + (n.pinned ? 'pinned · ' : '') + 'edited ' + agoLong(n.updated) + ' · ' + wc + ' word' + (wc === 1 ? '' : 's') + (wc > 150 ? ' · ' + readMin(wc) + ' min read' : '') + (nc ? ' · </span><button class="cardct" data-act="cards" data-id="' + n.id + '">' + I.recall + nc + ' card' + (nc === 1 ? '' : 's') + '</button>' : '</span>') + '</div>' +
-      '<article class="prose" id="prose">' + (n.body.trim() ? dedupeTitle(MD.render(n.body, mdOpt()), n.title) : '<button class="empty-note" data-act="edit">Empty note. Tap here to start writing \u2014 type / for blocks.</button>') + '</article>' +
+      copyBanner(n) + '<article class="prose" id="prose">' + (n.body.trim() ? dedupeTitle(MD.render(n.body, mdOpt()), n.title) : '<button class="empty-note" data-act="edit">Empty note. Tap here to start writing \u2014 type / for blocks.</button>') + '</article>' +
       '<section class="bl" id="backlinks"><h3><span>' + bl.length + ' backlink' + (bl.length === 1 ? '' : 's') + '</span>' + ((out.length || unresolvedOf(n).length) ? '<button class="outb" data-act="outlinks" data-id="' + n.id + '">' + out.length + ' out' + (unresolvedOf(n).length ? ' \u00b7 ' + unresolvedOf(n).length + ' unresolved' : '') + '</button>' : '') + '</h3>' +
       (bl.length ? bl.map(function (o) { return '<button class="bi" data-act="open" data-id="' + o.id + '"><b>' + esc(o.title) + '</b><span>' + backlinkSnippet(o.body, n.title) + '</span></button>'; }).join('') :
         '<div class="none">No notes link here yet. Link it from another note with [[' + esc(n.title) + ']].</div>') +
@@ -805,6 +806,11 @@
     if (opts.heading) { var hd = document.getElementById('h-' + opts.heading); if (hd) setTimeout(function () { hd.scrollIntoView({ block: 'start' }); }, 30); }
   }
 
+  function copyBanner(n) {
+    var o = copyOrigin(n); if (!o) return '';
+    var what = /\(conflict/.test(n.title) ? 'Conflict copy of' : 'Restored copy of';
+    return '<div class="mvban"><span>' + what + ' <b>' + esc(o.title) + '</b>' + (n.rf && n.rf.ts ? ' \u00b7 version from ' + esc(new Date(n.rf.ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) : '') + '</span><button data-act="mergeinto" data-id="' + n.id + '">Merge\u2026</button></div>';
+  }
   /* an imported note often starts with "# Title" that repeats the note's name: hide that one heading in preview */
   function dedupeTitle(html, title) {
     var m = /^(\s*(?:<div class="props"[\s\S]*?<\/div>\s*)?)<h1( [^>]*)>([\s\S]*?)<\/h1>/.exec(html);
@@ -1087,16 +1093,186 @@
     var v = vs.filter(function (x) { return x.k === pick; })[0]; if (!v) return;
     var act = await overlay(function (done) {
       var el = document.createElement('div'); el.className = 'dialog hv'; el.setAttribute('role', 'dialog');
-      el.innerHTML = '<h4>' + esc(agoLong(v.ts)) + '</h4><p>' + v.words + ' word' + (v.words === 1 ? '' : 's') + ' \u00b7 ' + new Date(v.ts).toLocaleString() + '</p><div class="prose hvp">' + MD.render(v.body, mdOpt()) + '</div><div class="db"><button data-v="0">Close</button><button data-v="copy">Copy text</button><button class="acc" data-v="1">Restore</button></div>';
+      el.innerHTML = '<h4>' + esc(agoLong(v.ts)) + '</h4><p>' + v.words + ' word' + (v.words === 1 ? '' : 's') + ' \u00b7 ' + new Date(v.ts).toLocaleString() + '</p><div class="prose hvp">' + MD.render(v.body, mdOpt()) + '</div><div class="db"><button class="acc" data-v="new">Restore as new note</button></div><div class="db"><button data-v="0">Close</button><button data-v="copy">Copy</button><button data-v="1">Replace\u2026</button></div><p class="hvn">\u201cRestore as new note\u201d keeps the current note as it is. You can merge the two after.</p>';
       el.addEventListener('click', function (e) { var b = e.target.closest('button[data-v]'); if (b) done(b.dataset.v); var a = e.target.closest('a'); if (a) e.preventDefault(); });
       return el;
     });
     if (act === 'copy') { copyText(v.body, 'Copied that version'); return; }
+    if (act === 'new') { restoreAsNew(n, v); return; }
     if (act !== '1') return;
+    var sure = await dialog({ title: 'Replace the current text?', message: '\u201c' + n.title + '\u201d goes back to the version from ' + agoLong(v.ts) + '. The text it has now is saved to History first, so you can undo this.', ok: 'Replace' });
+    if (!sure || !notes.has(n.id)) return;
+    if (editing && editing.n === n) stopEditing(true);
     snapshot(n, n.body, true);
     n.body = v.body; lastSaved[n.id] = v.body; touch(n);
     toast('Restored the version from ' + agoLong(v.ts));
     if (route().v === 'note' && route().id === n.id) renderNote(n.id);
+  }
+  /* ---------- restore as a new note, then merge two notes ---------- */
+  var COPY_RE = /^(.*?) \((?:restored|conflict)(?: [^)]*)?\)(?: \d+)?$/;
+  /* the note a restored or conflict copy came from, if it still exists */
+  function copyOrigin(n) {
+    if (!n) return null;
+    if (n.rf && n.rf.id && n.rf.id !== n.id && notes.has(n.rf.id)) return notes.get(n.rf.id);
+    var m = COPY_RE.exec(n.title || ''), o = m && byTitle(m[1]);
+    return o && o !== n ? o : null;
+  }
+  function restoreAsNew(n, v) {
+    var d = new Date(v.ts), lbl = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    var base = n.title.length > 90 ? n.title.slice(0, 90).trim() : n.title;
+    var c = createNote({ title: uniqueTitle(base + ' (restored ' + lbl + ')'), folder: n.folder, body: v.body });
+    c.rf = { id: n.id, ts: v.ts }; putNote(c);
+    lastSaved[c.id] = c.body;
+    go('#/n/' + c.id);
+    toast('Restored as a new note. \u201c' + n.title + '\u201d is unchanged', { label: 'Merge', fn: function () { openMerge(n, c); } });
+    return c;
+  }
+  /* line diff: common prefix/suffix, then LCS on the middle. Chunks: {eq:[lines]} or {a:[lines], b:[lines]} */
+  function lineDiff(A, B) {
+    var a = A.split('\n'), b = B.split('\n'), pre = 0, suf = 0;
+    while (pre < a.length && pre < b.length && a[pre] === b[pre]) pre++;
+    while (suf < a.length - pre && suf < b.length - pre && a[a.length - 1 - suf] === b[b.length - 1 - suf]) suf++;
+    var ma = a.slice(pre, a.length - suf), mb = b.slice(pre, b.length - suf), ops = [];
+    var n = ma.length, m = mb.length;
+    if (n && m && n * m <= 4000000) {
+      var w = m + 1, L = new Uint16Array((n + 1) * w), i, j;
+      for (i = n - 1; i >= 0; i--) for (j = m - 1; j >= 0; j--) L[i * w + j] = ma[i] === mb[j] ? L[(i + 1) * w + j + 1] + 1 : Math.max(L[(i + 1) * w + j], L[i * w + j + 1]);
+      i = 0; j = 0;
+      while (i < n && j < m) {
+        if (ma[i] === mb[j]) { ops.push(['=', ma[i]]); i++; j++; }
+        else if (L[(i + 1) * w + j] >= L[i * w + j + 1]) { ops.push(['a', ma[i]]); i++; }
+        else { ops.push(['b', mb[j]]); j++; }
+      }
+      for (; i < n; i++) ops.push(['a', ma[i]]);
+      for (; j < m; j++) ops.push(['b', mb[j]]);
+    } else { ma.forEach(function (x) { ops.push(['a', x]); }); mb.forEach(function (x) { ops.push(['b', x]); }); }
+    var chunks = [], cur = null;
+    function eq(x) { if (!cur || !cur.eq) { cur = { eq: [] }; chunks.push(cur); } cur.eq.push(x); }
+    a.slice(0, pre).forEach(eq);
+    ops.forEach(function (o) {
+      if (o[0] === '=') return eq(o[1]);
+      if (!cur || cur.eq) { cur = { a: [], b: [] }; chunks.push(cur); }
+      cur[o[0]].push(o[1]);
+    });
+    a.slice(a.length - suf).forEach(eq);
+    /* a blank line that LCS matched between two changes reads as one change */
+    for (var k = 1; k < chunks.length - 1; k++) {
+      var c = chunks[k];
+      if (c.eq && c.eq.every(function (x) { return !x.trim(); }) && c.eq.length <= 1 && !chunks[k - 1].eq && !chunks[k + 1].eq) {
+        var p = chunks[k - 1], q = chunks[k + 1];
+        p.a = p.a.concat(c.eq, q.a); p.b = p.b.concat(c.eq, q.b); chunks.splice(k, 2); k--;
+      }
+    }
+    return chunks;
+  }
+  function mergedText(chunks) {
+    var out = [];
+    chunks.forEach(function (c) {
+      if (c.eq) { out.push.apply(out, c.eq); return; }
+      if (c.pick !== 'b') out.push.apply(out, c.a);
+      if (c.pick !== 'a') out.push.apply(out, c.b);
+    });
+    return out.join('\n');
+  }
+  function copyLabel(n) { return /\(restored/.test(n.title) ? 'Restored' : /\(conflict/.test(n.title) ? 'Conflict copy' : 'Other note'; }
+  /* merge `other` into `into`. Nothing is written until Save; Save keeps the old text of `into` in History first */
+  async function openMerge(into, other) {
+    if (!into || !other || into === other) return;
+    if (editing) stopEditing(true);
+    var A = into.body, B = other.body;
+    if (A === B) {
+      var y = await dialog({ title: 'These match', message: '\u201c' + other.title + '\u201d has the same text as \u201c' + into.title + '\u201d, so there\u2019s nothing to merge.', ok: 'Delete copy\u2026', cancel: 'OK' });
+      if (y) askDeleteCopy(other, into);
+      return;
+    }
+    var tt = $('#toast'); if (tt) tt.classList.remove('show');
+    var chunks = lineDiff(A, B), nch = 0, la = 'Current', lb = copyLabel(other), view = 'changes';
+    chunks.forEach(function (c) { if (!c.eq) { nch++; c.pick = !c.a.length || !c.b.length ? 'ab' : 'a'; } });
+    var res = await overlay(function (done) {
+      var el = document.createElement('div'); el.className = 'mergev'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Merge notes');
+      function lines(ls) { return ls.length ? ls.map(function (x) { return esc(x) || '<i>\u21b5</i>'; }).join('\n') : '<i>nothing</i>'; }
+      function paint() {
+        var h = '<div class="mvh"><button data-m="cancel">Cancel</button><b>Merge</b><button class="acc" data-m="save">Save</button></div>' +
+          '<div class="mvsub"><span><i class="dot da"></i>' + la + ': <b>' + esc(into.title) + '</b> (saved into)</span><span><i class="dot db2"></i>' + lb + ': <b>' + esc(other.title) + '</b></span></div>' +
+          '<div class="mvtabs"><button data-m="v-changes"' + (view === 'changes' ? ' class="on"' : '') + '>' + nch + ' change' + (nch === 1 ? '' : 's') + '</button><button data-m="v-preview"' + (view === 'preview' ? ' class="on"' : '') + '>Preview result</button></div>';
+        h += '<div class="mvbody">';
+        if (view === 'preview') h += '<div class="prose mvprev">' + (mergedText(chunks).trim() ? MD.render(mergedText(chunks), mdOpt()) : '<p><i>Empty</i></p>') + '</div>';
+        else {
+          h += '<div class="mvall"><span>All:</span><button data-m="all-a">' + la + '</button><button data-m="all-b">' + lb + '</button><button data-m="all-ab">Both</button></div>';
+          chunks.forEach(function (c, i) {
+            if (c.eq) {
+              if (c.open || c.eq.length <= 3) h += '<pre class="mveq">' + lines(c.eq) + '</pre>';
+              else h += '<button class="mveqb" data-m="open-' + i + '"><pre>' + lines(c.eq.slice(0, 1)) + '</pre><span>' + (c.eq.length - 1) + ' more unchanged line' + (c.eq.length === 2 ? '' : 's') + ' \u00b7 show</span></button>';
+              return;
+            }
+            var ka = c.pick !== 'b', kb = c.pick !== 'a';
+            h += '<div class="mvc"><div class="mvcols">' +
+              '<button class="mvs sa' + (ka ? ' keep' : ' drop') + '" data-m="p-' + i + '-a"><span class="mvl">' + la + (ka ? ' \u2713' : '') + '</span><pre>' + lines(c.a) + '</pre></button>' +
+              '<button class="mvs sb' + (kb ? ' keep' : ' drop') + '" data-m="p-' + i + '-b"><span class="mvl">' + lb + (kb ? ' \u2713' : '') + '</span><pre>' + lines(c.b) + '</pre></button></div>' +
+              '<div class="mvseg">' + [['a', 'Keep ' + la.toLowerCase()], ['b', 'Keep ' + lb.toLowerCase()], ['ab', 'Both']].map(function (o) { return '<button data-m="p-' + i + '-' + o[0] + '"' + (c.pick === o[0] ? ' class="on"' : '') + '>' + o[1] + '</button>'; }).join('') + '</div></div>';
+          });
+        }
+        h += '</div>';
+        var st = el.querySelector('.mvbody'), top = st ? st.scrollTop : 0;
+        el.innerHTML = h;
+        if (st) el.querySelector('.mvbody').scrollTop = top;
+      }
+      el.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-m]'); if (!b) return;
+        var m = b.dataset.m.split('-');
+        if (m[0] === 'cancel') return done(null);
+        if (m[0] === 'save') return done('save');
+        if (m[0] === 'v') view = m[1];
+        else if (m[0] === 'all') chunks.forEach(function (c) { if (!c.eq) c.pick = m[1]; });
+        else if (m[0] === 'open') chunks[+m[1]].open = true;
+        else if (m[0] === 'p') chunks[+m[1]].pick = m[2];
+        paint();
+      });
+      paint();
+      return el;
+    });
+    if (res !== 'save') return;
+    if (!notes.has(into.id) || into.body !== A) {
+      var again = await dialog({ title: '\u201c' + into.title + '\u201d changed', message: 'It was edited or synced while you were merging, so nothing was saved. Start the merge again with the new text?', ok: 'Start again' });
+      if (again && notes.has(into.id)) openMerge(into, other);
+      return;
+    }
+    var text = mergedText(chunks);
+    if (text !== A) {
+      snapshot(into, into.body, true);
+      into.body = text; lastSaved[into.id] = text; touch(into);
+    }
+    if (route().v === 'note' && route().id !== into.id) go('#/n/' + into.id); else if (route().v === 'note') renderNote(into.id);
+    toast(text !== A ? 'Merged into \u201c' + into.title + '\u201d. The old text is in its History' : 'No changes to save');
+    if (!notes.has(other.id)) return;
+    var kind = copyLabel(other) === 'Restored' ? 'restored copy' : copyLabel(other) === 'Conflict copy' ? 'conflict copy' : 'other note';
+    var del = await dialog({ title: 'Delete the ' + kind + '?', message: 'The merge is saved. \u201c' + other.title + '\u201d can go to Trash now, or you can keep it.', ok: 'Delete\u2026', cancel: 'Keep it' });
+    if (del) askDeleteCopy(other, into);
+  }
+  async function askDeleteCopy(c, into) {
+    if (!notes.has(c.id)) return;
+    var ok = await dialog({ title: 'Move \u201c' + c.title + '\u201d to Trash?', message: 'You can bring it back from Trash for ' + TRASH_DAYS + ' days.', ok: 'Move to Trash', danger: true });
+    if (!ok) return;
+    trashNote(c);
+    toast('Moved \u201c' + (c.title.length > 24 ? c.title.slice(0, 22) + '\u2026' : c.title) + '\u201d to Trash', { label: 'Undo', fn: function () { if (trash.has(c.id)) { restoreNote(c); if (route().v === 'note') renderNote(route().id); } } });
+    if (route().v === 'note' && route().id === c.id) go('#/n/' + (into && notes.has(into.id) ? into.id : ''), true);
+    else if (route().v === 'note') renderNote(route().id);
+  }
+  /* "Merge…" from a note's menu: a copy merges into the note it came from; otherwise pick a note to merge into this one */
+  async function pickMerge(n) {
+    var o = copyOrigin(n);
+    if (o) { openMerge(o, n); return; }
+    var kids = Array.from(notes.values()).filter(function (x) { return x !== n && copyOrigin(x) === n; });
+    var rest = Array.from(notes.values()).filter(function (x) { return x !== n && kids.indexOf(x) < 0 && !inTemplates(x); }).sort(function (a, b) { return (b.updated || 0) - (a.updated || 0); }).slice(0, Math.max(0, 6 - kids.length));
+    var acts = kids.concat(rest).map(function (x) { return { label: x.title, value: x.id }; });
+    acts.push({ label: 'Type a note name\u2026', value: '\u0001' });
+    var pick = await sheet({ title: 'Merge into \u201c' + n.title + '\u201d', message: 'Pick the note to bring changes in from. Nothing is saved until you tap Save.', actions: acts, left: true });
+    if (!pick) return;
+    if (pick === '\u0001') {
+      var t = await dialog({ title: 'Merge from which note?', input: true, placeholder: 'Note name', ok: 'Next', validate: function (v) { var x = byTitle(v); return !v ? 'Type a name.' : !x ? 'No note called \u201c' + v + '\u201d.' : x === n ? 'Pick a different note.' : null; } });
+      if (!t) return; pick = byTitle(t).id;
+    }
+    openMerge(n, notes.get(pick));
   }
   function copyText(text, msg) {
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { toast(msg || 'Copied'); }, function () { toast('Couldn\u2019t copy'); });
@@ -1958,7 +2134,7 @@
   }
   async function noteMenu(n, preset) {
     var nc = MD.cards(n.body).length;
-    var a = preset || await sheet({ title: n.title, left: true, actions: [{ label: n.pinned ? 'Unpin' : 'Pin to top', value: 'pin', icon: I.pin }, { label: 'Find in note', value: 'find', icon: I.search }, { label: 'Share\u2026', value: 'share', icon: I.ext }, { label: 'Copy as Markdown', value: 'copy', icon: I.copy }, { label: 'History\u2026', value: 'hist', icon: I.restore }, { label: 'Rename', value: 'rename', icon: I.edit }, { label: 'Move to folder', value: 'move', icon: I.folder.replace(' class="fi"', '') }, { label: 'Duplicate', value: 'dup', icon: I.copy }]
+    var a = preset || await sheet({ title: n.title, left: true, actions: [{ label: n.pinned ? 'Unpin' : 'Pin to top', value: 'pin', icon: I.pin }, { label: 'Find in note', value: 'find', icon: I.search }, { label: 'Share\u2026', value: 'share', icon: I.ext }, { label: 'Copy as Markdown', value: 'copy', icon: I.copy }, { label: 'History\u2026', value: 'hist', icon: I.restore }, { label: copyOrigin(n) ? 'Merge into \u201c' + copyOrigin(n).title + '\u201d\u2026' : 'Merge another note into this\u2026', value: 'merge', icon: I.copy }, { label: 'Rename', value: 'rename', icon: I.edit }, { label: 'Move to folder', value: 'move', icon: I.folder.replace(' class="fi"', '') }, { label: 'Duplicate', value: 'dup', icon: I.copy }]
       .concat(inTemplates(n) ? [] : [{ label: 'Save as template', value: 'tmpl', icon: I.tmpl }])
       .concat(nc ? [{ label: 'Review ' + nc + ' card' + (nc === 1 ? '' : 's') + ' now', value: 'review', icon: I.recall }, { label: 'Export ' + nc + ' card' + (nc === 1 ? '' : 's') + ' (CSV for Synapse)', value: 'cards', icon: I.copy }] : [])
       .concat([{ label: 'Local graph', value: 'lg', icon: I.graph }, { label: 'Move to Trash', value: 'delete', danger: true, icon: I.trash }]) });
@@ -1967,6 +2143,7 @@
     if (a === 'share') { shareNote(n); return; }
     if (a === 'copy') { copyNote(n); return; }
     if (a === 'hist') { showHistory(n); return; }
+    if (a === 'merge') { pickMerge(n); return; }
     if (a === 'pin') { togglePin(n); renderNote(n.id); return; }
     if (a === 'dup') { var c = await duplicateNote(n); go('#/n/' + c.id); return; }
     if (a === 'review') { go('#/review/' + encodeURIComponent(n.id)); return; }
@@ -3120,6 +3297,7 @@
     newempty: function () { newNote(''); },
     foldermore: function (el) { folderMenu(el.dataset.path); },
     notemore: function (el) { var n = notes.get(el.dataset.id); if (n) noteMenu(n); },
+    mergeinto: function (el) { var n = notes.get(el.dataset.id), o = copyOrigin(n); if (n && o) openMerge(o, n); },
     edit: function () {
       var r = route(); var n = notes.get(r.id); if (!n) return;
       var p = previewTopBlock(), pr = $('#prose');

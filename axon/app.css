@@ -634,3 +634,52 @@ body.reviewing #view{padding-bottom:calc(var(--bpad) + 16px)}
 
 /* v1.5.8+: --faint lifted for readable small text (4.7:1); the tab bar keeps its original tone */
 #tabbar{--faint:#5e5e63}
+
+/* restore as new note + merge view (v1.6.4) */
+.dialog.hv .hvn{margin:10px 0 0;font-size:12.5px;color:var(--faint);text-align:center}
+.mvban{display:flex;align-items:center;gap:10px;margin:2px 0 14px;padding:10px 12px;border:1px solid var(--line2);border-radius:12px;background:var(--card);font-size:14px;color:var(--dim);line-height:1.35}
+.mvban span{flex:1;min-width:0;overflow-wrap:anywhere}
+.mvban b{color:var(--text);font-weight:600}
+.mvban button{flex:none;height:34px;padding:0 14px;border-radius:10px;background:var(--accent);color:#0b0b0c;font-weight:600;font-size:14px}
+.mergev{position:absolute;inset:0;background:var(--bg);pointer-events:auto;display:flex;flex-direction:column;opacity:0;transition:opacity .18s;
+  padding:var(--sat) var(--sar) 0 var(--sal)}
+.mergev.show{opacity:1}
+.mergev .mvh{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line)}
+.mergev .mvh b{font-size:17px;font-weight:600}
+.mergev .mvh button{height:38px;min-width:76px;padding:0 14px;border-radius:10px;font-size:16px;color:var(--accent)}
+.mergev .mvh button.acc{background:var(--accent);color:#0b0b0c;font-weight:600}
+.mergev .mvsub{display:flex;flex-direction:column;gap:3px;padding:8px 16px 4px;font-size:13px;color:var(--dim);line-height:1.35}
+.mergev .mvsub b{color:var(--text);font-weight:600;overflow-wrap:anywhere}
+.mergev .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.mergev .dot.da,.mergev .mvs.sa .mvl::before{background:#5aa7ff}
+.mergev .dot.db2,.mergev .mvs.sb .mvl::before{background:#ffb02e}
+.mergev .mvtabs{display:flex;gap:6px;padding:6px 12px 8px;border-bottom:1px solid var(--line)}
+.mergev .mvtabs button{flex:1;height:36px;border-radius:10px;border:1px solid var(--line2);font-size:14px;color:var(--dim)}
+.mergev .mvtabs button.on{background:var(--card2);color:var(--text);border-color:var(--faint)}
+.mergev .mvbody{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 12px calc(24px + var(--bpad))}
+.mergev .mvall{display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:13px;color:var(--faint)}
+.mergev .mvall button{flex:1;height:32px;border-radius:9px;border:1px solid var(--line2);font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mergev pre{margin:0;font-family:var(--mono);font-size:12.5px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;text-align:left}
+.mergev .mveq{color:var(--faint);padding:4px 8px}
+.mergev .mveqb{display:block;width:100%;padding:4px 8px;text-align:left;color:var(--faint)}
+.mergev .mveqb span{display:block;font-size:12px;color:var(--accent);margin-top:2px}
+.mergev .mvc{border:1px solid var(--line2);border-radius:12px;background:var(--card);margin:6px 0 10px;overflow:hidden}
+.mergev .mvcols{display:flex;flex-direction:column}
+.mergev .mvs{display:block;width:100%;padding:8px 10px;text-align:left;border-bottom:1px solid var(--line)}
+.mergev .mvs pre{color:var(--text)}
+.mergev .mvs.sa.keep{background:rgba(90,167,255,.10)}
+.mergev .mvs.sb.keep{background:rgba(255,176,46,.10)}
+.mergev .mvs.drop pre{opacity:.4;text-decoration:line-through}
+.mergev .mvs pre i{color:var(--faint);text-decoration:none}
+.mergev .mvl{display:block;font-size:11.5px;font-weight:600;letter-spacing:.02em;color:var(--dim);margin-bottom:3px}
+.mergev .mvl::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.mergev .mvseg{display:flex;gap:6px;padding:8px}
+.mergev .mvseg button{flex:1;min-height:36px;padding:0 4px;border-radius:9px;border:1px solid var(--line2);font-size:13px;color:var(--dim);line-height:1.15}
+.mergev .mvseg button.on{background:var(--accent);border-color:var(--accent);color:#0b0b0c;font-weight:600}
+.mergev .mvprev{font-size:15px}
+@media (min-width:700px){
+  .mergev .mvcols{flex-direction:row}
+  .mergev .mvs{flex:1;min-width:0;border-bottom:1px solid var(--line)}
+  .mergev .mvs.sa{border-right:1px solid var(--line)}
+  .mergev .mvbody,.mergev .mvsub{max-width:1100px;width:100%;margin:0 auto}
+}
