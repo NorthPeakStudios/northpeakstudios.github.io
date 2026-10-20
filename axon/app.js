@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.6.11 */
+/* Axon · Northpeak Studios · v1.6.12 */
 (function () {
   'use strict';
-  var VERSION = '1.6.11';
+  var VERSION = '1.6.12';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -167,7 +167,7 @@
     o.body = applyHits(o.body, hits); touch(o);
     return hits.length;
   }
-  async function autoLinkAll() {
+  async function autoLinkAll() { if (!proOk('Auto-link')) return;
     ensureAL();
     var plan = [], count = 0;
     notes.forEach(function (o) { var h = mentionsOf(o); if (h.length) { plan.push([o, h]); count += h.length; } });
@@ -2366,7 +2366,7 @@
     var t = await chooseTemplate(); if (!t) return;
     createFromTemplate(t, folder);
   }
-  async function createFromTemplate(t, folder) {
+  async function createFromTemplate(t, folder) { if (!proOk('Templates')) return;
     if (folder === undefined) { var r = route(); folder = r.v === 'folder' && r.path !== '*' && r.path !== TEMPLATES ? r.path : ''; }
     var title = null, asks = /\{\{title\}\}/.test(t.body);
     if (asks) {
