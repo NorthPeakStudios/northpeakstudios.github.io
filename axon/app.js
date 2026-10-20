@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.5.14 */
+/* Axon · Northpeak Studios · v1.6.0 */
 (function () {
   'use strict';
-  var VERSION = '1.5.14';
+  var VERSION = '1.6.0';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -443,6 +443,7 @@
     var o = { id: n.id, title: n.title, folder: n.folder, body: n.body, created: n.created, updated: n.updated, seed: !!n.seed };
     if (n.pinned) o.pinned = true;
     if (n.trashed) o.trashed = n.trashed;
+    sySoon();
     return DB.put('notes', o).catch(saveFailed);
   }
   /* a write that still fails after the storage layer's own reconnect: say so instead of losing it quietly */
@@ -485,7 +486,7 @@
     return { changed: changed };
   }
   /* hard delete: only for empty auto-made daily notes, trash purge and "empty trash" */
-  function deleteNote(n) { notes.delete(n.id); trash.delete(n.id); rebuildIdx(); DB.del('notes', n.id); dropImages(MD.images(n.body)); if (ui.lastNote === n.id) { ui.lastNote = null; saveMeta(); } recallSoon(); }
+  function deleteNote(n) { syTomb(n.id); notes.delete(n.id); trash.delete(n.id); rebuildIdx(); DB.del('notes', n.id); dropImages(MD.images(n.body)); if (ui.lastNote === n.id) { ui.lastNote = null; saveMeta(); } recallSoon(); }
   var TRASH_DAYS = 30;
   function trashNote(n) {
     notes.delete(n.id); n.trashed = Date.now(); n.pinned = false; trash.set(n.id, n); rebuildIdx(); putNote(n);
@@ -503,7 +504,7 @@
     var cut = Date.now() - TRASH_DAYS * 864e5, gone = [];
     trash.forEach(function (n) { if (all || n.trashed < cut) gone.push(n); });
     if (!gone.length) return 0;
-    gone.forEach(function (n) { trash.delete(n.id); });
+    gone.forEach(function (n) { trash.delete(n.id); syTomb(n.id); });
     DB.delMany('notes', gone.map(function (n) { return n.id; }));
     dropImages([].concat.apply([], gone.map(function (n) { return MD.images(n.body); })));
     return gone.length;
@@ -1704,6 +1705,7 @@
       '<div class="preview prose">The <a class="wl" href="#" data-noop="1">Basal ganglia</a> gate movement; dopamine tips the balance toward <strong>go</strong>.</div></div>' +
       '<div class="sec"><span>Accent</span><span style="text-transform:none;letter-spacing:0">' + esc((ACCENTS.filter(function (a) { return a[1] === settings.accent; })[0] || ['Custom'])[0]) + '</span></div><div class="group"><div class="sw">' +
       ACCENTS.map(function (a) { return '<button aria-label="' + a[0] + '" class="' + (settings.accent === a[1] ? 'on' : '') + '" data-act="accent" data-v="' + a[1] + '" style="background:' + a[1] + '"></button>'; }).join('') + '</div></div>' +
+      syHTML() +
       '<div class="sec"><span>Vault</span></div><div class="group">' +
       '<button class="item" data-act="export"><span>Back up vault<small>All ' + notes.size + ' notes as .md files in a .zip, with images, pins and Recall progress \u00b7 last backup ' + (settings.lastExport ? agoLong(settings.lastExport) : 'never') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<button class="item" data-act="allcards"><span>Export flashcards<small>' + (function () { var c = 0, m = 0; notes.forEach(function (n) { var k = MD.cards(n.body).length; c += k; if (k) m++; }); return c ? c + ' card' + (c === 1 ? '' : 's') + ' from ' + m + ' note' + (m === 1 ? '' : 's') + ' · a CSV that Synapse imports' : 'Lines like question :: answer become cards for Synapse'; })() + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
@@ -1730,7 +1732,7 @@
       '<div class="item"><span>Templates<small>Make a folder called \u201cTemplates\u201d. Notes in it appear in New from template. {{date}}, {{time}} and {{title}} fill in for you.</small></span></div></div>' +
       '<div class="sec"><span>About</span></div><div class="group">' +
       '<button class="item" data-act="stats"><span>Vault stats<small>' + (function () { var s = vaultStats(); return s.notes + ' note' + (s.notes === 1 ? '' : 's') + ' \u00b7 ' + s.words.toLocaleString() + ' word' + (s.words === 1 ? '' : 's') + ' \u00b7 ' + s.links + ' link' + (s.links === 1 ? '' : 's'); })() + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
-      '<div class="item"><span>Storage<small>Notes live only on this device and work offline. Each note keeps up to 30 days of earlier versions (note menu \u203a History). Tap Back up vault now and then to keep a copy off this phone.</small></span></div>' +
+      '<div class="item"><span>Storage<small>' + (syOn() ? 'Notes live on this device, work offline, and sync encrypted to your account.' : 'Notes live only on this device and work offline.') + ' Each note keeps up to 30 days of earlier versions (note menu \u203a History). Tap Back up vault now and then to keep a copy off this phone.</small></span></div>' +
       (isStandalone() ? '' : '<div class="item"><span>Install on iPhone<small>In Safari tap Share, then Add to Home Screen.</small></span></div>') +
       '</div><input type="file" id="file" accept=".md,.markdown,.txt,.zip,.jpg,.jpeg,.png,.webp,.gif,text/markdown,text/plain,application/zip" multiple hidden>' +
       '<div class="foot"><b>Axon<i>.</i></b>by Northpeak Studios · v' + VERSION + '<span class="vinfo">' + esc(viewportInfo()) + '</span></div></div>';
@@ -2724,6 +2726,307 @@
     else if (a === 'rename' || a === 'move') { await noteMenu(n, a); if (route().v !== 'note') render(); }
   }
 
+  /* ---------- cloud sync ----------
+     Local-first: IndexedDB stays the source of truth on each device. Every record is encrypted on
+     this device (sync.js) before upload; the server stores ciphertext and a per-record sequence.
+     sy.map[recordId] = { s: server sequence this device last saw, h: hash of that record's plaintext }.
+     A record is "changed here" when its current plaintext hash differs from h. */
+  var sy = { user: null, token: null, key: null, cursor: 0, map: {}, tomb: {}, last: 0, err: '', did: false }, syBusy = false, syT = null, syAgain = false, syApplying = false;
+  function syOn() { return !!(window.AXS && sy.token && sy.key); }
+  function sySave() { DB.put('meta', { k: 'sync', v: { user: sy.user, token: sy.token, cursor: sy.cursor, map: sy.map, tomb: sy.tomb, last: sy.last, did: sy.did } }).catch(function () {}); }
+  function sySoon(ms) { if (!syOn()) return; if (syApplying || syBusy) { syAgain = true; return; } clearTimeout(syT); syT = setTimeout(function () { syncNow(false); }, ms || 3000); }
+  function nRec(id) { return 'n:' + id; }
+  function notePayload(n) { var o = { k: 'n', t: n.title, f: n.folder || '', b: n.body, c: n.created || 0, u: n.updated || 0 }; if (n.pinned) o.p = 1; if (n.trashed) o.tr = n.trashed; return JSON.stringify(o); }
+  function folderPayload() { return JSON.stringify({ k: 'f', l: Array.from(folders).sort() }); }
+  function rcPayload(s) { return JSON.stringify({ k: 'r', s: s }); }
+  function rcMetaPayload() { var l = rcMeta.log || {}, o = {}; Object.keys(l).sort().forEach(function (d) { o[d] = l[d]; }); return JSON.stringify({ k: 'm', day: rcMeta.day || '', nt: rcMeta.newToday || 0, log: o }); }
+  function rcRec(id) { return 'r:' + AXS.hash(String(id)).replace(/\./g, '-'); }
+  function syChanged(rid, pl) { var m = sy.map[rid]; return !m || m.h !== AXS.hash(pl); }
+  /* every record this device would upload, as [recordId, plaintext] (images are loaded lazily) */
+  function syLocal() {
+    var out = [];
+    function addNote(n) {
+      if (n.seed && !sy.map[nRec(n.id)]) return; /* untouched starter notes stay on this device */
+      if (freshNote[n.id] && !n.body.trim()) return; /* a blank note you're still deciding on */
+      out.push([nRec(n.id), notePayload(n)]);
+    }
+    notes.forEach(addNote); trash.forEach(addNote);
+    out.push(['f:all', folderPayload()]);
+    rc.forEach(function (s) { out.push([rcRec(s.id), rcPayload(s)]); });
+    if (rcMeta.log && Object.keys(rcMeta.log).length) out.push(['m:recall', rcMetaPayload()]);
+    return out;
+  }
+  function syImages() {
+    var ids = {};
+    function scan(n) { if (!n.seed || sy.map[nRec(n.id)]) MD.images(n.body).forEach(function (i) { if (/^[\w-]{1,60}$/.test(i)) ids[i] = 1; }); }
+    notes.forEach(scan); trash.forEach(scan);
+    return Object.keys(ids).filter(function (i) { return !sy.map['i:' + i]; });
+  }
+  /* hard deletes of notes the cloud already has are sent as tombstones */
+  function syTomb(id) { if (syOn() && sy.map[nRec(id)] && !syApplying) { sy.tomb[nRec(id)] = 1; sySave(); sySoon(); } }
+  function setTitleSafe(n, t) { var ex = byTitle(t); return ex && ex !== n ? uniqueTitle(t) : t; }
+  async function syApply(rid, s, del, text, stats) {
+    var kind = rid.charAt(0);
+    if (kind === 'n') {
+      var id = rid.slice(2), local = notes.get(id) || trash.get(id);
+      if (del) {
+        var prevD = sy.map[rid];
+        sy.map[rid] = { s: s, h: 'del' };
+        if (!local) return;
+        /* deleted on another device: only drop it here if nothing changed here since the last sync */
+        if (prevD && prevD.h === AXS.hash(notePayload(local)) && !(editing && editing.n === local)) {
+          snapshot(local, local.body, true);
+          notes.delete(id); trash.delete(id); rebuildIdx(); DB.del('notes', id); stats.del++;
+        }
+        return;
+      }
+      var p = JSON.parse(text), h = AXS.hash(text);
+      if (!local) {
+        var n = { id: id, title: p.t, folder: p.f || '', body: p.b || '', created: p.c || Date.now(), updated: p.u || Date.now(), seed: false };
+        if (p.p) n.pinned = true;
+        var ex = !p.tr && byTitle(p.t);
+        if (ex && ex.body === n.body && !sy.map[nRec(ex.id)]) { /* the same note made on both devices before syncing */
+          notes.delete(ex.id); rebuildIdx(); DB.del('notes', ex.id);
+        } else if (ex) n.title = uniqueTitle(p.t);
+        if (p.tr) { n.trashed = p.tr; trash.set(id, n); } else { notes.set(id, n); ensureFolder(n.folder); }
+        rebuildIdx(); putNote(n); stats.add++;
+        sy.map[rid] = { s: s, h: h }; return;
+      }
+      var lh = AXS.hash(notePayload(local)), prev = sy.map[rid], rb = p.b || '';
+      if (lh === h) { sy.map[rid] = { s: s, h: h }; return; }
+      var isEd = !!(editing && editing.n === local), localChanged = isEd || !prev || lh !== prev.h;
+      if (localChanged) {
+        if (local.body !== rb) {
+          /* changed on both devices: keep both, never lose an edit. The newer one keeps the note, the
+             other becomes "title (conflict)". A note open in the editor always stays as it is. */
+          stats.conf++;
+          if (isEd || (p.u || 0) <= (local.updated || 0)) {
+            createNote({ title: uniqueTitle(p.t + ' (conflict)'), folder: p.f || '', body: rb });
+            sy.map[rid] = { s: s, h: h }; return; /* local stays and uploads next, since it differs from h */
+          }
+          createNote({ title: uniqueTitle(local.title + ' (conflict)'), folder: local.folder, body: local.body });
+        } else if (isEd || (local.updated || 0) >= (p.u || 0)) { sy.map[rid] = { s: s, h: h }; return; } /* same text: newest title/folder/pin wins */
+      }
+      if (local.body !== (p.b || '')) snapshot(local, local.body, true);
+      local.title = setTitleSafe(local, p.t); local.folder = p.f || ''; local.body = p.b || ''; local.created = p.c || local.created; local.updated = p.u || local.updated; local.seed = false;
+      if (p.p) local.pinned = true; else delete local.pinned;
+      if (p.tr) { local.trashed = p.tr; notes.delete(id); trash.set(id, local); } else { delete local.trashed; trash.delete(id); notes.set(id, local); ensureFolder(local.folder); }
+      lastSaved[id] = local.body;
+      rebuildIdx(); putNote(local); stats.upd++;
+      sy.map[rid] = { s: s, h: h };
+      return;
+    }
+    if (del) { sy.map[rid] = { s: s, h: 'del' }; return; }
+    var q = JSON.parse(text), qh = AXS.hash(text);
+    if (kind === 'f') { (q.l || []).forEach(function (f) { if (typeof f === 'string' && f) ensureFolder(f); }); sy.map[rid] = { s: s, h: qh }; return; }
+    if (kind === 'i') {
+      var have = null; try { have = await IMG.get(q.id); } catch (e) {}
+      if (!have) { await IMG.put({ id: q.id, data: AXS.unb64(q.d).buffer, type: q.type || 'image/jpeg', w: q.w, h: q.h, created: q.c || Date.now() }); stats.img++; }
+      sy.map[rid] = { s: s, h: 'img' }; return;
+    }
+    if (kind === 'r') {
+      var st = q.s, cur = st && rc.get(st.id);
+      if (st && st.id && (!cur || (st.last || 0) > (cur.last || 0))) { rc.set(st.id, st); RC.put('cards', st).catch(function () {}); stats.rc++; }
+      sy.map[rid] = { s: s, h: qh }; return;
+    }
+    if (kind === 'm') {
+      rcMeta.log = rcMeta.log || {};
+      Object.keys(q.log || {}).forEach(function (d) { rcMeta.log[d] = Math.max(rcMeta.log[d] || 0, +q.log[d] || 0); });
+      if (q.day && q.day === rcMeta.day) rcMeta.newToday = Math.max(rcMeta.newToday || 0, q.nt || 0);
+      saveRcMeta(); sy.map[rid] = { s: s, h: qh }; return;
+    }
+    sy.map[rid] = { s: s, h: qh };
+  }
+  async function syPull(stats) {
+    for (var guard = 0; guard < 400; guard++) {
+      var r = await AXS.api('/api/pull?since=' + sy.cursor, { token: sy.token });
+      syApplying = true;
+      try {
+        for (var i = 0; i < r.recs.length; i++) {
+          var x = r.recs[i], m = sy.map[x.i];
+          if (m && m.s >= x.s) continue; /* our own upload coming back */
+          var text = null;
+          if (!x.x) { try { text = await AXS.open(sy.key, x.i, x.d); } catch (e) { stats.bad++; continue; } }
+          try { await syApply(x.i, x.s, !!x.x, text, stats); } catch (e) { stats.bad++; }
+        }
+      } finally { syApplying = false; }
+      sy.cursor = Math.max(sy.cursor, r.last || 0);
+      if (!r.more) break;
+    }
+  }
+  async function syPush(stats) {
+    var batch = [], bytes = 0, res = { conflicts: 0, busy: false };
+    async function flush() {
+      if (!batch.length) return;
+      var send = batch; batch = []; bytes = 0;
+      var r;
+      try { r = await AXS.api('/api/push', { token: sy.token, body: { recs: send.map(function (b) { return b.rec; }) } }); }
+      catch (e) { if (e.status === 409) { res.busy = true; return; } throw e; }
+      var byId = {}; send.forEach(function (b) { byId[b.rec.i] = b; });
+      r.res.forEach(function (x) {
+        var b = byId[x.i]; if (!b) return;
+        if (x.conflict) { res.conflicts++; if (b.rec.x) delete sy.tomb[x.i]; return; }
+        sy.map[x.i] = { s: x.s, h: b.h }; stats.up++;
+        if (b.rec.x) delete sy.tomb[x.i];
+      });
+    }
+    async function add(rid, pl, h) {
+      var d = await AXS.seal(sy.key, rid, pl);
+      batch.push({ rec: { i: rid, b: (sy.map[rid] && sy.map[rid].s) || 0, d: d }, h: h });
+      bytes += d.length;
+      if (batch.length >= 150 || bytes > 3000000) await flush();
+    }
+    var loc = syLocal();
+    for (var i = 0; i < loc.length && !res.busy; i++) {
+      var rid = loc[i][0], pl = loc[i][1], h = AXS.hash(pl);
+      var m = sy.map[rid]; if (m && m.h === h) continue;
+      if (rid === 'f:all' && !m && Array.from(folders).length === 0) continue;
+      await add(rid, pl, h);
+    }
+    var imgs = syImages();
+    for (var k = 0; k < imgs.length && !res.busy; k++) {
+      var im = null; try { im = await IMG.get(imgs[k]); } catch (e) {}
+      if (!im || !im.data) continue;
+      if (im.data.byteLength > 1300000) continue; /* too big to sync; stays on this device */
+      await add('i:' + im.id, JSON.stringify({ k: 'i', id: im.id, type: im.type, w: im.w, h: im.h, c: im.created, d: AXS.b64(im.data) }), 'img');
+    }
+    Object.keys(sy.tomb).forEach(function (rid) { if (sy.map[rid]) batch.push({ rec: { i: rid, b: sy.map[rid].s, d: '', x: 1 }, h: 'del' }); else delete sy.tomb[rid]; });
+    if (!res.busy) await flush();
+    return res;
+  }
+  async function syncNow(manual) {
+    if (!syOn()) return;
+    if (syBusy) { syAgain = true; return; }
+    if (!manual && navigator.onLine === false) return;
+    syBusy = true; syAgain = false; syUI();
+    var stats = { add: 0, upd: 0, del: 0, conf: 0, img: 0, rc: 0, up: 0, bad: 0 };
+    try {
+      if (!sy.did) {
+        /* one full local copy before this device's first sync, kept in this browser */
+        var keep = []; notes.forEach(function (n) { keep.push(Object.assign({}, n)); }); trash.forEach(function (n) { keep.push(Object.assign({}, n)); });
+        try { await DB.put('meta', { k: 'sync-backup', v: { ts: Date.now(), notes: keep, folders: Array.from(folders) } }); } catch (e) {}
+      }
+      for (var round = 0; round < 4; round++) {
+        await syPull(stats);
+        var r = await syPush(stats);
+        if (!r.conflicts && !r.busy) break;
+        if (r.busy) await new Promise(function (ok) { setTimeout(ok, 300 + Math.random() * 900); });
+      }
+      sy.did = true; sy.last = Date.now(); sy.err = '';
+      var changed = stats.add + stats.upd + stats.del + stats.img;
+      if (changed || stats.rc) {
+        if (!editing && !openOverlays.length) render();
+        hydrateImgs();
+        recallSoon();
+      }
+      if (stats.conf) toast(stats.conf === 1 ? 'A note changed on two devices. Both versions are kept (look for \u201c(conflict)\u201d)' : stats.conf + ' notes changed on two devices. Both versions are kept (look for \u201c(conflict)\u201d)');
+      else if (manual) toast(changed ? 'Synced \u00b7 ' + changed + ' change' + (changed === 1 ? '' : 's') + ' from the cloud' : 'Synced \u00b7 everything is up to date');
+      if (stats.bad) sy.err = stats.bad + ' item' + (stats.bad === 1 ? '' : 's') + ' couldn\u2019t be read';
+    } catch (e) {
+      if (e.status === 401) { syForget(); toast('Signed out of cloud sync. Log in again in Settings'); }
+      else sy.err = e.offline ? 'Offline \u00b7 will sync when you\u2019re back online' : 'Sync failed (' + (e.message || 'error') + ')';
+      if (manual && sy.err) toast(sy.err);
+    } finally {
+      syBusy = false; sySave(); syUI();
+      if (syAgain) sySoon(1500);
+    }
+  }
+  function syForget() {
+    sy.token = null; sy.key = null; sy.user = null; sy.cursor = 0; sy.map = {}; sy.tomb = {}; sy.last = 0; sy.err = ''; sy.did = false;
+    sySave(); DB.del('meta', 'sync-key').catch(function () {});
+  }
+  async function syStoreKey(raw) {
+    var key = await AXS.keyFrom(raw);
+    /* a non-extractable key object; older Safari can't store those, so fall back to the raw bytes */
+    try { await DB.put('meta', { k: 'sync-key', v: key }); } catch (e) { await DB.put('meta', { k: 'sync-key', v: { raw: AXS.b64(raw) } }); }
+    return key;
+  }
+  async function syLoad(m) {
+    if (!window.AXS || !m.sync || !m.sync.token) return;
+    Object.assign(sy, m.sync); sy.map = sy.map || {}; sy.tomb = sy.tomb || {};
+    var k = m['sync-key'];
+    try { sy.key = k && k.raw ? await AXS.keyFrom(AXS.unb64(k.raw)) : (k || null); } catch (e) { sy.key = null; }
+    if (!sy.key) { sy.token = null; return; }
+  }
+  function syAgo() { return sy.last ? agoLong(sy.last) : 'not yet'; }
+  function syHTML() {
+    if (!window.AXS) return '';
+    var h = '<div class="sec"><span>Cloud sync</span>' + (syOn() ? '<span style="text-transform:none;letter-spacing:0" id="systate">' + (syBusy ? 'Syncing\u2026' : 'On') + '</span>' : '') + '</div><div class="group">';
+    if (!syOn()) {
+      h += '<div class="item"><span>Keep your notes on all your devices<small>Notes, folders, images and Recall progress are encrypted on this device with your password before they\u2019re uploaded, so only you can read them. Axon still works fully offline.</small></span></div>' +
+        '<button class="item" data-act="sysignup"><span>Create a sync account</span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
+        '<button class="item" data-act="sylogin"><span>Log in<small>Already synced on another device</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>';
+    } else {
+      h += '<button class="item" data-act="synow"><span>Sync now<small id="sysub">Signed in as ' + esc(sy.user) + ' \u00b7 last synced ' + syAgo() + (sy.err ? ' \u00b7 ' + esc(sy.err) : '') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
+        '<div class="item"><span>End-to-end encrypted<small>Your password is the only key. If you forget it, the cloud copy can\u2019t be recovered, but the notes on this device stay.</small></span></div>' +
+        '<button class="item" data-act="sylogout"><span>Log out<small>Stops syncing on this device. Your notes stay here.</small></span></button>' +
+        '<button class="item danger" data-act="sydelete"><span>Delete cloud copy</span></button>';
+    }
+    return h + '</div>';
+  }
+  function syUI() {
+    var s = $('#systate'), b = $('#sysub');
+    if (s) s.textContent = syBusy ? 'Syncing\u2026' : 'On';
+    if (b) b.textContent = 'Signed in as ' + sy.user + ' \u00b7 ' + (syBusy ? 'syncing\u2026' : 'last synced ' + syAgo()) + (sy.err && !syBusy ? ' \u00b7 ' + sy.err : '');
+  }
+  /* sign up / log in form */
+  function syForm(mode, msg, prevU) {
+    var vals = { u: '', p: '', p2: '' };
+    return overlay(function (done) {
+      var el = document.createElement('div'); el.className = 'dialog syform'; el.setAttribute('role', 'dialog');
+      el.innerHTML = '<h4>' + (mode === 'signup' ? 'Create a sync account' : 'Log in to sync') + '</h4>' +
+        '<p>' + (mode === 'signup' ? 'Pick a username and a password you\u2019ll remember. The password encrypts your notes, so <b>if you forget it, the cloud copy can\u2019t be recovered</b> (the notes on this device stay). No email needed.' : 'Use the username and password from your other device.') + '</p>' +
+        '<input type="text" name="u" placeholder="Username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next">' +
+        '<input type="password" name="p" placeholder="Password' + (mode === 'signup' ? ' (8+ characters)' : '') + '" autocomplete="' + (mode === 'signup' ? 'new-password' : 'current-password') + '" enterkeyhint="' + (mode === 'signup' ? 'next' : 'go') + '" style="margin-top:8px">' +
+        (mode === 'signup' ? '<input type="password" name="p2" placeholder="Password again" autocomplete="new-password" enterkeyhint="go" style="margin-top:8px">' : '') +
+        '<div class="err">' + esc(msg || '') + '</div>' +
+        '<div class="db"><button data-v="0">Cancel</button><button class="acc" data-v="1">' + (mode === 'signup' ? 'Create' : 'Log in') + '</button></div>';
+      var err = $('.err', el), ins = el.querySelectorAll('input');
+      function check() {
+        vals.u = AXS.normUser(ins[0].value); vals.p = ins[1].value; vals.p2 = ins[2] ? ins[2].value : vals.p;
+        if (!/^[a-z0-9][a-z0-9_.-]{2,31}$/.test(vals.u)) return 'Usernames are 3\u201332 letters, numbers, dots, dashes or underscores.';
+        if (mode === 'signup' && vals.p.length < 8) return 'Use at least 8 characters for the password.';
+        if (!vals.p) return 'Type your password.';
+        if (vals.p !== vals.p2) return 'The two passwords don\u2019t match.';
+        return null;
+      }
+      el.addEventListener('click', function (e) {
+        var b = e.target.closest('button[data-v]'); if (!b) return;
+        if (b.dataset.v === '0') return done(null);
+        var m = check(); if (m) { err.textContent = m; return; }
+        done(vals);
+      });
+      Array.prototype.forEach.call(ins, function (inp, i) {
+        inp.addEventListener('keydown', function (e) { if (e.key !== 'Enter') return; e.preventDefault(); if (ins[i + 1]) ins[i + 1].focus(); else $('button.acc', el).click(); });
+      });
+      if (prevU) ins[0].value = prevU;
+      setTimeout(function () { (prevU ? ins[1] : ins[0]).focus(); }, 60);
+      return el;
+    });
+  }
+  async function syAuth(mode) {
+    var msg = '', lastU = '';
+    for (;;) {
+      var v = await syForm(mode, msg, lastU); if (!v) return;
+      lastU = v.u;
+      var busy = toast(mode === 'signup' ? 'Creating your account and encryption key\u2026' : 'Unlocking\u2026', null, 20000);
+      try {
+        var d = await AXS.derive(v.u, v.p);
+        var r = await AXS.api(mode === 'signup' ? '/api/signup' : '/api/login', { body: { u: v.u, auth: d.auth, label: /iPhone|iPad/.test(navigator.userAgent) ? 'iPhone' : 'browser' } });
+        syForget();
+        sy.user = r.user; sy.token = r.token; sy.key = await syStoreKey(d.raw); d.raw.fill(0);
+        sySave();
+        toast(mode === 'signup' ? 'Cloud sync is on. Log in with the same username on your other devices.' : 'Logged in. Syncing your notes\u2026');
+        if (route().v === 'settings') renderSettings();
+        await syncNow(true);
+        if (route().v === 'settings') renderSettings();
+        return;
+      } catch (e) {
+        msg = e.offline ? 'You\u2019re offline. Connect to the internet and try again.' : e.message === 'taken' ? 'That username is taken. Try another.' : e.message === 'wrong' ? 'Wrong username or password.' : e.message === 'locked' ? 'Too many tries. Wait ' + ((e.body && e.body.wait) || 30) + ' seconds.' : e.message === 'slow_down' ? 'Too many new accounts from here. Try again later.' : 'Something went wrong (' + e.message + '). Try again.';
+      }
+    }
+  }
+
   var act = {
     folder: function (el) { go('#/f/' + encodeURIComponent(el.dataset.path)); },
     toggle: function (el) { var p = el.dataset.path; ui.open[p] = !ui.open[p]; saveMeta(); var st = viewEl.scrollTop; renderVault(); viewEl.scrollTop = st; },
@@ -2806,6 +3109,21 @@
     },
     gorecall: function () { go('#/recall'); },
     gotrash: function () { go('#/trash'); },
+    sysignup: function () { syAuth('signup'); },
+    sylogin: function () { syAuth('login'); },
+    synow: function () { syncNow(true); },
+    sylogout: async function () {
+      var ok = await dialog({ title: 'Log out of cloud sync?', message: 'This device stops syncing. All your notes stay here, and the cloud copy stays in your account.', ok: 'Log out' });
+      if (!ok) return;
+      var t = sy.token; syForget(); renderSettings(); toast('Logged out of cloud sync');
+      if (t) AXS.api('/api/logout', { token: t, method: 'POST' }).catch(function () {});
+    },
+    sydelete: async function () {
+      var ok = await dialog({ title: 'Delete the cloud copy?', message: 'Removes your sync account and every encrypted note stored in the cloud, for all devices. The notes on this device are not touched.', ok: 'Delete cloud copy', danger: true });
+      if (!ok) return;
+      try { await AXS.api('/api/delete-account', { token: sy.token, method: 'POST' }); syForget(); renderSettings(); toast('Cloud copy deleted. Your notes on this device are still here.'); }
+      catch (e) { toast(e.offline ? 'You\u2019re offline. Try again when connected.' : 'Couldn\u2019t delete it (' + e.message + ')'); }
+    },
     fromtmpl: function () { newFromTemplate(''); },
     usetmpl: function (el) {
       var t = allTemplates()[+el.dataset.i], ed = $('#ed'); if (!t || !ed || !editing) return;
@@ -2864,8 +3182,9 @@
     bksnooze: function () { settings.backupSnooze = Date.now(); saveSettings(); render(); toast('I\u2019ll remind you in a week'); },
     import: function () { $('#file').click(); },
     wipe: async function () {
-      var ok = await dialog({ title: 'Delete all ' + notes.size + ' notes?', message: 'Every note, folder and the Trash on this device will be erased for good. Export first if you want a copy.', ok: 'Delete all', danger: true });
+      var ok = await dialog({ title: 'Delete all ' + notes.size + ' notes?', message: 'Every note, folder and the Trash on this device will be erased for good. Export first if you want a copy.' + (syOn() ? ' This device also logs out of cloud sync; the cloud copy is kept.' : ''), ok: 'Delete all', danger: true });
       if (!ok) return;
+      if (syOn()) syForget();
       notes.clear(); folders.clear(); trash.clear(); rebuildIdx(); ui.lastNote = null; ui.open = {};
       await DB.clear('notes'); await DB.clear('folders'); saveMeta();
       rc.clear(); try { await RC.clear('cards'); } catch (e) {}
@@ -3088,6 +3407,7 @@
       if (m.settings) settings = Object.assign(settings, m.settings);
       if (m.ui) ui = Object.assign(ui, m.ui);
       if (m['autolink-backup'] && m['autolink-backup'].notes) alBackup = m['autolink-backup'];
+      try { await syLoad(m); } catch (e) {}
       rebuildIdx();
       if (m.seeded && !m.starterRemoved) { removeOldStarter(); }
       if (!m.starterRemoved) DB.put('meta', { k: 'starterRemoved', v: Date.now() });
@@ -3104,6 +3424,10 @@
     } catch (e) {}
     applySettings();
     render();
+    if (syOn()) setTimeout(function () { syncNow(false); }, 1500);
+    window.addEventListener('online', function () { sySoon(800); });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden && syOn() && Date.now() - sy.last > 20000) sySoon(600); });
+    setInterval(function () { if (!document.hidden && syOn()) syncNow(false); }, 120000);
     if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       /* a home-screen app is usually resumed, not reopened, so a new version would wait for a swipe-close.
          Check for one each time Axon comes back; once it has landed, reload on the next return (never mid-edit). */
