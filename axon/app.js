@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.6.1 */
+/* Axon · Northpeak Studios · v1.6.2 */
 (function () {
   'use strict';
-  var VERSION = '1.6.1';
+  var VERSION = '1.6.2';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -2734,7 +2734,7 @@
      A record is "changed here" when its current plaintext hash differs from h. */
   var sy = { user: null, token: null, key: null, cursor: 0, map: {}, tomb: {}, fg: {}, last: 0, err: '', did: false }, syBusy = false, syT = null, syAgain = false, syApplying = false;
   function syOn() { return !!(window.AXS && sy.token && sy.key); }
-  function sySave() { DB.put('meta', { k: 'sync', v: { user: sy.user, token: sy.token, cursor: sy.cursor, map: sy.map, tomb: sy.tomb, fg: sy.fg, last: sy.last, did: sy.did } }).catch(function () {}); }
+  function sySave() { DB.put('meta', { k: 'sync', v: { user: sy.user, token: sy.token, cursor: sy.cursor, map: sy.map, tomb: sy.tomb, fg: sy.fg, last: sy.last, did: sy.did, base: sy.base || null } }).catch(function () {}); }
   function sySoon(ms) { if (!syOn()) return; if (syApplying || syBusy) { syAgain = true; return; } clearTimeout(syT); syT = setTimeout(function () { syncNow(false); }, ms || 3000); }
   function nRec(id) { return 'n:' + id; }
   function notePayload(n) { var o = { k: 'n', t: n.title, f: n.folder || '', b: n.body, c: n.created || 0, u: n.updated || 0 }; if (n.pinned) o.p = 1; if (n.trashed) o.tr = n.trashed; return JSON.stringify(o); }
@@ -2800,6 +2800,7 @@
       }
       var lh = AXS.hash(notePayload(local)), prev = sy.map[rid], rb = p.b || '';
       if (lh === h) { sy.map[rid] = { s: s, h: h }; return; }
+      if (prev && prev.h === h) { sy.map[rid] = { s: s, h: h }; return; } /* the cloud still has the version this device last synced: only this device changed it */
       var isEd = !!(editing && editing.n === local), localChanged = isEd || !prev || lh !== prev.h;
       if (localChanged) {
         if (local.body !== rb) {
@@ -2936,7 +2937,7 @@
       else if (manual) toast(changed ? 'Synced \u00b7 ' + changed + ' change' + (changed === 1 ? '' : 's') + ' from the cloud' : 'Synced \u00b7 everything is up to date');
       if (stats.bad) sy.err = stats.bad + ' item' + (stats.bad === 1 ? '' : 's') + ' couldn\u2019t be read';
     } catch (e) {
-      if (e.status === 401) { syForget(); toast('Signed out of cloud sync. Log in again in Settings'); }
+      if (e.status === 401) { syForget(true); toast('Signed out of cloud sync (the password was changed or the account removed). Log in again in Settings'); if (route().v === 'settings' && !openOverlays.length) renderSettings(); }
       else sy.err = e.offline ? 'Offline \u00b7 will sync when you\u2019re back online' : 'Sync failed (' + (e.message || 'error') + ')';
       if (manual && sy.err) toast(sy.err);
     } finally {
@@ -2944,7 +2945,13 @@
       if (syAgain) sySoon(1500);
     }
   }
-  function syForget() {
+  /* keepBase: remember which version of each note was last in sync, so logging back in as the same
+     user (e.g. after a password change on another device) doesn't flag every note as a conflict */
+  function syForget(keepBase) {
+    var base = null;
+    if (keepBase && sy.user) { base = { u: sy.user, h: {} }; Object.keys(sy.map).forEach(function (k) { if (sy.map[k].h) base.h[k] = sy.map[k].h; }); }
+    else if (keepBase && sy.base) base = sy.base;
+    sy.base = base;
     sy.token = null; sy.key = null; sy.user = null; sy.cursor = 0; sy.map = {}; sy.tomb = {}; sy.fg = {}; sy.last = 0; sy.err = ''; sy.did = false;
     sySave(); DB.del('meta', 'sync-key').catch(function () {});
   }
@@ -2972,6 +2979,7 @@
     } else {
       h += '<button class="item" data-act="synow"><span>Sync now<small id="sysub">Signed in as ' + esc(sy.user) + ' \u00b7 last synced ' + syAgo() + (sy.err ? ' \u00b7 ' + esc(sy.err) : '') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
         '<div class="item"><span>End-to-end encrypted<small>Your password is the only key. If you forget it, the cloud copy can\u2019t be recovered, but the notes on this device stay.</small></span></div>' +
+        '<button class="item" data-act="sypass"><span>Change password</span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
         '<button class="item" data-act="sylogout"><span>Log out<small>Stops syncing on this device. Your notes stay here.</small></span></button>' +
         '<button class="item danger" data-act="sydelete"><span>Delete cloud copy</span></button>';
     }
@@ -2987,6 +2995,14 @@
     var vals = { u: '', p: '', p2: '' };
     return overlay(function (done) {
       var el = document.createElement('div'); el.className = 'dialog syform'; el.setAttribute('role', 'dialog');
+      if (mode === 'change') {
+        el.innerHTML = '<h4>Change sync password</h4><p>Your notes get re-encrypted with the new password. Other devices are logged out and need the new password. <b>If you forget it, the cloud copy can\u2019t be recovered.</b></p>' +
+          '<input type="text" name="u" autocomplete="username" value="' + esc(sy.user || '') + '" style="display:none">' +
+          '<input type="password" name="p" placeholder="Current password" autocomplete="current-password" enterkeyhint="next">' +
+          '<input type="password" name="n1" placeholder="New password (8+ characters)" autocomplete="new-password" enterkeyhint="next" style="margin-top:8px">' +
+          '<input type="password" name="n2" placeholder="New password again" autocomplete="new-password" enterkeyhint="go" style="margin-top:8px">' +
+          '<div class="err">' + esc(msg || '') + '</div><div class="db"><button data-v="0">Cancel</button><button class="acc" data-v="1">Change</button></div>';
+      } else
       el.innerHTML = '<h4>' + (mode === 'signup' ? 'Create a sync account' : 'Log in to sync') + '</h4>' +
         '<p>' + (mode === 'signup' ? 'Pick a username and a password you\u2019ll remember. The password encrypts your notes, so <b>if you forget it, the cloud copy can\u2019t be recovered</b> (the notes on this device stay). No email needed.' : 'Use the username and password from your other device.') + '</p>' +
         '<input type="text" name="u" placeholder="Username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next">' +
@@ -2994,8 +3010,16 @@
         (mode === 'signup' ? '<input type="password" name="p2" placeholder="Password again" autocomplete="new-password" enterkeyhint="go" style="margin-top:8px">' : '') +
         '<div class="err">' + esc(msg || '') + '</div>' +
         '<div class="db"><button data-v="0">Cancel</button><button class="acc" data-v="1">' + (mode === 'signup' ? 'Create' : 'Log in') + '</button></div>';
-      var err = $('.err', el), ins = el.querySelectorAll('input');
+      var err = $('.err', el), ins = el.querySelectorAll(mode === 'change' ? 'input[type=password]' : 'input');
       function check() {
+        if (mode === 'change') {
+          vals.u = sy.user; vals.p = ins[0].value; vals.n = ins[1].value;
+          if (!vals.p) return 'Type your current password.';
+          if (vals.n.length < 8) return 'Use at least 8 characters for the new password.';
+          if (vals.n !== ins[2].value) return 'The two new passwords don\u2019t match.';
+          if (vals.n === vals.p) return 'That\u2019s the same as the current password.';
+          return null;
+        }
         vals.u = AXS.normUser(ins[0].value); vals.p = ins[1].value; vals.p2 = ins[2] ? ins[2].value : vals.p;
         if (!/^[a-z0-9][a-z0-9_.-]{2,31}$/.test(vals.u)) return 'Usernames are 3\u201332 letters, numbers, dots, dashes or underscores.';
         if (mode === 'signup' && vals.p.length < 8) return 'Use at least 8 characters for the password.';
@@ -3012,10 +3036,51 @@
       Array.prototype.forEach.call(ins, function (inp, i) {
         inp.addEventListener('keydown', function (e) { if (e.key !== 'Enter') return; e.preventDefault(); if (ins[i + 1]) ins[i + 1].focus(); else $('button.acc', el).click(); });
       });
-      if (prevU) ins[0].value = prevU;
-      setTimeout(function () { (prevU ? ins[1] : ins[0]).focus(); }, 60);
+      if (prevU && mode !== 'change') ins[0].value = prevU;
+      setTimeout(function () { (prevU && mode !== 'change' ? ins[1] : ins[0]).focus(); }, 60);
       return el;
     });
+  }
+
+  async function syChangePass() {
+    var msg = '';
+    for (;;) {
+      var v = await syForm('change', msg); if (!v) return;
+      try {
+        await syncNow(false);
+        if (sy.err) throw new Error(sy.err);
+        toast('Checking your password\u2026');
+        var od = await AXS.derive(sy.user, v.p);
+        try { await AXS.api('/api/login', { body: { u: sy.user, auth: od.auth, label: 'password check' } }); }
+        catch (e) { if (e.message === 'wrong') { msg = 'The current password is wrong.'; continue; } throw e; }
+        var nd = await AXS.derive(sy.user, v.n), nkey = await AXS.keyFrom(nd.raw);
+        for (var attempt = 0; attempt < 2; attempt++) {
+          toast('Re-encrypting your notes\u2026');
+          var b = await AXS.api('/api/rekey/begin', { token: sy.token, method: 'POST' }), since = 0, batch = [], bytes = 0;
+          var flush = async function () { if (!batch.length) return; var send = batch; batch = []; bytes = 0; await AXS.api('/api/rekey/put', { token: sy.token, body: { recs: send } }); };
+          for (var guard = 0; guard < 400; guard++) {
+            var r = await AXS.api('/api/pull?since=' + since, { token: sy.token });
+            for (var i = 0; i < r.recs.length; i++) {
+              var x = r.recs[i]; if (x.x) continue;
+              var d = await AXS.seal(nkey, x.i, await AXS.open(sy.key, x.i, x.d));
+              batch.push({ i: x.i, d: d }); bytes += d.length;
+              if (batch.length >= 150 || bytes > 3000000) await flush();
+            }
+            since = r.last; if (!r.more) break;
+          }
+          await flush();
+          try { await AXS.api('/api/rekey/commit', { token: sy.token, body: { old: od.auth, auth: nd.auth, seq: b.seq } }); }
+          catch (e) { if (e.message === 'changed' && !attempt) { await syncNow(false); continue; } throw e; }
+          sy.key = await syStoreKey(nd.raw); nd.raw.fill(0); od.raw.fill(0); sySave();
+          toast('Password changed. On your other devices, log in again with the new password.');
+          if (route().v === 'settings') renderSettings();
+          return;
+        }
+        throw new Error('another device kept syncing');
+      } catch (e) {
+        msg = e.offline ? 'You\u2019re offline. Connect and try again.' : 'Couldn\u2019t change it (' + (e.message || 'error') + '). Your old password still works.';
+      }
+    }
   }
   async function syAuth(mode) {
     var msg = '', lastU = '';
@@ -3026,8 +3091,10 @@
       try {
         var d = await AXS.derive(v.u, v.p);
         var r = await AXS.api(mode === 'signup' ? '/api/signup' : '/api/login', { body: { u: v.u, auth: d.auth, label: /iPhone|iPad/.test(navigator.userAgent) ? 'iPhone' : 'browser' } });
-        syForget();
+        syForget(true);
+        var base = sy.base; sy.base = null;
         sy.user = r.user; sy.token = r.token; sy.key = await syStoreKey(d.raw); d.raw.fill(0);
+        if (base && base.u === r.user) Object.keys(base.h).forEach(function (k) { sy.map[k] = { s: 0, h: base.h[k] }; });
         sySave();
         toast(mode === 'signup' ? 'Cloud sync is on. Log in with the same username on your other devices.' : 'Logged in. Syncing your notes\u2026');
         if (route().v === 'settings') renderSettings();
@@ -3125,10 +3192,11 @@
     sysignup: function () { syAuth('signup'); },
     sylogin: function () { syAuth('login'); },
     synow: function () { syncNow(true); },
+    sypass: function () { syChangePass(); },
     sylogout: async function () {
       var ok = await dialog({ title: 'Log out of cloud sync?', message: 'This device stops syncing. All your notes stay here, and the cloud copy stays in your account.', ok: 'Log out' });
       if (!ok) return;
-      var t = sy.token; syForget(); renderSettings(); toast('Logged out of cloud sync');
+      var t = sy.token; syForget(true); renderSettings(); toast('Logged out of cloud sync');
       if (t) AXS.api('/api/logout', { token: t, method: 'POST' }).catch(function () {});
     },
     sydelete: async function () {
