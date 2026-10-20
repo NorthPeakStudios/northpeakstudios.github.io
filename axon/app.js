@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.5.12 */
+/* Axon · Northpeak Studios · v1.5.13 */
 (function () {
   'use strict';
-  var VERSION = '1.5.12';
+  var VERSION = '1.5.13';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -1058,7 +1058,8 @@
     if (!window.HIST) return;
     var prev = typeof prevBody === 'string' ? prevBody : null;
     if (prev === null || !prev.trim()) return;
-    if (prev === n.body) return;
+    /* forced callers (restore a version, auto-link) save the text that is about to be replaced, which is still n.body */
+    if (!force && prev === n.body) return;
     var now = Date.now();
     /* a big cut (select-all + delete, a pasted-over paragraph) always keeps the text it removed, even inside the 3 minute window */
     var cut = prev.length - n.body.length > 80 && n.body.length < prev.length * 0.8;
