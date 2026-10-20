@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.6.7 */
+/* Axon · Northpeak Studios · v1.6.8 */
 (function () {
   'use strict';
-  var VERSION = '1.6.7';
+  var VERSION = '1.6.8';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -1148,8 +1148,26 @@
     var v = vs.filter(function (x) { return x.k === pick; })[0]; if (!v) return;
     var act = await overlay(function (done) {
       var el = document.createElement('div'); el.className = 'dialog hv'; el.setAttribute('role', 'dialog');
-      el.innerHTML = '<h4>' + esc(agoLong(v.ts)) + '</h4><p>' + v.words + ' word' + (v.words === 1 ? '' : 's') + ' \u00b7 ' + new Date(v.ts).toLocaleString() + '</p><div class="prose hvp">' + MD.render(v.body, mdOpt()) + '</div><div class="db"><button class="acc" data-v="new">Restore as new note</button></div><div class="db"><button data-v="0">Close</button><button data-v="copy">Copy</button><button data-v="1">Replace\u2026</button></div><p class="hvn">\u201cRestore as new note\u201d keeps the current note as it is. You can merge the two after.</p>';
-      el.addEventListener('click', function (e) { var b = e.target.closest('button[data-v]'); if (b) done(b.dataset.v); var a = e.target.closest('a'); if (a) e.preventDefault(); });
+      var mode = 'text';
+      function body() {
+        if (mode === 'text') return '<div class="prose hvp">' + MD.render(v.body, mdOpt()) + '</div>';
+        if (v.body === n.body) return '<div class="hvp hvd"><p class="hvsame">Same text as the note now.</p></div>';
+        /* what restoring this version would change: + comes back, \u2212 goes away */
+        var h = '';
+        lineDiff(n.body, v.body).forEach(function (c) {
+          if (c.eq) { h += c.eq.length > 2 ? '<div class="hve">\u22ef ' + c.eq.length + ' unchanged lines</div>' : c.eq.map(function (x) { return '<div class="hve">' + (esc(x) || '&nbsp;') + '</div>'; }).join(''); return; }
+          c.a.forEach(function (x) { h += '<div class="hvm">' + (esc(x) || '&nbsp;') + '</div>'; });
+          c.b.forEach(function (x) { h += '<div class="hvpl">' + (esc(x) || '&nbsp;') + '</div>'; });
+        });
+        return '<div class="hvlg">If you restore it: <b class="g">+</b> comes back, <b class="r">\u2212</b> goes away</div><div class="hvp hvd">' + h + '</div>';
+      }
+      function paint() {
+        el.innerHTML = '<h4>' + esc(whenLabel(v.ts)) + '</h4><p>' + v.words + ' word' + (v.words === 1 ? '' : 's') + (words(n.body) !== v.words ? ' \u00b7 the note has ' + words(n.body) + ' now' : '') + (v.title !== n.title ? ' \u00b7 was called \u201c' + esc(v.title) + '\u201d' : '') + '</p>' +
+          '<div class="hvt"><button data-t="text"' + (mode === 'text' ? ' class="on"' : '') + '>This version</button><button data-t="diff"' + (mode === 'diff' ? ' class="on"' : '') + '>Changes vs now</button></div>' + body() +
+          '<div class="db"><button class="acc" data-v="new">Restore as new note</button></div><div class="db"><button data-v="0">Close</button><button data-v="copy">Copy</button><button data-v="1">Replace\u2026</button></div><p class="hvn">\u201cRestore as new note\u201d keeps the current note as it is. You can merge the two after.</p>';
+      }
+      paint();
+      el.addEventListener('click', function (e) { var t = e.target.closest('button[data-t]'); if (t) { mode = t.dataset.t; paint(); return; } var b = e.target.closest('button[data-v]'); if (b) done(b.dataset.v); var a = e.target.closest('a'); if (a) e.preventDefault(); });
       return el;
     });
     if (act === 'copy') { copyText(v.body, 'Copied that version'); return; }
@@ -2490,7 +2508,7 @@
       var s = recallStats(), seen = st.stats.again + st.stats.good + st.stats.easy;
       viewEl.innerHTML = '<div class="rv"><div class="rvtop"><button class="ib" data-act="rvclose" aria-label="Close">' + I.x + '</button><span></span><span></span></div>' +
         '<div class="rvdone"><div class="rart ok">' + I.check + '</div><b>' + (seen ? 'Session done' : 'Nothing due right now') + '</b><p>' +
-        (seen ? seen + ' card' + (seen === 1 ? '' : 's') + ' reviewed \u00b7 ' + Math.round((st.stats.good + st.stats.easy) / seen * 100) + '% remembered' + (streak() ? ' \u00b7 ' + streak() + '-day streak' : '') : 'You\u2019re all caught up.') +
+        (seen ? seen + ' card' + (seen === 1 ? '' : 's') + ' reviewed \u00b7 ' + Math.round((st.stats.good + st.stats.easy) / seen * 100) + '% remembered' + (streak() ? ' \u00b7 ' + streak() + '\u2011day streak' : '') : 'You\u2019re all caught up.') +
         '</p><p class="dim">' + (s.tomorrow ? s.tomorrow + ' card' + (s.tomorrow === 1 ? '' : 's') + ' coming back tomorrow.' : 'Add more cards to your notes anytime.') + '</p>' +
         '<button class="bignew" data-act="rvclose">Back to Recall</button>' + (st.mode !== 'practice' && st.deck && st.deck !== 'all' ? '<button class="pill" style="margin-top:14px" data-act="practice" data-deck="' + esc(st.deck) + '">Practice all cards in this note</button>' : '') + '</div></div>';
       st.done = true;
