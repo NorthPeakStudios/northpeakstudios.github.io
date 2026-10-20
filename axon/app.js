@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.6.4 */
+/* Axon · Northpeak Studios · v1.6.5 */
 (function () {
   'use strict';
-  var VERSION = '1.6.4';
+  var VERSION = '1.6.5';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -1082,13 +1082,27 @@
       if (gone.length) HIST.del(gone);
     }).catch(function () {});
   }
+  /* "3h ago" for today's versions, the day and time for older ones */
+  function whenLabel(ts) {
+    var d = new Date(ts);
+    if (Date.now() - ts < 20 * 36e5) return agoLong(ts);
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ', ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  }
   async function showHistory(n) {
     var vs = [];
     try { vs = await HIST.list(n.id); } catch (e) {}
     vs.sort(function (a, b) { return b.ts - a.ts; });
     if (!vs.length) { await dialog({ title: 'No earlier versions', message: 'Axon keeps a copy each time you leave the editor after changing a note (one every few minutes, 30 days back). Nothing here yet for \u201c' + n.title + '\u201d.', ok: 'OK', noCancel: true }); return; }
     var cur = words(n.body);
-    var pick = await sheet({ title: 'History \u00b7 ' + n.title, left: true, actions: vs.slice(0, 12).map(function (v) { var d = v.words - cur; return { label: agoLong(v.ts) + ' \u00b7 ' + v.words + ' words' + (d ? ' (' + (d > 0 ? '+' : '') + d + ')' : '') + (v.title !== n.title ? ' \u00b7 was \u201c' + v.title + '\u201d' : ''), value: v.k }; }) });
+    /* 12 at a time; up to 40 versions are kept, so older pages are one tap away */
+    var pick, from = 0;
+    for (;;) {
+      var page = vs.slice(from, from + 12).map(function (v) { var d = v.words - cur; return { label: whenLabel(v.ts) + ' \u00b7 ' + v.words + ' words' + (d ? ' (' + (d > 0 ? '+' : '') + d + ')' : '') + (v.title !== n.title ? ' \u00b7 was \u201c' + v.title + '\u201d' : ''), value: v.k }; });
+      if (vs.length > from + 12) page.push({ label: 'Older versions (' + (vs.length - from - 12) + ' more)\u2026', value: '\u0001' });
+      pick = await sheet({ title: 'History \u00b7 ' + n.title, message: from ? '' : 'Tap a version to see it. You can restore it as a new note or replace the current text.', left: true, actions: page });
+      if (pick === '\u0001') { from += 12; continue; }
+      break;
+    }
     if (!pick) return;
     var v = vs.filter(function (x) { return x.k === pick; })[0]; if (!v) return;
     var act = await overlay(function (done) {
@@ -1158,7 +1172,7 @@
     /* a blank line that LCS matched between two changes reads as one change */
     for (var k = 1; k < chunks.length - 1; k++) {
       var c = chunks[k];
-      if (c.eq && c.eq.every(function (x) { return !x.trim(); }) && c.eq.length <= 1 && !chunks[k - 1].eq && !chunks[k + 1].eq) {
+      if (c.eq && c.eq.length === 1 && !c.eq[0].trim() && !chunks[k - 1].eq && !chunks[k + 1].eq && chunks[k - 1].a.length && chunks[k - 1].b.length && chunks[k + 1].a.length && chunks[k + 1].b.length) {
         var p = chunks[k - 1], q = chunks[k + 1];
         p.a = p.a.concat(c.eq, q.a); p.b = p.b.concat(c.eq, q.b); chunks.splice(k, 2); k--;
       }
@@ -1206,6 +1220,13 @@
               return;
             }
             var ka = c.pick !== 'b', kb = c.pick !== 'a';
+            if (!c.a.length || !c.b.length) {
+              /* only one side has these lines: it's a yes/no */
+              var side = c.a.length ? 'a' : 'b', keep = side === 'a' ? ka : kb, yes = side === 'a' ? 'ab' : 'ab', no = side === 'a' ? 'b' : 'a';
+              h += '<div class="mvc"><div class="mvcols"><button class="mvs s' + side + (keep ? ' keep' : ' drop') + '" data-m="p-' + i + '-' + (keep ? no : yes) + '"><span class="mvl">Only in ' + (side === 'a' ? la : lb).toLowerCase() + (keep ? ' \u2713' : '') + '</span><pre>' + lines(side === 'a' ? c.a : c.b) + '</pre></button></div>' +
+                '<div class="mvseg"><button data-m="p-' + i + '-' + yes + '"' + (keep ? ' class="on"' : '') + '>' + (side === 'a' ? 'Keep it' : 'Bring it back') + '</button><button data-m="p-' + i + '-' + no + '"' + (!keep ? ' class="on"' : '') + '>' + (side === 'a' ? 'Remove it' : 'Leave it out') + '</button></div></div>';
+              return;
+            }
             h += '<div class="mvc"><div class="mvcols">' +
               '<button class="mvs sa' + (ka ? ' keep' : ' drop') + '" data-m="p-' + i + '-a"><span class="mvl">' + la + (ka ? ' \u2713' : '') + '</span><pre>' + lines(c.a) + '</pre></button>' +
               '<button class="mvs sb' + (kb ? ' keep' : ' drop') + '" data-m="p-' + i + '-b"><span class="mvl">' + lb + (kb ? ' \u2713' : '') + '</span><pre>' + lines(c.b) + '</pre></button></div>' +
@@ -2000,7 +2021,7 @@
   }
   /* local-first means the only copy lives on this phone: nudge for a backup now and then */
   function needsBackup() {
-    if (notes.size < 10) return false;
+    if (notes.size < 10 || syOn()) return false; /* with cloud sync on, the notes aren't only on this phone */
     var now = Date.now(), DAY = 864e5;
     if (settings.backupSnooze && now - settings.backupSnooze < 7 * DAY) return false;
     if (settings.lastExport) return now - settings.lastExport > 14 * DAY;
@@ -2298,7 +2319,8 @@
   function liveCards(onlyNote) {
     var out = [];
     notes.forEach(function (n) {
-      if (inTemplates(n) || (onlyNote && n.id !== onlyNote)) return;
+      /* a restored or conflict copy would repeat its cards as new ones; they come back if it's renamed or the original goes */
+      if (inTemplates(n) || (onlyNote && n.id !== onlyNote) || (!onlyNote && copyOrigin(n))) return;
       MD.recall(n.body).forEach(function (c) { c.id = n.id + '|' + c.key; c.note = n; c.s = rc.get(c.id) || null; out.push(c); });
     });
     return out;
@@ -2814,7 +2836,7 @@
   }
 
   /* ---------- formatting guide (rendered, never saved as a note) ---------- */
-  var GUIDE = '## Fast ways in\n- Type **/** anywhere to insert a block, or tap **+** on the toolbar.\n- **[[** links a note. **![[Note]]** shows another note right inside this one.\n- Press and hold a note in a list for pin, rename, move, duplicate and delete.\n- Pull down on the Notes screen (or tap the search bar) to jump anywhere.\n- Double-tap any paragraph to edit right there.\n\n## Text\n**bold**, *italic*, ~~strike~~, ==highlight==, `code`, [^1] footnotes, $E = mc^2$ math.\n\n## Lists\n- [ ] Checklist item\n  - [x] Nested item (indent with the \u2192 button)\n1. Numbered\n\n## Callouts and toggles\n> [!info] Info\n> Also tip, warning, danger, question and example.\n\n> [!toggle]- Tap to open a toggle\n> Hidden until you need it.\n\n## Recall cards\nWhat does ATP stand for :: adenosine triphosphate\nThe {{c::hippocampus}} helps form new memories.\n\n## Sync\n**Settings \u203a Cloud sync** keeps your notes on every device you log in on. They\u2019re encrypted with your password before they leave this one, so only you can read them.\n\n## Properties\nStart a note with a block like this to get a chip row:\n```yaml\n---\ntags: [biology, exam]\ndate: 2026-10-19\n---\n```\n\n[^1]: Footnotes collect at the bottom of the note.';
+  var GUIDE = '## Fast ways in\n- Type **/** anywhere to insert a block, or tap **+** on the toolbar.\n- **[[** links a note. **![[Note]]** shows another note right inside this one.\n- Press and hold a note in a list for pin, rename, move, duplicate and delete.\n- Pull down on the Notes screen (or tap the search bar) to jump anywhere.\n- Double-tap any paragraph to edit right there.\n\n## Text\n**bold**, *italic*, ~~strike~~, ==highlight==, `code`, [^1] footnotes, $E = mc^2$ math.\n\n## Lists\n- [ ] Checklist item\n  - [x] Nested item (indent with the \u2192 button)\n1. Numbered\n\n## Callouts and toggles\n> [!info] Info\n> Also tip, warning, danger, question and example.\n\n> [!toggle]- Tap to open a toggle\n> Hidden until you need it.\n\n## Recall cards\nWhat does ATP stand for :: adenosine triphosphate\nThe {{c::hippocampus}} helps form new memories.\n\n## Sync\n**Settings \u203a Cloud sync** keeps your notes on every device you log in on. They\u2019re encrypted with your password before they leave this one, so only you can read them.\n\n## History\nEvery note keeps earlier versions for 30 days: **\u22ef \u203a History**. **Restore as new note** brings an old version back as its own note and leaves the current one alone. Then tap **Merge** on that copy to pick, change by change, what goes back into the original.\n\n## Properties\nStart a note with a block like this to get a chip row:\n```yaml\n---\ntags: [biology, exam]\ndate: 2026-10-19\n---\n```\n\n[^1]: Footnotes collect at the bottom of the note.';
   function renderGuide() {
     viewEl.innerHTML = '<div class="page"><div class="nav"><button class="back" data-act="back" data-to="#/settings">' + I.back + '<span>Settings</span></button><div class="acts"></div></div><div class="eyebrow">Axon</div><h1 class="h1">Formatting guide</h1><article class="prose">' + MD.render(GUIDE, { resolve: function () { return true; } }) + '</article></div>';
   }
@@ -2968,8 +2990,11 @@
         var n = { id: id, title: p.t, folder: p.f || '', body: p.b || '', created: p.c || Date.now(), updated: p.u || Date.now(), seed: false };
         if (p.p) n.pinned = true;
         var ex = !p.tr && byTitle(p.t);
-        if (ex && ex.body === n.body && !sy.map[nRec(ex.id)]) { /* the same note made on both devices before syncing */
+        if (ex && ex.body === n.body && !sy.map[nRec(ex.id)] && !(editing && editing.n === ex)) { /* the same note made on both devices before syncing */
           notes.delete(ex.id); rebuildIdx(); DB.del('notes', ex.id);
+          /* it may be the note on screen (today's daily note opened on both phones): show the synced one instead of "no longer exists" */
+          if (route().v === 'note' && route().id === ex.id) history.replaceState(null, '', '#/n/' + encodeURIComponent(id));
+          if (ui.lastNote === ex.id) ui.lastNote = id;
         } else if (ex) n.title = uniqueTitle(p.t);
         if (p.tr) { n.trashed = p.tr; trash.set(id, n); } else { notes.set(id, n); ensureFolder(n.folder); }
         rebuildIdx(); putNote(n); stats.add++;
