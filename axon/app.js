@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.5.5 */
+/* Axon · Northpeak Studios · v1.5.6 */
 (function () {
   'use strict';
-  var VERSION = '1.5.5';
+  var VERSION = '1.5.6';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -26,6 +26,7 @@
     newfolder: '<svg viewBox="0 0 24 24"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.2l2 2.2h8.8A1.5 1.5 0 0 1 21 8.7v9.8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/><path d="M12 10.5v6M9 13.5h6"/></svg>',
     newnote: '<svg viewBox="0 0 24 24"><path d="M7 3.5h7l4.5 4.5v12.5H7z"/><path d="M12.5 11v6M9.5 14h6"/></svg>',
     x: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+    shield: '<svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>',
     fit: '<svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
     zin: '<svg viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg>',
     zout: '<svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg>',
@@ -537,6 +538,9 @@
   }
 
   /* ---------- overlays ---------- */
+  /* a sheet or picker left open when the page changes underneath it (back gesture, a link) is closed instead of floating over the new page */
+  var openOverlays = [];
+  window.addEventListener('hashchange', function () { var now = Date.now(); openOverlays.slice().forEach(function (o) { if (now - o.t > 400) o.done(); }); });
   function overlay(build) {
     return new Promise(function (resolve) {
       var scrim = document.createElement('div'); scrim.className = 'scrim';
@@ -547,8 +551,10 @@
       var closed = false;
       function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); done(null); } }
       document.addEventListener('keydown', onKey);
+      var rec = { t: Date.now(), done: function () { done(null); } }; openOverlays.push(rec);
       function done(v) {
         if (closed) return; closed = true;
+        openOverlays = openOverlays.filter(function (x) { return x !== rec; });
         document.removeEventListener('keydown', onKey);
         scrim.classList.remove('show'); box.classList.remove('show');
         setTimeout(function () { scrim.remove(); box.remove(); }, 230);
@@ -701,7 +707,7 @@
     }
     var pins = pinnedNotes(), rs = recallStats();
     var h = '<div class="pullhint" id="pullhint">Release to jump to a note</div><div class="page"><div class="eyebrow">Vault · ' + notes.size + ' note' + (notes.size === 1 ? '' : 's') + '</div><h1 class="h1">Notes</h1>' +
-      '<button class="searchbox" data-act="qs" style="width:100%;text-align:left">' + I.search + '<span style="flex:1;font-size:17px">Jump to a note or command</span></button>' +
+      '<button class="searchbox" data-act="qs" style="width:100%;text-align:left">' + I.search + '<span style="flex:1;font-size:17px">Jump to a note or command</span></button>' + backupRow() +
       '<div class="rows" style="margin-top:14px">' + todayRow() +
       (rs.total ? '<button class="row today" data-act="gorecall">' + I.recall.replace('<svg', '<svg class="fi"') + '<span class="nm">Recall</span><span class="ct">' + (rs.due ? '<i class="duen">' + rs.due + ' due</i>' : 'all caught up') + '</span><span class="chev">' + I.chev + '</span></button>' : '') + '</div>' +
       (pins.length ? '<div class="sec"><span>Pinned</span></div><div class="rows">' + pins.map(function (n) { return '<button class="row" data-act="open" data-id="' + n.id + '">' + I.pin.replace('<svg', '<svg class="fi pinfi"') + '<span class="nm">' + esc(n.title) + '</span><span class="chev">' + I.chev + '</span></button>'; }).join('') + '</div>' : '') +
@@ -1676,7 +1682,7 @@
       '<div class="sec"><span>Accent</span><span style="text-transform:none;letter-spacing:0">' + esc((ACCENTS.filter(function (a) { return a[1] === settings.accent; })[0] || ['Custom'])[0]) + '</span></div><div class="group"><div class="sw">' +
       ACCENTS.map(function (a) { return '<button aria-label="' + a[0] + '" class="' + (settings.accent === a[1] ? 'on' : '') + '" data-act="accent" data-v="' + a[1] + '" style="background:' + a[1] + '"></button>'; }).join('') + '</div></div>' +
       '<div class="sec"><span>Vault</span></div><div class="group">' +
-      '<button class="item" data-act="export"><span>Export vault<small>All ' + notes.size + ' notes as .md files in a .zip, with images</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
+      '<button class="item" data-act="export"><span>Export vault<small>All ' + notes.size + ' notes as .md files in a .zip, with images \u00b7 last backup ' + (settings.lastExport ? agoLong(settings.lastExport) : 'never') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<button class="item" data-act="allcards"><span>Export flashcards<small>' + (function () { var c = 0, m = 0; notes.forEach(function (n) { var k = MD.cards(n.body).length; c += k; if (k) m++; }); return c ? c + ' card' + (c === 1 ? '' : 's') + ' from ' + m + ' note' + (m === 1 ? '' : 's') + ' · a CSV that Synapse imports' : 'Lines like question :: answer become cards for Synapse'; })() + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<button class="item" data-act="import"><span>Import notes<small>Pick .md files or a .zip of them</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<button class="item" data-act="newfolder" data-path=""><span>New folder</span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
@@ -1769,18 +1775,35 @@
     folders.forEach(function (f) { if (!countIn(f)) files.push({ name: f.split('/').map(safeName).join('/') + '/.keep', data: '' }); });
     var blob = Zip.make(files);
     var d = new Date(), name = 'Axon vault ' + ymd(d) + '.zip';
-    deliver(blob, name, 'application/zip', 'Exported ' + notes.size + ' note' + (notes.size === 1 ? '' : 's') + (nimg ? ' · ' + nimg + ' image' + (nimg === 1 ? '' : 's') : ''));
+    deliver(blob, name, 'application/zip', 'Exported ' + notes.size + ' note' + (notes.size === 1 ? '' : 's') + (nimg ? ' · ' + nimg + ' image' + (nimg === 1 ? '' : 's') : ''), function () {
+      settings.lastExport = Date.now(); saveSettings();
+      var r = route(); if (r.v === 'settings' || r.v === 'vault') render();
+    });
   }
-  function deliver(blob, name, type, msg) {
-    var file = null;
+  function deliver(blob, name, type, msg, onSaved) {
+    var file = null, ok = function () { toast(msg); if (onSaved) try { onSaved(); } catch (e) {} };
     try { file = new File([blob], name, { type: type }); } catch (e) {}
     var ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     if (ios && file && navigator.canShare && navigator.canShare({ files: [file] })) {
-      navigator.share({ files: [file], title: name }).then(function () { toast(msg); }).catch(function (e) { if (e && e.name !== 'AbortError') { download(blob, name); toast(msg); } });
+      navigator.share({ files: [file], title: name }).then(ok).catch(function (e) { if (e && e.name !== 'AbortError') { download(blob, name); ok(); } });
       return;
     }
     download(blob, name);
-    toast(msg);
+    ok();
+  }
+  /* local-first means the only copy lives on this phone: nudge for a backup now and then */
+  function needsBackup() {
+    if (notes.size < 10) return false;
+    var now = Date.now(), DAY = 864e5;
+    if (settings.backupSnooze && now - settings.backupSnooze < 7 * DAY) return false;
+    if (settings.lastExport) return now - settings.lastExport > 14 * DAY;
+    var oldest = now; notes.forEach(function (n) { if (n.created < oldest) oldest = n.created; });
+    return now - oldest > 3 * DAY;
+  }
+  function backupRow() {
+    if (!needsBackup()) return '';
+    return '<div class="bkup">' + I.shield + '<span>Your notes only live on this phone.<small>' + (settings.lastExport ? 'Last backup ' + agoLong(settings.lastExport) : 'No backup yet') + ' \u00b7 save a copy to Files</small></span>' +
+      '<button class="bkgo" data-act="export">Back up</button><button class="bkx" data-act="bksnooze" aria-label="Remind me later">' + I.x + '</button></div>';
   }
   function download(blob, name) {
     var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
@@ -2738,6 +2761,7 @@
     fs: function (el) { settings.fs = +el.dataset.v; saveSettings(); renderSettings(); },
     accent: function (el) { settings.accent = el.dataset.v; saveSettings(); renderSettings(); },
     export: exportVault,
+    bksnooze: function () { settings.backupSnooze = Date.now(); saveSettings(); render(); toast('I\u2019ll remind you in a week'); },
     import: function () { $('#file').click(); },
     wipe: async function () {
       var ok = await dialog({ title: 'Delete all ' + notes.size + ' notes?', message: 'Every note, folder and the Trash on this device will be erased for good. Export first if you want a copy.', ok: 'Delete all', danger: true });

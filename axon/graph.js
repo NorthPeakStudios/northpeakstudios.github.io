@@ -130,7 +130,7 @@
         ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
         if (gh || l.auto) ctx.setLineDash([]);
       });
-      var showAll = view.k > 0.75 || nodes.length < 40;
+      var showAll = view.k > 0.75 || nodes.length < 40, labels = [];
       var order = nodes.slice().sort(function (a, b) { var ra = a === focus ? 2 : nb[a.id] ? 1 : 0, rb = b === focus ? 2 : nb[b.id] ? 1 : 0; return ra - rb; });
       order.forEach(function (n) {
         var p = toScreen(n), r = n.r * Math.max(0.7, Math.min(1.4, view.k));
@@ -151,12 +151,20 @@
           ctx.fillStyle = n.color ? (focus && !isF && !isN ? hexA(n.color, 0.35) : (isF ? accent : n.color)) : (isF ? accent : (focus ? (isN ? '#edebe6' : '#5d5d63') : (n.deg ? '#a9a8a4' : '#5d5d63')));
           ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fill();
         }
-        if (showAll || isF || isN || n.deg >= 4) {
-          ctx.font = (isF ? '600 13px ' : '12px ') + '-apple-system, system-ui, "Inter", sans-serif';
-          ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-          ctx.fillStyle = isF ? '#edebe6' : (isN ? 'rgba(237,235,230,0.85)' : 'rgba(237,235,230,' + (focus ? 0.38 : 0.55) + ')');
-          ctx.fillText(n.label.length > 26 ? n.label.slice(0, 25) + '…' : n.label, p.x, p.y + r + 5);
-        }
+        if (showAll || isF || isN || n.deg >= 4) labels.push({ n: n, x: p.x, y: p.y + r + 5, f: isF, nb: isN, pr: isF ? 1e6 : isN ? 1e5 + n.deg : n.deg });
+      });
+      /* labels last, most important first; a label that would overlap one already drawn is skipped (it comes back on zoom or focus) */
+      labels.sort(function (a, b) { return b.pr - a.pr; });
+      var placed = [];
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      labels.forEach(function (L) {
+        var t = L.n.label.length > 26 ? L.n.label.slice(0, 25) + '\u2026' : L.n.label;
+        ctx.font = (L.f ? '600 13px ' : '12px ') + '-apple-system, system-ui, "Inter", sans-serif';
+        var w = ctx.measureText(t).width + 6, box = { l: L.x - w / 2, r: L.x + w / 2, t: L.y - 1, b: L.y + 15 };
+        if (!L.f && !L.nb && placed.some(function (q) { return box.l < q.r && box.r > q.l && box.t < q.b && box.b > q.t; })) return;
+        placed.push(box);
+        ctx.fillStyle = L.f ? '#edebe6' : (L.nb ? 'rgba(237,235,230,0.85)' : 'rgba(237,235,230,' + (focus ? 0.38 : 0.55) + ')');
+        ctx.fillText(t, L.x, L.y);
       });
     }
     function hexA(hex, a) {
