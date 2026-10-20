@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.6.0 */
+/* Axon · Northpeak Studios · v1.6.1 */
 (function () {
   'use strict';
-  var VERSION = '1.6.0';
+  var VERSION = '1.6.1';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -435,7 +435,7 @@
   function ensureFolder(p) {
     if (!p) return [];
     var made = [], parts = p.split('/'), acc = '';
-    parts.forEach(function (x) { acc = acc ? acc + '/' + x : x; if (!folders.has(acc)) { folders.add(acc); made.push({ path: acc }); } });
+    parts.forEach(function (x) { acc = acc ? acc + '/' + x : x; if (!folders.has(acc)) { folders.add(acc); made.push({ path: acc }); } if (sy.fg && sy.fg[acc]) { delete sy.fg[acc]; sySave(); } });
     if (made.length) DB.putMany('folders', made);
     return made;
   }
@@ -515,7 +515,8 @@
     var oldF = Array.from(folders).filter(function (f) { return f === p || f.indexOf(p + '/') === 0; });
     var addF = oldF.map(function (f) { return np + f.slice(p.length); });
     oldF.forEach(function (f) { folders.delete(f); });
-    addF.forEach(function (f) { folders.add(f); });
+    addF.forEach(function (f) { folders.add(f); if (sy.fg) delete sy.fg[f]; });
+    syFolderGone(oldF);
     DB.delMany('folders', oldF); DB.putMany('folders', addF.map(function (f) { return { path: f }; }));
     var ch = [];
     notes.forEach(function (n) { if (n.folder === p || n.folder.indexOf(p + '/') === 0) { n.folder = np + n.folder.slice(p.length); ch.push(n); } });
@@ -527,7 +528,7 @@
     var par = parentOf(p);
     var oldF = Array.from(folders).filter(function (f) { return f === p || f.indexOf(p + '/') === 0; });
     oldF.forEach(function (f) { folders.delete(f); delete ui.open[f]; });
-    DB.delMany('folders', oldF);
+    DB.delMany('folders', oldF); syFolderGone(oldF);
     var hit = Array.from(notes.values()).filter(function (n) { return n.folder === p || n.folder.indexOf(p + '/') === 0; });
     if (keepNotes) hit.forEach(function (n) { n.folder = par; putNote(n); });
     else hit.forEach(trashNote);
@@ -2731,13 +2732,18 @@
      this device (sync.js) before upload; the server stores ciphertext and a per-record sequence.
      sy.map[recordId] = { s: server sequence this device last saw, h: hash of that record's plaintext }.
      A record is "changed here" when its current plaintext hash differs from h. */
-  var sy = { user: null, token: null, key: null, cursor: 0, map: {}, tomb: {}, last: 0, err: '', did: false }, syBusy = false, syT = null, syAgain = false, syApplying = false;
+  var sy = { user: null, token: null, key: null, cursor: 0, map: {}, tomb: {}, fg: {}, last: 0, err: '', did: false }, syBusy = false, syT = null, syAgain = false, syApplying = false;
   function syOn() { return !!(window.AXS && sy.token && sy.key); }
-  function sySave() { DB.put('meta', { k: 'sync', v: { user: sy.user, token: sy.token, cursor: sy.cursor, map: sy.map, tomb: sy.tomb, last: sy.last, did: sy.did } }).catch(function () {}); }
+  function sySave() { DB.put('meta', { k: 'sync', v: { user: sy.user, token: sy.token, cursor: sy.cursor, map: sy.map, tomb: sy.tomb, fg: sy.fg, last: sy.last, did: sy.did } }).catch(function () {}); }
   function sySoon(ms) { if (!syOn()) return; if (syApplying || syBusy) { syAgain = true; return; } clearTimeout(syT); syT = setTimeout(function () { syncNow(false); }, ms || 3000); }
   function nRec(id) { return 'n:' + id; }
   function notePayload(n) { var o = { k: 'n', t: n.title, f: n.folder || '', b: n.body, c: n.created || 0, u: n.updated || 0 }; if (n.pinned) o.p = 1; if (n.trashed) o.tr = n.trashed; return JSON.stringify(o); }
-  function folderPayload() { return JSON.stringify({ k: 'f', l: Array.from(folders).sort() }); }
+  function folderPayload() {
+    var g = {}, cut = Date.now() - 90 * 864e5; Object.keys(sy.fg || {}).sort().forEach(function (p) { if (sy.fg[p] > cut) g[p] = sy.fg[p]; });
+    return JSON.stringify({ k: 'f', l: Array.from(folders).sort(), g: g });
+  }
+  /* deleted or renamed folders travel as "gone" marks, so they don't come back from another device */
+  function syFolderGone(list) { if (!syOn()) return; sy.fg = sy.fg || {}; list.forEach(function (f) { sy.fg[f] = Date.now(); }); sySave(); sySoon(); }
   function rcPayload(s) { return JSON.stringify({ k: 'r', s: s }); }
   function rcMetaPayload() { var l = rcMeta.log || {}, o = {}; Object.keys(l).sort().forEach(function (d) { o[d] = l[d]; }); return JSON.stringify({ k: 'm', day: rcMeta.day || '', nt: rcMeta.newToday || 0, log: o }); }
   function rcRec(id) { return 'r:' + AXS.hash(String(id)).replace(/\./g, '-'); }
@@ -2818,7 +2824,14 @@
     }
     if (del) { sy.map[rid] = { s: s, h: 'del' }; return; }
     var q = JSON.parse(text), qh = AXS.hash(text);
-    if (kind === 'f') { (q.l || []).forEach(function (f) { if (typeof f === 'string' && f) ensureFolder(f); }); sy.map[rid] = { s: s, h: qh }; return; }
+    if (kind === 'f') {
+      sy.fg = sy.fg || {};
+      Object.keys(q.g || {}).forEach(function (p) { sy.fg[p] = Math.max(sy.fg[p] || 0, +q.g[p] || 0); });
+      (q.l || []).forEach(function (f) { if (typeof f === 'string' && f && !sy.fg[f]) ensureFolder(f); });
+      var drop = Object.keys(sy.fg).filter(function (f) { return folders.has(f) && countIn(f) === 0 && childFolders(f).length === 0 && !Array.from(trash.values()).some(function (n) { return n.folder === f; }); });
+      if (drop.length) { drop.forEach(function (f) { folders.delete(f); delete ui.open[f]; }); DB.delMany('folders', drop); stats.upd++; }
+      sy.map[rid] = { s: s, h: qh }; return;
+    }
     if (kind === 'i') {
       var have = null; try { have = await IMG.get(q.id); } catch (e) {}
       if (!have) { await IMG.put({ id: q.id, data: AXS.unb64(q.d).buffer, type: q.type || 'image/jpeg', w: q.w, h: q.h, created: q.c || Date.now() }); stats.img++; }
@@ -2932,7 +2945,7 @@
     }
   }
   function syForget() {
-    sy.token = null; sy.key = null; sy.user = null; sy.cursor = 0; sy.map = {}; sy.tomb = {}; sy.last = 0; sy.err = ''; sy.did = false;
+    sy.token = null; sy.key = null; sy.user = null; sy.cursor = 0; sy.map = {}; sy.tomb = {}; sy.fg = {}; sy.last = 0; sy.err = ''; sy.did = false;
     sySave(); DB.del('meta', 'sync-key').catch(function () {});
   }
   async function syStoreKey(raw) {
@@ -2943,7 +2956,7 @@
   }
   async function syLoad(m) {
     if (!window.AXS || !m.sync || !m.sync.token) return;
-    Object.assign(sy, m.sync); sy.map = sy.map || {}; sy.tomb = sy.tomb || {};
+    Object.assign(sy, m.sync); sy.map = sy.map || {}; sy.tomb = sy.tomb || {}; sy.fg = sy.fg || {};
     var k = m['sync-key'];
     try { sy.key = k && k.raw ? await AXS.keyFrom(AXS.unb64(k.raw)) : (k || null); } catch (e) { sy.key = null; }
     if (!sy.key) { sy.token = null; return; }
