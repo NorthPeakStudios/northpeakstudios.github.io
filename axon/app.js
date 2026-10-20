@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.5.13 */
+/* Axon · Northpeak Studios · v1.5.14 */
 (function () {
   'use strict';
-  var VERSION = '1.5.13';
+  var VERSION = '1.5.14';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -320,12 +320,14 @@
     var d = dayOf(day) || new Date(), today = ymd(new Date());
     var y = d.getFullYear(), mo = d.getMonth();
     var has = {}; notes.forEach(function (n) { if (isDaily(n) && n.body.trim()) has[n.title] = 1; });
+    /* week starts on the locale's first day (Sunday in the US, Monday in most of Europe) */
+    var wk0 = 1; try { var L = new Intl.Locale(navigator.language || 'en-US'), wi = L.getWeekInfo ? L.getWeekInfo() : L.weekInfo; if (wi && wi.firstDay) wk0 = wi.firstDay % 7; else if (/^en-(US|CA)|^(ja|ko|zh|pt-BR|he)/i.test(navigator.language)) wk0 = 0; } catch (e) {}
     return overlay(function (done) {
       var el = document.createElement('div'); el.className = 'sheet cal'; el.setAttribute('role', 'dialog');
       function draw() {
-        var first = new Date(y, mo, 1), start = (first.getDay() + 6) % 7, days = new Date(y, mo + 1, 0).getDate();
+        var first = new Date(y, mo, 1), start = (first.getDay() - wk0 + 7) % 7, days = new Date(y, mo + 1, 0).getDate();
         var h = '<div class="calh"><button data-c="prev" aria-label="Previous month">' + I.back + '</button><b>' + first.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) + '</b><button data-c="next" aria-label="Next month">' + I.chev + '</button></div>' +
-          '<div class="calg">' + ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(function (w) { return '<span class="wd">' + w + '</span>'; }).join('');
+          '<div class="calg">' + ['S', 'M', 'T', 'W', 'T', 'F', 'S', 'S', 'M', 'T', 'W', 'T', 'F', 'S'].slice(wk0, wk0 + 7).map(function (w) { return '<span class="wd">' + w + '</span>'; }).join('');
         for (var i = 0; i < start; i++) h += '<span></span>';
         for (var k = 1; k <= days; k++) {
           var key = ymd(new Date(y, mo, k));
@@ -831,6 +833,7 @@
     toast('Created \u201c' + nn.title + '\u201d');
     go('#/n/' + nn.id);
     startEditing(nn, false);
+    freshNote[nn.id] = nn.title; /* a mis-tapped link you leave blank isn't kept */
   }
 
   /* ---------- find in note / find & replace ---------- */
@@ -1041,8 +1044,8 @@
     if (kb) { kb.remove(); kb = null; }
     /* a brand-new note you leave blank and unnamed isn't kept */
     if (freshNote[n.id]) {
-      delete freshNote[n.id];
-      if (!n.body.trim() && /^Untitled( \d+)?$/.test(n.title) && notes.has(n.id)) {
+      var fv = freshNote[n.id]; delete freshNote[n.id];
+      if (!n.body.trim() && (/^Untitled( \d+)?$/.test(n.title) || n.title === fv) && notes.has(n.id)) {
         deleteNote(n);
         if (!silent) { toast('Empty note discarded'); back('#/'); }
         return;
@@ -1971,8 +1974,15 @@
       if (v && v !== n.title) { var r = renameNote(n, v); toast(r.changed ? 'Renamed · updated links in ' + r.changed + ' note' + (r.changed === 1 ? '' : 's') : 'Renamed'); if (route().v === 'note') renderNote(n.id); }
     } else if (a === 'move') {
       var opts = [{ label: '/  Vault (no folder)', value: '\u0000' }].concat(Array.from(folders).sort().map(function (f) { return { label: f.split('/').join(' / '), value: f }; }));
+      opts.push({ label: '+  New folder\u2026', value: '\u0001' });
       var f = await sheet({ title: 'Move \u201c' + n.title + '\u201d', actions: opts, left: true });
-      if (f !== null && f !== undefined) { moveNote(n, f === '\u0000' ? '' : f); toast('Moved'); if (route().v === 'note') renderNote(n.id); }
+      if (f === '\u0001') {
+        f = await dialog({ title: 'New folder', message: 'Moves \u201c' + n.title + '\u201d into it. Use / for a folder inside another.', input: true, placeholder: 'Folder name', ok: 'Create and move',
+          validate: function (v) { if (!v) return 'Type a name.'; if (/[\\\[\]|#^:]/.test(v) || /^\/|\/$|\/\//.test(v)) return 'Folder names can\u2019t use \\ [ ] | # ^ :'; return null; } });
+        if (f) f = f.split('/').map(function (x) { return x.trim(); }).join('/');
+      }
+      if (f) ensureFolder(f === '\u0000' ? '' : f);
+      if (f !== null && f !== undefined && f !== false && f !== '') { moveNote(n, f === '\u0000' ? '' : f); toast('Moved'); if (route().v === 'note') renderNote(n.id); }
     } else if (a === 'delete') {
       var to = n.folder && folders.has(n.folder) ? '#/f/' + encodeURIComponent(n.folder) : '#/';
       askTrash(n, function () { go(to, true); });
