@@ -616,8 +616,8 @@ body.reviewing #view{padding-bottom:calc(var(--bpad) + 16px)}
 #view.dview .dhead{scroll-margin-top:14px}
 #view.dview .dfeed{gap:12px}
 #view.dview .dcard{scroll-snap-align:start;scroll-snap-stop:always;scroll-margin-top:6px;
-  height:calc(var(--dpage, calc(100dvh - var(--sat) - var(--tabh) - var(--bpad))) - 12px);min-height:0;flex:none}
-#view.dview .dcard.gone{height:0!important;margin-top:-12px}
+  height:calc(var(--dpage, calc(100dvh - var(--sat) - var(--tabh) - var(--bpad))) - 12px);min-height:0;flex:none;transition:none}
+#view.dview .dcard.gone{height:0!important;margin-top:-12px;transition:height .25s ease,opacity .2s,transform .2s,margin .25s}
 #view.dview .dimg{height:40%;min-height:120px;flex:none}
 #view.dview .dimg.ph{height:26%}
 #view.dview .dbody{min-height:0;overflow:hidden}

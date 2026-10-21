@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.6.19 */
+/* Axon · Northpeak Studios · v1.6.20 */
 (function () {
   'use strict';
-  var VERSION = '1.6.19';
+  var VERSION = '1.6.20';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -666,6 +666,7 @@
   function setFab(on) { document.body.classList.toggle('nofab', !on); }
 
   function render() {
+    if (dStay()) return;
     if (currentHash !== null) scrollMem[currentHash] = viewEl.scrollTop;
     if (viewEl.classList.contains('dview')) dKeepFeed();
     if (editing) stopEditing(true);
@@ -2694,8 +2695,9 @@
     await loadDMeta();
     if (route().v !== 'discover') return;
     var only = onlyId ? notes.get(onlyId) : null, topics = discoverTopics(onlyId);
+    dForce = false;
     if (!dShuffle && dRestore(onlyId)) return;
-    dKeep = null;
+    dKeep = null; dAnchor = null;
     if (dShuffle) { dShuffle = false; var head = topics.slice(0, 24); for (var si = head.length - 1; si > 0; si--) { var sj = Math.floor(Math.random() * (si + 1)); var sx = head[si]; head[si] = head[sj]; head[sj] = sx; } topics = head.concat(topics.slice(24)); }
     if (ds && ds.ctrl) ds.ctrl.abort();
     ds = { only: onlyId || '', topics: topics, ti: 0, seen: {}, req: 0, budget: 10, batch: 0, offline: false, loading: false, ctrl: new AbortController(), count: 0, last: [] };
@@ -2811,11 +2813,13 @@
     if (more && more.querySelector('.dload')) more.innerHTML = st.ti < st.topics.length ? '<button class="pill dmorebtn" data-act="dmore">Show more</button>' : '<div class="dend">You\u2019ve reached the end \u00b7 write more and come back</div>';
     var target = k.title ? Array.prototype.find.call(document.querySelectorAll('.dview .dcard'), function (c) { return c.dataset.title === k.title; }) : null;
     var y = target ? target.offsetTop - (parseFloat(getComputedStyle(target).scrollMarginTop) || 0) : 0;
-    viewEl.scrollTop = y;
-    requestAnimationFrame(function () { if (ds === st) { viewEl.scrollTop = y; dClip(); watchMore(); } });
+    viewEl.scrollTop = y; dAnchor = target || null;
+    var t0 = Date.now();
+    requestAnimationFrame(function () { if (ds === st) { if (!dTouching && dTouchAt < t0) viewEl.scrollTop = y; dClip(); watchMore(); } });
     return true;
   }
-  /* lock on exactly one card per gesture: a wheel/trackpad flick pages once, and a touch fling that lands more than one card away is pulled back to the next one */
+  /* lock on exactly one card per gesture. Touch: scroll-snap-stop: always already stops every fling on the next card
+     (iOS Safari and Chrome), so nothing here ever scrolls the feed by itself after a swipe. Wheel/trackpad: one card per gesture. */
   function dStops() {
     var out = [0], max = viewEl.scrollHeight - viewEl.clientHeight;
     document.querySelectorAll('.dview .dcard:not(.gone)').forEach(function (c) { out.push(Math.max(0, Math.min(max, c.offsetTop - 6))); });
@@ -2823,7 +2827,7 @@
     return out;
   }
   function dNear(stops, y) { var b = 0; for (var i = 1; i < stops.length; i++) if (Math.abs(stops[i] - y) < Math.abs(stops[b] - y)) b = i; return b; }
-  var dWheel = { lock: 0, last: 0 }, dTouch = null, dSettle = 0;
+  var dWheel = { lock: 0, last: 0 }, dAnchor = null, dTouching = false, dTouchAt = 0, dMoveAt = 0, dMarkT = 0, dResizeT = 0, dForce = false;
   viewEl.addEventListener('wheel', function (e) {
     if (!viewEl.classList.contains('dview') || e.ctrlKey || Math.abs(e.deltaY) <= Math.abs(e.deltaX) || !document.querySelector('.dview .dcard:not(.dskel)')) return;
     e.preventDefault();
@@ -2834,28 +2838,36 @@
     dWheel.lock = now + 550;
     if (j !== i) viewEl.scrollTo({ top: stops[j], behavior: 'smooth' });
   }, { passive: false });
-  viewEl.addEventListener('touchstart', function (e) {
-    if (!viewEl.classList.contains('dview')) return;
-    var stops = dStops(); dTouch = { i: dNear(stops, viewEl.scrollTop), on: true };
-  }, { passive: true });
-  viewEl.addEventListener('touchend', function () { if (dTouch) dTouch.on = false; }, { passive: true });
-  function dCheckLanding() {
-    if (!dTouch || dTouch.on || !viewEl.classList.contains('dview')) return;
-    var stops = dStops(), y = viewEl.scrollTop, i = dNear(stops, y), from = dTouch.i;
-    if (Math.abs(i - from) > 1) { var j = from + (i > from ? 1 : -1); dTouch = null; viewEl.scrollTo({ top: stops[j], behavior: 'smooth' }); return; }
-    if (Math.abs(stops[i] - y) < 3) dTouch = null;
+  viewEl.addEventListener('touchstart', function () { dTouching = true; dTouchAt = dMoveAt = Date.now(); }, { passive: true });
+  function dTouchOff() { dTouching = false; dMoveAt = Date.now(); }
+  viewEl.addEventListener('touchend', dTouchOff, { passive: true });
+  viewEl.addEventListener('touchcancel', dTouchOff, { passive: true });
+  /* remember which card the feed is resting on (only once scrolling has stopped) */
+  function dMark() {
+    if (!viewEl.classList.contains('dview') || dTouching) return;
+    var c = dCurrent(); dAnchor = c.i >= 0 && viewEl.scrollTop > 40 ? c.cards[c.i] : null;
   }
   viewEl.addEventListener('scroll', function () {
-    if (!dTouch || !viewEl.classList.contains('dview')) return;
-    clearTimeout(dSettle); dSettle = setTimeout(dCheckLanding, 160);
-  }, { passive: true });
-  if ('onscrollend' in window) viewEl.addEventListener('scrollend', function () { clearTimeout(dSettle); dCheckLanding(); });
-  window.addEventListener('resize', function () {
     if (!viewEl.classList.contains('dview')) return;
-    var c = dCurrent(), t = c.i >= 0 && viewEl.scrollTop > 40 ? c.cards[c.i] : null;
-    dSizePage();
-    requestAnimationFrame(function () { dClip(); if (t && t.isConnected) viewEl.scrollTop = t.offsetTop - (parseFloat(getComputedStyle(t).scrollMarginTop) || 0); });
-  });
+    dMoveAt = Date.now(); clearTimeout(dMarkT); dMarkT = setTimeout(dMark, 200);
+  }, { passive: true });
+  /* iOS fires resize for toolbars, rotation and the keyboard: re-measure once things are still, and only if the page height
+     really changed keep the SAME card in place (never jump to another card, never mid-swipe) */
+  function dResize() {
+    if (!viewEl.classList.contains('dview')) return;
+    if (dTouching || Date.now() - dMoveAt < 300) { clearTimeout(dResizeT); dResizeT = setTimeout(dResize, 300); return; }
+    var before = viewEl.style.getPropertyValue('--dpage');
+    dSizePage(); dClip();
+    if (viewEl.style.getPropertyValue('--dpage') === before) return;
+    var t = dAnchor && dAnchor.isConnected ? dAnchor : null;
+    if (t) { var y = t.offsetTop - (parseFloat(getComputedStyle(t).scrollMarginTop) || 0); if (Math.abs(viewEl.scrollTop - y) > 2) viewEl.scrollTop = y; }
+  }
+  window.addEventListener('resize', function () { if (!viewEl.classList.contains('dview')) return; clearTimeout(dResizeT); dResizeT = setTimeout(dResize, 250); });
+  /* a re-render of the same Discover screen (Pro check, sync, tapping the tab again) keeps the live feed exactly where it is */
+  function dStay() {
+    return !dForce && !editing && viewEl.classList.contains('dview') && location.hash === currentHash && route().v === 'discover' &&
+      !!ds && ds.count > 0 && !!$('#dfeed') && !(PRO_VIEWS.discover && !isPro());
+  }
   function dcardHTML(c) {
     var p = c.p, src = notes.get(c.t.src), saved = dSaved[p.title];
     return '<article class="dcard" data-title="' + esc(p.title) + '" data-url="' + esc(p.url) + '" data-src="' + esc(c.t.src || '') + '">' +
@@ -3606,9 +3618,9 @@
     qs: function () { openSwitcher(); },
     dnote: function (el) { go('#/discover/' + encodeURIComponent(el.dataset.id)); },
     dall: function () { go('#/discover', true); },
-    dshuffle: function () { dShuffle = true; render(); },
+    dshuffle: function () { dShuffle = true; dForce = true; render(); },
     dmore: function () { loadBatch(); },
-    dretry: function () { dKeep = null; render(); },
+    dretry: function () { dKeep = null; dForce = true; render(); },
     dsrc: function (el) { if (el.dataset.id && notes.get(el.dataset.id)) go('#/n/' + el.dataset.id); },
     dsave: function (el) { var c = el.closest('.dcard'); if (c) discoverSave(c); },
     dopen: function (el) { var c = el.closest('.dcard'); if (c) window.open(c.dataset.url, '_blank', 'noopener'); },
