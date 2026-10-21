@@ -4607,20 +4607,13 @@
     document.addEventListener('visibilitychange', function () { if (!document.hidden && syOn()) { if (PRO.need) proCheck(false); else if (Date.now() - sy.last > 20000) sySoon(600); } });
     setInterval(function () { if (!document.hidden && syOn()) { if (PRO.need) proCheck(false); else syncNow(false); } }, 120000);
     if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-      /* a home-screen app is usually resumed, not reopened, so a new version would wait for a swipe-close.
-         Check for one each time Axon comes back; once it has landed, reload on the next return (never mid-edit). */
-      var hadCtl = !!navigator.serviceWorker.controller, swReg = null, swReady = false, swReloading = false, hiddenAt = Date.now();
-      navigator.serviceWorker.register('sw.js').then(function (r) { swReg = r; }).catch(function () {});
-      navigator.serviceWorker.addEventListener('controllerchange', function () {
-        if (!hadCtl || swReloading) { hadCtl = true; return; }
-        swReady = true;
-        if (!editing) toast('A new version of Axon is ready', { label: 'Reload', fn: function () { swReloading = true; location.reload(); } });
-      });
-      document.addEventListener('visibilitychange', function () {
-        if (document.hidden) { hiddenAt = Date.now(); return; }
-        if (swReady && !editing && !openOverlays.length && route().v !== 'review') { swReloading = true; location.reload(); return; }
-        if (swReg && Date.now() - hiddenAt > 30000) swReg.update().catch(function () {});
-      });
+      /* auto-update lives in np-update.js (shared by every Northpeak app): it checks on open, on every return to the app and every
+         30 min, and reloads once a new version has landed — only when this says it is safe (never mid-edit, in review or with a sheet open). */
+      window.npUpdate = {
+        safe: function () { return !editing && !openOverlays.length && route().v !== 'review'; },
+        toast: function (msg, fn) { toast(msg === 'update ready · tap to refresh' ? 'A new version of Axon is ready' : msg === 'updated ✓' ? 'Axon updated ✓' : msg, fn ? { label: 'Reload', fn: fn } : null); }
+      };
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(function () {});
     }
   }
   window.__axon = { notes: notes, folders: folders, trash: trash, rc: rc, recallStats: recallStats, byTitle: byTitle, backlinks: backlinks, renameNote: renameNote, exportFiles: function () { return notes; }, Zip: Zip, importFiles: importFiles };
