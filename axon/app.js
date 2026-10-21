@@ -4251,8 +4251,8 @@
             h += '<div class="pbox psent"><b>' + I.check + 'Request sent</b><p>Watch Messages for an Apple Cash request for <b>' + ((PRO.req && PRO.req.plan === 'all_access') ? '$100' : '$35') + '</b>' + ((PRO.req && PRO.req.plan === 'all_access') ? ' (Northpeak All-Access)' : '') + ' from Northpeak Studios' + (PRO.req.phone ? ' at <b>' + esc(PRO.req.phone) + '</b>' : '') + '. Pro turns on by itself once it\u2019s paid, on every device logged in as <b>' + esc(sy.user) + '</b>.</p>' +
               '<div class="pbtns"><button class="pmain" data-p="check">Check now</button><button data-p="edit">Change details</button></div>' + (msg ? '<div class="perr">' + esc(msg) + '</div>' : '') + '</div>';
           } else if (mode === 'code') {
-            h += '<div class="pbox"><b>Have an All-Access code?</b><p>Bought Northpeak All-Access in Synapse? Enter the code (SYN-XXXX-XXXX) and Axon Pro turns on' + (syOn() ? ' for <b>' + esc(sy.user) + '</b>.' : '. Next you\u2019ll pick a username and password, so it works on all your devices.') + '</p>' +
-              '<input name="pcode" placeholder="SYN-XXXX-XXXX" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go" value="' + esc(code) + '">' +
+            h += '<div class="pbox"><b>Have a code?</b><p>Enter your Axon code (AXN-XXXX-XXXX) or a Northpeak All-Access code (SYN-XXXX-XXXX) and Axon Pro turns on' + (syOn() ? ' for <b>' + esc(sy.user) + '</b>.' : '. Next you\u2019ll pick a username and password, so it works on all your devices.') + '</p>' +
+              '<input name="pcode" placeholder="AXN-XXXX-XXXX" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go" value="' + esc(code) + '">' +
               (msg ? '<div class="perr">' + esc(msg) + '</div>' : '') +
               '<div class="pbtns"><button class="pmain" data-p="redeem">Unlock</button><button data-p="back">Back</button></div></div>';
           } else {
@@ -4263,7 +4263,7 @@
               '<p class="pnote">' + (syOn() ? 'Pro goes on your account <b>' + esc(sy.user) + '</b>.' : 'Next you\u2019ll pick a username and password. Pro goes on that account, so you can log in and use it on all your devices.') + '</p>' +
               (msg ? '<div class="perr">' + esc(msg) + '</div>' : '') +
               '<div class="pbtns"><button class="pmain" data-p="send">' + (syOn() ? 'Send request' : 'Continue') + '</button></div>' +
-              (syOn() ? '' : '<button class="plink" data-p="login">Bought Pro already? Log in</button>') + '<button class="plink" data-p="code">Have an All-Access code?</button></div>';
+              (syOn() ? '' : '<button class="plink" data-p="login">Bought Pro already? Log in</button>') + '<button class="plink" data-p="code">Have a code?</button></div>';
           }
         }
         h += '<ul class="plist">' + PRO_LIST.map(function (x) { return '<li>' + I.check + '<span><b>' + esc(x[0]) + '</b>' + esc(x[1]) + '</span></li>'; }).join('') + '</ul>';
@@ -4301,19 +4301,19 @@
       });
       async function redeem() { // an All-Access code: Synapse signs a yes, this account's Pro turns on
         code = ($('[name=pcode]', el).value || '').trim().toUpperCase();
-        if (code.replace(/[^0-9A-Z]/g, '').replace(/^SYN/, '').length !== 8) { msg = 'Type the whole code, like SYN-AB12-CD34.'; paint(); return; }
+        if (code.replace(/[^0-9A-Z]/g, '').replace(/^(SYN|AXN)/, '').length !== 8) { msg = 'Type the whole code, like AXN-AB12-CD34 or SYN-AB12-CD34.'; paint(); return; }
         msg = '';
         if (!syOn()) { var ok = await syAuth('signup', { forPro: true }); if (!ok) { paint(); return; } }
         var bt = $('[data-p=redeem]', el); if (bt) { bt.disabled = true; bt.textContent = 'Checking\u2026'; }
         var proof = {};
-        try { var at = await fetch(NP_SYNAPSE + '/api/pro/link/attest', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code: code, app: 'axon' }), credentials: 'omit' }).then(function (x) { return x.json(); }); if (at && at.valid) proof = { m: at.m, sig: at.sig }; } catch (e) {}
+        if (!/^AXN/.test(code.replace(/[^0-9A-Z]/g, ''))) try { var at = await fetch(NP_SYNAPSE + '/api/pro/link/attest', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code: code, app: 'axon' }), credentials: 'omit' }).then(function (x) { return x.json(); }); if (at && at.valid) proof = { m: at.m, sig: at.sig }; } catch (e) {}
         try {
           var r = await AXS.api('/api/pro/redeem', { token: sy.token, body: Object.assign({ code: code }, proof) });
-          PRO.aa = r.code || code; savePro(); mode = ''; plan = 'all_access';
+          var own = r.product === 'axon_pro'; if (!own) PRO.aa = r.code || code; savePro(); mode = ''; plan = own ? 'axon_pro' : 'all_access';
           await proCheck(true); if (r.pro) proFromServer(true);
           toast('Axon Pro is on. Thank you!'); syncNow(false);
         } catch (e) {
-          msg = e.offline ? 'You\u2019re offline. Connect and try again.' : e.message === 'used' ? 'That code is already unlocking another Axon account.' : e.message === 'slow_down' ? 'Too many tries. Wait a bit and try again.' : e.message === 'bad_code' ? 'That isn\u2019t a Northpeak All-Access code. Check it and try again.' : 'That didn\u2019t go through (' + e.message + '). Try again.';
+          msg = e.offline ? 'You\u2019re offline. Connect and try again.' : e.message === 'used' ? 'That code is already unlocking another Axon account.' : e.message === 'slow_down' ? 'Too many tries. Wait a bit and try again.' : e.message === 'bad_code' ? 'That code didn\u2019t work. Check it and try again.' : 'That didn\u2019t go through (' + e.message + '). Try again.';
         }
         paint();
       }
