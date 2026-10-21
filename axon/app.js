@@ -3629,7 +3629,8 @@
     } else if (PRO.need) {
       if (!/@/.test(sy.user || '')) h += syEmailItem();
       h += '<button class="item" data-act="getpro" data-what="Cloud sync"><span>Cloud sync needs Axon Pro<small>Signed in as ' + esc(sy.user) + ' \u00b7 ' + (PRO.req && PRO.req.status === 'new' ? 'request sent, it starts by itself once it\u2019s paid' : 'your notes start syncing as soon as Pro is on') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
-        '<button class="item" data-act="sylogout"><span>Log out<small>Your notes stay on this device.</small></span></button>';
+        '<button class="item" data-act="sylogout"><span>Log out<small>Your notes stay on this device.</small></span></button>' +
+        '<button class="item danger" data-act="sydelete"><span>Delete account</span></button>';
     } else {
       if (!/@/.test(sy.user || '')) h += syEmailItem();
       h += '<button class="item" data-act="synow"><span>Sync now<small id="sysub">Signed in as ' + esc(sy.user) + ' \u00b7 last synced ' + syAgo() + (sy.err ? ' \u00b7 ' + esc(sy.err) : '') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
@@ -3960,7 +3961,7 @@
       if (t) AXS.api('/api/logout', { token: t, method: 'POST' }).catch(function () {});
     },
     sydelete: async function () {
-      var ok = await dialog({ title: 'Delete the cloud copy?', message: 'Removes your sync account and every encrypted note stored in the cloud, for all devices. The notes on this device are not touched.' + (isPro() && PRO.acct && !PRO.owner ? ' Axon Pro is tied to this account, so it goes too; you\u2019d have to buy it again.' : ''), ok: 'Delete cloud copy', danger: true });
+      var ok = await dialog({ title: PRO.need ? 'Delete your Axon account?' : 'Delete the cloud copy?', message: 'Removes your sync account and every encrypted note stored in the cloud, for all devices. The notes on this device are not touched.' + (isPro() && PRO.acct && !PRO.owner ? ' Axon Pro is tied to this account, so it goes too; you\u2019d have to buy it again.' : ''), ok: 'Delete cloud copy', danger: true });
       if (!ok) return;
       /* np-r2: deleting asks for the password again, checked by the server (a signed-in phone alone isn't enough) */
       for (var msg = ''; ;) {
