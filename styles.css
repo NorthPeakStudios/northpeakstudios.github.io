@@ -191,3 +191,6 @@ section{padding:72px 0}
 @media (min-width:980px){.pricing.three{grid-template-columns:repeat(3,1fr)}}
 @media (min-width:820px) and (max-width:979px){.pricing.three{grid-template-columns:1fr 1fr}.pricing.three .plan.hot{grid-column:1/-1}}
 .head-cta{white-space:nowrap}
+
+/* r5 (Oct 21): four plans (three apps + All-Access) — All-Access takes its own full row */
+@media (min-width:820px){.pricing.four .plan.hot{grid-column:1/-1}}
