@@ -218,6 +218,7 @@ const PRO_VIEWS = { painting: ['your moments, painted', 'every feeling you keep 
 function renderArchive(){
   const n = S.moments.length, where = cloud.signedIn() ? 'synced to ' + cloud.acct.user : 'stays on your phone';
   $('#count').textContent = n ? `${n} moment${n === 1 ? '' : 's'} · ${where}` : where;
+  xOnThisDay();
   document.body.classList.toggle('is-pro', isPro());
   if (S.tab !== 'archive' && !S.detail) return;
   if (PRO_VIEWS[S.view] && !isPro()) return renderLocked(S.view);
@@ -272,8 +273,9 @@ async function savePainting(){
 function download(blob, name){ const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000); }
 
 function renderMoments(){
-  const el = $('#v-moments'), ms = S.moments;
-  if (!ms.length) { el.innerHTML = EMPTY('nothing kept yet', 'your first moment will land here.'); return; }
+  const el = xMomentsEl(), ms = xFilter(S.moments);
+  if (!S.moments.length) { el.innerHTML = EMPTY('nothing kept yet', 'your first moment will land here.'); return; }
+  if (!ms.length) { el.innerHTML = xNoMatch(); return; }
   const mk = t => { const d = new Date(t); return d.getFullYear() * 12 + d.getMonth(); };
   const groups = []; ms.forEach(m => { const k = mk(m.t); if (!groups.length || groups[groups.length - 1].k !== k) groups.push({ k, t: m.t, items: [] }); groups[groups.length - 1].items.push(m); });
   const now = new Date();
@@ -281,8 +283,8 @@ function renderMoments(){
   const tl = t => dayKey(t) === dayKey(Date.now()) ? fmtTime(t) : new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' }).toLowerCase();
   el.innerHTML = groups.map(g => `<h5 class="day-h">${gl(g.t)}</h5><div class="mosaic">${g.items.map((m, i) => {
     const big = i === 0 && g.items.length >= 3;
-    if (!isPro()) return `<button class="tile plain${big ? ' big' : ''}" data-id="${m.id}"><span class="tt">${tl(m.t)}</span><span class="tx">${esc(m.text || (m.chips && m.chips.length ? m.chips.join(', ') : 'no words'))}</span>${m.answer ? `<span class="ta">${esc(m.answer)}</span>` : ''}</button>`;
-    return `<button class="tile${big ? ' big' : ''}" data-id="${m.id}" style="background:${tileBg(m)}"><span class="tt">${tl(m.t)}</span>${big && m.poem ? `<span class="tl">${esc(m.poem[0])}</span>` : ''}<span class="tw">${esc(m.word)}</span></button>`; }).join('')}</div>`).join('');
+    if (!isPro()) return `<button class="tile plain${big ? ' big' : ''}" data-id="${m.id}"><span class="tt">${tl(m.t)}${m.fav ? ' ★' : ''}</span><span class="tx">${esc(m.text || (m.chips && m.chips.length ? m.chips.join(', ') : 'no words'))}</span>${m.answer ? `<span class="ta">${esc(m.answer)}</span>` : ''}</button>`;
+    return `<button class="tile${big ? ' big' : ''}" data-id="${m.id}" style="background:${tileBg(m)}"><span class="tt">${tl(m.t)}${m.fav ? ' ★' : ''}</span>${big && m.poem ? `<span class="tl">${esc(m.poem[0])}</span>` : ''}<span class="tw">${esc(m.word)}</span></button>`; }).join('')}</div>`).join('');
   el.querySelectorAll('.tile').forEach(t => t.onclick = () => openDetail(ms, ms.findIndex(m => m.id === t.dataset.id)));
 }
 
@@ -371,11 +373,12 @@ function drawDetail(){
     ${m.answer ? `<p class="d-answer">${esc(m.answer)}</p>` : '<p class="d-answer" style="color:var(--ink3)">left unanswered</p>'}
     ${m.chips && m.chips.length ? `<div class="d-chips">${m.chips.map(c => `<span>${esc(c)}</span>`).join('')}</div>` : ''}
     ${pro ? `<p class="d-coord">${Math.round(m.v * 100)}% light · ${Math.round(m.e * 100)}% restless</p>` : ''}`;
-  if (pro) drawScene($('#dScene'), m); else $('#dBody .d-lock').onclick = () => openPro('this moment\'s poem');
+  if (pro) drawScene($('#dScene'), m); else { const lk = $('#dBody .d-lock'); if (lk) lk.onclick = () => openPro('this moment\'s poem'); }
   /* np-r2: copy a poem to send to someone (text only, nothing leaves the phone unless you paste it) */
   const cp = $('#dCopy'); if (cp && poem) cp.onclick = async () => { const t = poem.join('\n');
     try { await navigator.clipboard.writeText(t); toast('poem copied'); }
     catch { if (navigator.share) { try { await navigator.share({ text: t }); } catch {} } else toast('couldn\'t copy here'); } };
+  try { xDetailHook(m); } catch (err) { console.warn(err); }
   $('#dPrev').style.visibility = idx > 0 ? 'visible' : 'hidden'; $('#dNext').style.visibility = idx < list.length - 1 ? 'visible' : 'hidden';
   $('#dDelete').textContent = 'delete'; $('#dDelete').dataset.armed = '';
   $('#dBody').scrollTop = 0;
@@ -634,4 +637,116 @@ async function boot(){
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 boot();
+
+/* ================= Oct 21 features (batch 1) ================= */
+const XSTOP = new Set('i me my myself we our you your he she it its they them their what which who this that these those am is are was were be been being have has had do does did a an the and but if or because as until while of at by for with about against between into through during before after above below to from up down in out on off over under again then once here there when where why how all any both each few more most other some such no nor not only own same so than too very can will just don dont should now im ive its it\'s i\'m feel feeling like really kind just get got so much bit lot also still even'.split(' '));
+S.xf = { q: '', fav: false, mood: '', tag: '' };
+const xSave = async m => { try { await db.put(m); } catch { toast('couldn\'t save'); return; } cloud.markDirty(m.id); syncSoon(); };
+const xDay = t => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+/* 1 · streak: days in a row with at least one kept moment, ending today (or yesterday, still alive) */
+function xStreak(){
+  const days = new Set(S.moments.map(m => xDay(m.t))); let d = xDay(Date.now()), n = 0;
+  if (!days.has(d)) d -= 864e5;
+  while (days.has(d)) { n++; d = xDay(d - 864e5 + 3 * 36e5); }
+  return { n, today: days.has(xDay(Date.now())) };
+}
+/* 6 · tags */
+const xTagsOf = m => Array.isArray(m.tags) ? m.tags : [];
+const xAllTags = () => { const c = {}; S.moments.forEach(m => xTagsOf(m).forEach(t => c[t] = (c[t] || 0) + 1)); return Object.keys(c).sort((a, b) => c[b] - c[a]); };
+const xCleanTag = t => String(t || '').toLowerCase().replace(/^#+/, '').replace(/[^a-z0-9\u00c0-\u024f_-]+/g, '').slice(0, 24);
+/* 3 · 4 · search + filters */
+function xFilter(list){
+  const f = S.xf, q = f.q.trim().toLowerCase();
+  return list.filter(m => {
+    if (f.fav && !m.fav) return false;
+    if (f.mood === 'light' && !(m.v >= .5)) return false; if (f.mood === 'heavy' && !(m.v < .5)) return false;
+    if (f.mood === 'restless' && !(m.e >= .5)) return false; if (f.mood === 'still' && !(m.e < .5)) return false;
+    if (f.tag && !xTagsOf(m).includes(f.tag)) return false;
+    if (q) { const hay = [m.text, m.answer, m.word, m.prompt, m.good, (m.chips || []).join(' '), xTagsOf(m).join(' '), (m.poem || []).join(' ')].join(' ').toLowerCase(); if (!q.split(/\s+/).every(w => hay.includes(w.replace(/^#/, '')))) return false; }
+    return true;
+  });
+}
+function xBarHTML(){
+  const f = S.xf, st = xStreak(), tags = xAllTags();
+  const chip = (k, v, label) => `<button class="xchip${(k === 'fav' ? f.fav : f[k] === v) ? ' on' : ''}" data-k="${k}" data-v="${esc(v)}">${label}</button>`;
+  return `<div class="xbar"><div class="xtop"><label class="xsearch"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><input id="xq" type="search" placeholder="search your moments" value="${esc(f.q)}" autocomplete="off" autocapitalize="off" enterkeyhint="search"></label>
+    <button class="xins" id="xInsights">${isPro() ? '' : LOCK}insights</button></div>
+    ${st.n ? `<p class="xstreak">${st.n} day${st.n === 1 ? '' : 's'} in a row${st.today ? '' : ' · keep one today to keep it going'}</p>` : ''}
+    <div class="xchips">${chip('fav', '1', '★ favorites')}${chip('mood', 'light', 'light')}${chip('mood', 'heavy', 'heavy')}${chip('mood', 'restless', 'restless')}${chip('mood', 'still', 'still')}${tags.map(t => chip('tag', t, '#' + esc(t))).join('')}${XCHIPS.map(fn => fn(chip)).join('')}</div></div>`;
+}
+const XCHIPS = [];
+function xMomentsEl(){
+  const host = $('#v-moments');
+  if (!S.moments.length) { host.innerHTML = '<div id="xlist"></div>'; return $('#xlist'); }
+  if (!$('#xbarWrap', host) || !$('#xlist')) { host.innerHTML = '<div id="xbarWrap"></div><div id="xlist"></div>'; }
+  if (document.activeElement !== $('#xq')) { $('#xbarWrap').innerHTML = xBarHTML(); xBindBar(); }
+  return $('#xlist');
+}
+function xBindBar(){
+  const q = $('#xq'); if (q) q.oninput = () => { S.xf.q = q.value; renderMoments(); };
+  $$('#xbarWrap .xchip').forEach(b => b.onclick = () => { const k = b.dataset.k, v = b.dataset.v; if (k === 'fav') S.xf.fav = !S.xf.fav; else S.xf[k] = S.xf[k] === v ? '' : v; $('#xbarWrap').innerHTML = xBarHTML(); xBindBar(); renderMoments(); });
+  const ib = $('#xInsights'); if (ib) ib.onclick = () => isPro() ? xInsights() : openPro('insights');
+}
+const xNoMatch = () => `<div class="empty xnone"><h4>nothing matches</h4><p>try another word or clear the filters.</p><button class="ghost" id="xClear">clear filters</button></div>`;
+document.addEventListener('click', e => { if (e.target.id === 'xClear') { S.xf = { q: '', fav: false, mood: '', tag: '' }; $('#xbarWrap').innerHTML = xBarHTML(); xBindBar(); renderMoments(); } });
+/* 2 · 5 · 6 · detail extras: favorite, tags, edit the answer */
+function xDetailHook(m){
+  const box = document.createElement('div'); box.className = 'xd';
+  box.innerHTML = `<div class="xdrow"><button class="xdb${m.fav ? ' on' : ''}" id="xFav">${m.fav ? '★ favorite' : '☆ favorite'}</button><button class="xdb" id="xTagB"># tags</button><button class="xdb" id="xAns">${m.answer ? 'edit answer' : 'answer it'}</button>${XDBTN.map(f => f(m)).join('')}</div>
+    ${xTagsOf(m).length ? `<div class="xdtags">${xTagsOf(m).map(t => `<span>#${esc(t)}</span>`).join('')}</div>` : ''}${XDEXTRA.map(f => f(m)).join('')}`;
+  const date = $('#dBody .d-date'); date ? date.after(box) : $('#dBody').prepend(box);
+  $('#xFav').onclick = async () => { m.fav = !m.fav; await xSave(m); drawDetail(); renderArchive(); toast(m.fav ? 'added to favorites' : 'removed from favorites'); };
+  $('#xTagB').onclick = () => xEdit('tags', m.id && m, 'tags, separated by spaces', xTagsOf(m).map(t => '#' + t).join(' '), async v => { m.tags = [...new Set(v.split(/[\s,]+/).map(xCleanTag).filter(Boolean))].slice(0, 8); await xSave(m); drawDetail(); renderArchive(); });
+  $('#xAns').onclick = () => xEdit('your answer', m, m.prompt, m.answer || '', async v => { m.answer = v.slice(0, 140); await xSave(m); drawDetail(); renderArchive(); toast('answer saved'); }, 140);
+  XDBIND.forEach(f => f(m));
+}
+const XDBTN = [], XDEXTRA = [], XDBIND = [];
+function xEdit(title, m, sub, val, onSave, max){
+  let el = $('#xEdit'); if (!el) { el = document.createElement('div'); el.id = 'xEdit'; el.className = 'xedit'; document.body.appendChild(el); }
+  el.innerHTML = `<div class="xe-card"><h4>${esc(title)}</h4>${sub ? `<p>${esc(sub)}</p>` : ''}<input id="xeIn" maxlength="${max || 200}" autocomplete="off" autocapitalize="off" enterkeyhint="done"><div class="xe-b"><button class="ghost" id="xeNo">cancel</button><button class="primary" id="xeOk">save</button></div></div>`;
+  el.classList.add('open'); const inp = $('#xeIn'); inp.value = val; setTimeout(() => inp.focus(), 50);
+  const close = () => el.classList.remove('open');
+  $('#xeNo').onclick = close; el.onclick = e => { if (e.target === el) close(); };
+  const ok = async () => { await onSave(inp.value.trim()); close(); };
+  $('#xeOk').onclick = ok; inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); ok(); } };
+}
+/* 7 · on this day: a week, a month or a year ago */
+function xOnThisDay(){
+  const el = $('#xOtd'); if (!el) return;
+  const now = new Date(), ago = [['a year ago', new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())], ['a month ago', new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())], ['a week ago', new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7)]];
+  for (const [label, d] of ago) {
+    const k = xDay(d), hits = S.moments.filter(m => xDay(m.t) === k);
+    if (hits.length) { const m = hits[0]; el.hidden = false; el.innerHTML = `<span class="xo-dot" style="background:${m.colors[0]}"></span><span><b>${label}</b> you felt <em>${esc(m.word)}</em>${m.text ? ` — “${esc(m.text.slice(0, 50))}${m.text.length > 50 ? '…' : ''}”` : ''}</span>`; el.onclick = () => openDetail(hits, 0); return; }
+  }
+  el.hidden = true;
+}
+/* 8 · 9 · 10 · insights (pro): weekly recap, time of day, weekday, word cloud */
+function xInsights(){
+  let el = $('#xInsSheet');
+  if (!el) { el = document.createElement('div'); el.id = 'xInsSheet'; el.className = 'sheet settings xins-sheet'; el.setAttribute('aria-hidden', 'true'); el.innerHTML = '<div class="sheet-card"><div class="grabber"></div><div class="sheet-head"><h3>insights</h3><button class="icon-btn" id="xInsClose" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div id="xInsBody"></div></div>'; document.body.appendChild(el);
+    const close = () => { el.classList.remove('open'); el.setAttribute('aria-hidden', 'true'); }; $('#xInsClose').onclick = close; el.addEventListener('click', e => { if (e.target === el) close(); }); }
+  const ms = S.moments, wk = ms.filter(m => m.t > Date.now() - 7 * 864e5), pct = x => Math.round(x * 100);
+  const common = list => { const c = {}; list.forEach(m => c[m.word] = (c[m.word] || 0) + 1); return Object.entries(c).sort((a, b) => b[1] - a[1])[0]; };
+  const dayAvg = {}; wk.forEach(m => { const k = xDay(m.t); (dayAvg[k] ||= []).push(m.v); });
+  const dl = Object.entries(dayAvg).map(([k, a]) => [+k, a.reduce((s, x) => s + x, 0) / a.length]).sort((a, b) => b[1] - a[1]);
+  const dname = t => new Date(t).toLocaleDateString([], { weekday: 'long' }).toLowerCase();
+  let h = '<div class="xi-sec"><h5>this week</h5>';
+  if (!wk.length) h += '<p class="xi-p">no moments in the last 7 days yet.</p>';
+  else { const c = common(wk); h += `<div class="xi-stats"><div><b>${wk.length}</b><span>moment${wk.length === 1 ? '' : 's'}</span></div><div><b>${Object.keys(dayAvg).length}</b><span>day${Object.keys(dayAvg).length === 1 ? '' : 's'}</span></div><div><b>${pct(wk.reduce((s, m) => s + m.v, 0) / wk.length)}%</b><span>light, on average</span></div></div>
+    <p class="xi-p">you felt <em>${esc(c[0])}</em> most${c[1] > 1 ? ` (${c[1]} times)` : ''}.${dl.length > 1 ? ` lightest day: <b>${dname(dl[0][0])}</b>. heaviest: <b>${dname(dl[dl.length - 1][0])}</b>.` : ''}</p>`; }
+  h += '</div>';
+  const slots = [['morning', 5, 12], ['afternoon', 12, 17], ['evening', 17, 22], ['night', 22, 29]];
+  const bars = (rows) => rows.map(([l, list]) => { const v = list.length ? list.reduce((s, m) => s + m.v, 0) / list.length : 0; return `<div class="xi-bar"><span>${l}</span><i><b style="width:${list.length ? Math.max(4, pct(v)) : 0}%;background:${list.length ? moodColors(v, list.reduce((s, m) => s + m.e, 0) / list.length)[0] : 'transparent'}"></b></i><small>${list.length ? pct(v) + '% light · ' + list.length : '—'}</small></div>`; }).join('');
+  h += `<div class="xi-sec"><h5>time of day</h5>${bars(slots.map(([l, a, b]) => [l, ms.filter(m => { const hr = new Date(m.t).getHours(), x = hr < 5 ? hr + 24 : hr; return x >= a && x < b; })]))}</div>`;
+  const wd = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+  h += `<div class="xi-sec"><h5>by weekday</h5>${bars(wd.map((l, i) => [l, ms.filter(m => new Date(m.t).getDay() === i)]))}</div>`;
+  const wc = {}; ms.forEach(m => [m.text, m.answer, m.good].join(' ').toLowerCase().replace(/[^a-z\u00c0-\u024f'\s]/g, ' ').split(/\s+/).forEach(w => { w = w.replace(/^'+|'+$/g, ''); if (w.length > 2 && !XSTOP.has(w)) wc[w] = (wc[w] || 0) + 1; }));
+  const top = Object.entries(wc).sort((a, b) => b[1] - a[1]).slice(0, 36), mx = top.length ? top[0][1] : 1;
+  h += `<div class="xi-sec"><h5>your words</h5>${top.length ? `<div class="xi-cloud">${top.sort(() => Math.random() - .5).map(([w, c]) => `<span style="font-size:${14 + Math.round(c / mx * 20)}px;opacity:${.45 + c / mx * .55}">${esc(w)}</span>`).join(' ')}</div>` : '<p class="xi-p">write a few moments in words and they\'ll gather here.</p>'}</div>`;
+  h += XINS.map(f => f()).join('');
+  $('#xInsBody').innerHTML = h; el.classList.add('open'); el.setAttribute('aria-hidden', 'false');
+}
+const XINS = [];
+setTimeout(xOnThisDay, 300);
+
 window.__liminal = { db, S, renderArchive, engine, cloud, afterAccount };

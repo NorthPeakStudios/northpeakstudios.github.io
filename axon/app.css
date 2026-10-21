@@ -878,3 +878,20 @@ body.reviewing #view{padding-bottom:calc(var(--bpad) + 16px)}
 .syncon input+input{margin-top:8px}
 .syncon .sysmall{font-size:12.5px;margin:4px 0 6px}
 .syncon .sysmall a{color:var(--accent)}
+
+/* ===== Oct 21 features · batch 1 ===== */
+.xcount{position:sticky;top:calc(var(--sat) + 52px);z-index:3;font:12px/1.2 var(--sans);color:var(--dim);padding:2px 0 6px;letter-spacing:.01em;background:linear-gradient(var(--bg) 70%,transparent)}
+.xgoalbar{height:3px;border-radius:3px;background:var(--line2);overflow:hidden;margin:-2px 0 8px}
+.xgoalbar i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.xgoalbar.done i{background:#34d399}
+body.xfocus .nav.stick,body.xfocus .crumb,body.xfocus #tabbar,body.xfocus .tchips,body.xfocus #xcount,body.xfocus #xpomo{opacity:0;pointer-events:none;transition:opacity .25s}
+body.xfocus .nav.stick{height:0;overflow:hidden;margin:0;padding:0}
+.xfocusx{position:fixed;top:calc(var(--sat) + 8px);right:calc(var(--sar) + 12px);z-index:60;font:600 12px var(--sans);color:var(--dim);background:var(--card2);border:1px solid var(--line2);border-radius:20px;padding:7px 12px}
+.xfocusx[hidden]{display:none}
+.xpomo{position:fixed;left:calc(var(--sal) + 12px);bottom:calc(var(--tabh) + var(--bpad) + 12px);z-index:40;display:flex;align-items:center;gap:7px;font:600 13px var(--sans);font-variant-numeric:tabular-nums;color:var(--text);background:var(--card2);border:1px solid var(--line2);border-radius:20px;padding:8px 14px;box-shadow:0 6px 20px rgba(0,0,0,.4)}
+.xpomo i{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.xpomo i.b{background:#34d399}
+body.editing .xpomo{bottom:auto;top:calc(var(--sat) + 50px);left:auto;right:calc(var(--sar) + 14px);padding:4px 9px;font-size:11px;box-shadow:none}
+.xsym .xsg{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;padding:4px 14px 12px}
+.xsym .xsg button{font:20px var(--sans);color:var(--text);background:var(--card2);border:1px solid var(--line);border-radius:10px;height:42px;padding:0}
+.xsym .xsg button:active{background:var(--accent-soft)}

@@ -345,3 +345,48 @@ body.is-pro .seg-lock{display:none}
 
 /* np-r2: the hidden attribute always wins (a class with display:block was showing the Pro lock card under a Pro user's poem) */
 [hidden]{display:none!important}
+
+/* ===== Oct 21 features · batch 1 ===== */
+.xbar{margin:4px 0 14px}
+.xtop{display:flex;gap:8px;align-items:center}
+.xsearch{flex:1;display:flex;align-items:center;gap:8px;background:var(--glass);border:1px solid var(--line);border-radius:14px;padding:0 12px;height:40px}
+.xsearch svg{width:16px;height:16px;fill:none;stroke:var(--ink3);stroke-width:1.8;flex:none}
+.xsearch input{flex:1;min-width:0;background:none;border:0;outline:0;color:var(--ink);font:16px var(--sans);-webkit-appearance:none}
+.xsearch input::placeholder{color:var(--ink3)}
+.xins{height:40px;padding:0 13px;border-radius:14px;border:1px solid var(--line);background:var(--glass);color:var(--ink);font:13px var(--sans);display:flex;align-items:center;gap:5px}
+.xins svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.8}
+.xstreak{margin:10px 2px 0;font-size:12px;letter-spacing:.06em;color:var(--ink2)}
+.xchips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:10px -2px 0;padding:0 2px 2px}
+.xchips::-webkit-scrollbar{display:none}
+.xchip{flex:none;height:30px;padding:0 12px;border-radius:15px;border:1px solid var(--line);background:none;color:var(--ink2);font:13px var(--sans);white-space:nowrap}
+.xchip.on{background:var(--ink);color:#0b0a10;border-color:var(--ink)}
+.xnone{padding-top:30px}.xnone .ghost{margin-top:12px}
+.xd{margin:12px 0 4px}
+.xdrow{display:flex;gap:6px;flex-wrap:wrap}
+.xdb{height:32px;padding:0 12px;border-radius:16px;border:1px solid var(--line);background:var(--glass);color:var(--ink);font:13px var(--sans)}
+.xdb.on{border-color:var(--glow);color:var(--glow)}
+.xdtags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.xdtags span{font-size:12px;color:var(--ink2);border:1px dashed var(--line);border-radius:10px;padding:3px 8px}
+.xedit{position:fixed;inset:0;z-index:40;background:rgba(5,4,9,.6);display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
+.xedit.open{opacity:1;pointer-events:auto}
+.xe-card{width:100%;max-width:520px;background:#14121c;border:1px solid var(--line);border-radius:22px 22px 0 0;padding:20px 20px calc(20px + var(--sb))}
+.xe-card h4{margin:0 0 4px;font:400 24px var(--serif);font-style:italic}
+.xe-card p{margin:0 0 12px;color:var(--ink2);font-size:14px}
+.xe-card input,.xe-card textarea{width:100%;background:var(--glass);border:1px solid var(--line);border-radius:12px;color:var(--ink);font:16px var(--sans);padding:12px;outline:0}
+.xe-b{display:flex;gap:10px;margin-top:14px}.xe-b>*{flex:1}
+.xotd{display:flex;gap:10px;align-items:flex-start;text-align:left;width:100%;margin:14px 0 0;padding:12px 14px;border-radius:16px;border:1px solid var(--line);background:var(--glass);color:var(--ink2);font:14px/1.4 var(--sans)}
+.xotd[hidden]{display:none}
+.xotd b{color:var(--ink);font-weight:500}.xotd em{font-family:var(--serif);font-size:16px;color:var(--ink)}
+.xo-dot{flex:none;width:12px;height:12px;border-radius:50%;margin-top:4px;box-shadow:0 0 10px currentColor}
+.xins-sheet .sheet-card{max-height:86vh;overflow-y:auto}
+.xi-sec{margin:6px 0 18px}
+.xi-sec h5{margin:0 0 8px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink3);font-weight:500}
+.xi-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.xi-stats div{background:var(--glass);border:1px solid var(--line);border-radius:14px;padding:10px}
+.xi-stats b{display:block;font:400 26px var(--serif)}.xi-stats span{font-size:11px;color:var(--ink2)}
+.xi-p{color:var(--ink2);font-size:14px;line-height:1.5;margin:10px 0 0}.xi-p em{font-family:var(--serif);font-size:17px;color:var(--ink)}.xi-p b{color:var(--ink);font-weight:500}
+.xi-bar{display:grid;grid-template-columns:72px 1fr 92px;align-items:center;gap:8px;margin:6px 0;font-size:12px;color:var(--ink2)}
+.xi-bar i{height:8px;border-radius:4px;background:var(--glass);overflow:hidden}.xi-bar i b{display:block;height:100%;border-radius:4px}
+.xi-bar small{text-align:right;font-size:11px;color:var(--ink3)}
+.xi-cloud{line-height:1.25;font-family:var(--serif);font-style:italic;text-align:center;padding:6px 0}
+.xi-cloud span{display:inline-block;margin:2px 5px}

@@ -991,6 +991,7 @@
     if ('onbeforeinput' in ed) ed.addEventListener('beforeinput', function (e) { if ((e.inputType === 'insertLineBreak' || e.inputType === 'insertParagraph') && !e.isComposing && continueList(ed)) e.preventDefault(); });
     else ed.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey && !e.defaultPrevented && !e.isComposing && continueList(ed)) e.preventDefault(); });
     buildKB(ed);
+    try { xEditHook(n, ed); } catch (e) {}
     if (focusTitle) { ttl.focus(); ttl.select(); return; }
     var lines = ed.value.split('\n'), L = at && at.line !== undefined ? Math.min(at.line, lines.length - 1) : -1;
     var caret = ed.value.length;
@@ -1103,7 +1104,7 @@
     if (ed) n.body = ed.value;
     if (ed) touchIfChanged(n);
     editing = null;
-    document.body.classList.remove('editing');
+    document.body.classList.remove('editing'); xStopEditHook();
     hideAC(); hideSlash(); closeFind();
     if (tbar) { tbar.remove(); tbar = null; }
     if (kb) { kb.remove(); kb = null; }
@@ -1421,7 +1422,7 @@
     kb = document.createElement('div'); kb.className = 'kb';
     var btns = [['plus', I.plus, 'Insert block'], ['undo', I.undo, 'Undo'], ['redo', I.redo, 'Redo'], ['link', '[[', 'Link a note'], ['img', I.img, 'Add image'], ['h', '#', 'Heading'],
       ['b', '<b style="font-family:var(--sans)">B</b>', 'Bold'], ['i', '<i style="font-family:var(--serif)">I</i>', 'Italic'], ['hl', I.hl, 'Highlight'], ['task', I.check, 'Checklist'], ['ul', I.list, 'Bullet list'],
-      ['outdent', I.outdent, 'Outdent'], ['indent', I.indent, 'Indent'], ['quote', I.quote, 'Quote'], ['code', '`', 'Code'], ['card', '::', 'Flashcard'], ['syn', I.recall, 'Make Synapse cards']];
+      ['outdent', I.outdent, 'Outdent'], ['indent', I.indent, 'Indent'], ['quote', I.quote, 'Quote'], ['code', '`', 'Code'], ['card', '::', 'Flashcard'], ['lup', '\u2191', 'Move line up'], ['ldn', '\u2193', 'Move line down'], ['tools', '<b style="font-family:var(--sans);font-size:15px">Aa</b>', 'Text tools'], ['syn', I.recall, 'Make Synapse cards']];
     kb.innerHTML = '<div class="kbs">' + btns.map(function (b) { return '<button data-k="' + b[0] + '" aria-label="' + b[2] + '"' + (b[0] === 'plus' ? ' class="kplus"' : '') + '>' + b[1] + '</button>'; }).join('') + '</div><button class="done" data-k="done">Done</button>';
     /* pointerdown keeps the keyboard up; the action runs on a real tap so the row can scroll */
     kb.addEventListener('pointerdown', function (e) { if (e.target.closest('button')) e.preventDefault(); });
@@ -1430,6 +1431,7 @@
       var b = e.target.closest('button'); if (!b) return;
       e.preventDefault();
       if (b.dataset.k === 'img') { pickImage(ed); return; }
+      if (XKB[b.dataset.k]) { XKB[b.dataset.k](ed); return; }
       kbAction(b.dataset.k, ed);
     });
     document.body.appendChild(kb);
@@ -1644,6 +1646,7 @@
     if (kind === 'embed') { var pe = before.trim() ? '\n' : ''; insertText(ed, pe + '![[', c, c); updateAC(); return; }
     if (kind === 'date') { insertText(ed, ymd(new Date()), c, c); return; }
     if (kind === 'time') { var d = new Date(); insertText(ed, String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'), c, c); return; }
+    if (kind === 'sym') { xSymbols(ed, c); return; }
     if (kind === 'daylink') { insertText(ed, '[[' + ymd(new Date()) + ']]', c, c); return; }
     if (kind === 'footnote') {
       var used = {}, re = /\[\^(\d+)\]/g, mm; while ((mm = re.exec(ed.value))) used[mm[1]] = 1;
@@ -1998,7 +2001,7 @@
       '<div class="sec"><span>Daily notes</span></div><div class="group">' +
       '<button class="item" data-act="dailytmpl"><span>' + proTag('Template for new daily notes') + '<small>' + (settings.dailyTmpl ? esc(settings.dailyTmpl) : 'None \u2014 new daily notes start empty') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<div class="item"><span>Where they live<small>Daily notes are kept in the \u201c' + DAILY + '\u201d folder, named by date. Tap the day chip on one to open the calendar.</small></span></div></div>' +
-      '<div class="sec"><span>Discover</span></div><div class="group">' +
+      xWritingSettings() + '<div class="sec"><span>Discover</span></div><div class="group">' +
       '<div class="item"><span>Discover uses the internet<small>Looks up your note topics on Wikipedia while Discover is open. Only the search words are sent.</small></span><div class="seg">' + [['1', 'On'], ['0', 'Off']].map(function (s) { return '<button class="' + ((settings.discoverNet !== false) === (s[0] === '1') ? 'on' : '') + '" data-act="dnet" data-v="' + s[0] + '" style="font-family:var(--sans);font-size:13px">' + s[1] + '</button>'; }).join('') + '</div></div>' +
       '<button class="item" data-act="dclear"><span>Clear Discover history<small>Forget saved cards and \u201cnot for me\u201d picks</small></span></button></div>' +
       '<div class="sec"><span>Recall</span></div><div class="group">' +
@@ -4705,6 +4708,194 @@
       navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(function () {});
     }
   }
+
+  /* ================= Oct 21 features (batch 1: writing tools) ================= */
+  var XKB = {};
+  function xCount(t) { var w = (t.match(/[A-Za-z0-9\u00C0-\u024F\u0400-\u04FF']+/g) || []).length; return { w: w, c: t.length, m: Math.max(1, Math.round(w / 230)) }; }
+  /* front matter helpers: per-note settings (goal, color, due) live in the note's own properties block, so they sync and export with it */
+  function fmGet(n, k) { var f = MD.front(n.body); if (!f) return ''; for (var i = 0; i < f.props.length; i++) if (f.props[i].k.toLowerCase() === k) return f.props[i].v; return ''; }
+  function fmSet(n, k, v) {
+    var b = n.body.replace(/\r\n?/g, '\n'), f = MD.front(b), lines = b.split('\n');
+    if (!f) { if (v === '' || v == null) return; n.body = '---\n' + k + ': ' + v + '\n---\n' + b; return; }
+    var head = lines.slice(1, f.end), rest = lines.slice(f.end + 1), done = false, re = new RegExp('^' + k + '\\s*:', 'i');
+    head = head.filter(function (l) { if (re.test(l)) { if (v === '' || v == null || done) return false; done = true; return true; } return true; }).map(function (l) { return re.test(l) ? k + ': ' + v : l; });
+    if (!done && v !== '' && v != null) head.push(k + ': ' + v);
+    n.body = head.filter(function (l) { return l.trim(); }).length ? ['---'].concat(head, ['---'], rest).join('\n') : rest.join('\n');
+  }
+  function xSaveBody(n, body) { if (body != null) n.body = body; touch(n); rebuildIdx(); }
+
+  /* 1 · focus mode */
+  function xFocus(on) {
+    settings.focus = on === undefined ? !settings.focus : !!on; saveSettings();
+    document.body.classList.toggle('xfocus', !!settings.focus && !!editing);
+    var b = $('#xfocusx'); if (b) b.hidden = !(settings.focus && editing);
+    toast(settings.focus ? 'Focus mode on' : 'Focus mode off');
+  }
+  /* 2 · typewriter scrolling */
+  var twT = 0;
+  function xTypewriter(ed) {
+    if (!settings.tw || !ed) return;
+    clearTimeout(twT); twT = setTimeout(function () {
+      var line = ed.value.slice(0, ed.selectionStart).split('\n').length - 1, tops = lineTops(ed);
+      var vr = viewEl.getBoundingClientRect(), er = ed.getBoundingClientRect(), vv = window.visualViewport, vh = vv ? vv.height : innerHeight;
+      var y = er.top - vr.top + (tops[line] || 0) + viewEl.scrollTop, want = y - Math.max(90, (vh - vr.top) * 0.38);
+      if (Math.abs(viewEl.scrollTop - want) > 24) viewEl.scrollTo({ top: Math.max(0, want), behavior: 'smooth' });
+    }, 60);
+  }
+  /* 3 + 4 · live counter and word goal */
+  function xGoal(n) { var g = parseInt(fmGet(n, 'goal'), 10); return g > 0 ? g : 0; }
+  function xPaintCount(ed) {
+    var el = $('#xcount'), n = editing && editing.n; if (!el || !n || !ed) return;
+    var sel = ed.selectionEnd > ed.selectionStart ? ed.value.slice(ed.selectionStart, ed.selectionEnd) : '';
+    var c = xCount(MD.front(ed.value) ? ed.value.split('\n').slice(MD.front(ed.value).end + 1).join('\n') : ed.value), g = xGoal(n);
+    if (sel) { var s = xCount(sel); el.textContent = s.w + ' of ' + c.w + ' words selected'; }
+    else el.textContent = (g ? c.w + ' / ' + g + ' words' : c.w + ' word' + (c.w === 1 ? '' : 's')) + ' \u00b7 ' + c.c + ' chars \u00b7 ' + c.m + ' min';
+    var bar = $('#xgoalbar'); if (bar) { bar.hidden = !g; if (g) { var p = Math.min(100, Math.round(c.w / g * 100)); bar.firstChild.style.width = p + '%'; bar.classList.toggle('done', p >= 100); if (p >= 100 && !editing.goalHit) { editing.goalHit = 1; toast('Word goal reached \ud83c\udf89'); try { navigator.vibrate && navigator.vibrate(30); } catch (e) {} } } }
+  }
+  async function xSetGoal(n) {
+    var cur = xGoal(n), v = await dialog({ title: 'Word goal', message: 'How many words is this note aiming for? Leave empty to remove the goal.', input: true, value: cur ? String(cur) : '', placeholder: 'e.g. 500', ok: 'Save', validate: function (v) { return !v || /^\d{1,6}$/.test(v) ? null : 'Type a number.'; } });
+    if (v === null || v === undefined || v === false) return;
+    var ed = editing && editing.n === n ? $('#ed') : null; if (ed) n.body = ed.value;
+    fmSet(n, 'goal', v ? String(parseInt(v, 10)) : '');
+    if (ed) { var p = ed.selectionStart, d = n.body.length - ed.value.length; ed.value = n.body; autoGrow(ed); try { ed.setSelectionRange(Math.max(0, p + d), Math.max(0, p + d)); } catch (e) {} scheduleSave(); xPaintCount(ed); }
+    else { xSaveBody(n); if (route().v === 'note') renderNote(n.id); }
+    toast(v ? 'Goal: ' + v + ' words' : 'Goal removed');
+  }
+  /* 5 · pomodoro study timer */
+  var pomoT = 0;
+  function pomoState() { try { return JSON.parse(localStorage.getItem('axon.pomo') || 'null'); } catch (e) { return null; } }
+  function pomoSave(s) { try { s ? localStorage.setItem('axon.pomo', JSON.stringify(s)) : localStorage.removeItem('axon.pomo'); } catch (e) {} }
+  function pomoTick() {
+    var s = pomoState(), el = $('#xpomo');
+    if (!s) { if (el) el.remove(); clearInterval(pomoT); pomoT = 0; return; }
+    if (!el) { el = document.createElement('button'); el.id = 'xpomo'; el.className = 'xpomo'; el.addEventListener('click', pomoMenu); document.body.appendChild(el); }
+    var left = s.paused ? s.left : Math.max(0, s.end - Date.now()), mm = Math.floor(left / 60000), ss = Math.floor(left % 60000 / 1000);
+    el.innerHTML = '<i class="' + (s.phase === 'work' ? 'w' : 'b') + '"></i>' + (s.phase === 'work' ? 'Focus ' : 'Break ') + mm + ':' + String(ss).padStart(2, '0') + (s.paused ? ' \u00b7 paused' : '');
+    if (!s.paused && left <= 0) {
+      var next = s.phase === 'work' ? 'break' : 'work', mins = next === 'work' ? s.work : s.brk;
+      if (s.phase === 'work') s.done = (s.done || 0) + 1;
+      try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch (e) {}
+      toast(s.phase === 'work' ? 'Time for a ' + s.brk + ' min break \u2615 (' + s.done + ' done today)' : 'Break\u2019s over \u00b7 back to it');
+      s.phase = next; s.end = Date.now() + mins * 60000; pomoSave(s);
+    }
+  }
+  function pomoRun() { pomoTick(); if (!pomoT) pomoT = setInterval(pomoTick, 1000); }
+  async function pomoStart() {
+    var a = await sheet({ title: 'Study timer', message: 'Work, then a short break, on repeat. It buzzes when time is up.', actions: [{ label: '25 min focus \u00b7 5 min break', value: '25/5' }, { label: '50 min focus \u00b7 10 min break', value: '50/10' }, { label: '15 min focus \u00b7 3 min break', value: '15/3' }, { label: 'Custom\u2026', value: 'c' }] });
+    if (!a) return;
+    if (a === 'c') { a = await dialog({ title: 'Custom timer', message: 'Focus minutes / break minutes', input: true, value: '30/5', ok: 'Start', validate: function (v) { return /^\d{1,3}\s*\/\s*\d{1,3}$/.test(v) && parseInt(v, 10) > 0 ? null : 'Like 30/5'; } }); if (!a) return; }
+    var p = a.split('/').map(function (x) { return parseInt(x, 10); });
+    pomoSave({ phase: 'work', work: p[0], brk: p[1] || 5, end: Date.now() + p[0] * 60000, done: 0 }); pomoRun();
+    toast('Timer started \u00b7 ' + p[0] + ' min');
+  }
+  async function pomoMenu() {
+    var s = pomoState(); if (!s) return;
+    var a = await sheet({ title: 'Study timer', message: (s.done || 0) + ' focus session' + (s.done === 1 ? '' : 's') + ' done', actions: [{ label: s.paused ? 'Resume' : 'Pause', value: 'p' }, { label: 'Skip to ' + (s.phase === 'work' ? 'break' : 'focus'), value: 's' }, { label: 'Stop timer', value: 'x', danger: true }] });
+    s = pomoState(); if (!s || !a) return;
+    if (a === 'p') { if (s.paused) { s.end = Date.now() + s.left; s.paused = false; } else { s.left = Math.max(0, s.end - Date.now()); s.paused = true; } }
+    if (a === 's') { s.end = Date.now(); s.paused = false; }
+    if (a === 'x') s = null;
+    pomoSave(s); pomoTick();
+  }
+  /* 6 · symbols */
+  var SYMS = '\u2192 \u2190 \u2191 \u2193 \u2194 \u21d2 \u21cc \u00b1 \u00d7 \u00f7 \u2248 \u2260 \u2264 \u2265 \u221e \u00b0 \u00b5 \u0394 \u03b1 \u03b2 \u03b3 \u03b4 \u03b8 \u03bb \u03c0 \u03c3 \u03a9 \u2211 \u221a \u00b2 \u00b3 \u2082 \u2083 \u2713 \u2717 \u2022 \u2026 \u2640 \u2642 \u2605'.split(' ');
+  function xSymbols(ed, at) {
+    var c = at === undefined ? ed.selectionStart : at;
+    overlay(function (done) {
+      var el = document.createElement('div'); el.className = 'sheet xsym'; el.setAttribute('role', 'dialog');
+      el.innerHTML = '<div class="st"><b>Insert a symbol</b></div><div class="xsg">' + SYMS.map(function (s) { return '<button data-s="' + s + '">' + s + '</button>'; }).join('') + '</div><button class="sa cancel" data-x="1">Done</button>';
+      el.addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; if (b.dataset.x) return done(null); insertText(ed, b.dataset.s, c, c); c += b.dataset.s.length; ed.blur(); });
+      return el;
+    }).then(function () { try { ed.focus({ preventScroll: true }); ed.setSelectionRange(c, c); } catch (e) {} });
+  }
+  /* 7 · 8 · 9 · text tools on the current line(s) */
+  function xLines(ed, sel) {
+    var v = ed.value, s = sel ? sel.s : ed.selectionStart, e = sel ? sel.e : ed.selectionEnd;
+    var ls = v.lastIndexOf('\n', s - 1) + 1, le = v.indexOf('\n', Math.max(s, e - (e > s && v[e - 1] === '\n' ? 1 : 0))); if (le < 0) le = v.length;
+    return { ls: ls, le: le, lines: v.slice(ls, le).split('\n') };
+  }
+  function xReplaceLines(ed, r, lines, keepSel) { var t = lines.join('\n'); insertText(ed, t, r.ls, r.le); if (keepSel) ed.setSelectionRange(r.ls, r.ls + t.length); else ed.setSelectionRange(r.ls + t.length, r.ls + t.length); }
+  function xMoveLine(ed, dir, sel) {
+    var v = ed.value, r = xLines(ed, sel), s = sel ? sel.s : ed.selectionStart, off = s - r.ls;
+    if (dir < 0) { if (r.ls === 0) return; var ps = v.lastIndexOf('\n', r.ls - 2) + 1, prev = v.slice(ps, r.ls - 1); insertText(ed, r.lines.join('\n') + '\n' + prev, ps, r.le); ed.setSelectionRange(ps + off, ps + off); }
+    else { if (r.le >= v.length) return; var ne = v.indexOf('\n', r.le + 1); if (ne < 0) ne = v.length; var next = v.slice(r.le + 1, ne), t = next + '\n' + r.lines.join('\n'); insertText(ed, t, r.ls, ne); var c = r.ls + next.length + 1 + off; ed.setSelectionRange(c, c); }
+  }
+  function xTitleCase(s) { var small = /^(a|an|and|as|at|but|by|for|in|of|on|or|the|to|vs|via)$/i; return s.toLowerCase().replace(/[A-Za-z\u00C0-\u024F']+/g, function (w, i) { return i > 0 && small.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1); }); }
+  function xCase(ed, how, sel) {
+    var s = sel ? sel.s : ed.selectionStart, e = sel ? sel.e : ed.selectionEnd;
+    if (e <= s) { var r = xLines(ed, sel); s = r.ls; e = r.le; }
+    var t = ed.value.slice(s, e), o = how === 'up' ? t.toUpperCase() : how === 'low' ? t.toLowerCase() : xTitleCase(t);
+    insertText(ed, o, s, e); ed.setSelectionRange(s, s + o.length);
+  }
+  async function xTools(ed) {
+    var sel = { s: ed.selectionStart, e: ed.selectionEnd }, r = xLines(ed, sel), many = r.lines.length > 1, whole = sel.e <= sel.s;
+    var a = await sheet({ title: 'Text tools', message: whole ? 'Works on the line you\u2019re on \u00b7 select lines first to sort them' : 'Works on the selected text', left: true, actions: [
+      { label: 'Symbols  \u2192 \u00b5 \u0394 \u00b1 \u00b0', value: 'sym' }, { label: 'Move line up', value: 'up' }, { label: 'Move line down', value: 'dn' }, { label: 'Duplicate line', value: 'dup' },
+      { label: 'Sort lines A\u2013Z' + (many ? '' : ' (whole note)'), value: 'sort' }, { label: 'Remove duplicate lines' + (many ? '' : ' (whole note)'), value: 'dedupe' },
+      { label: 'UPPERCASE', value: 'cu' }, { label: 'lowercase', value: 'cl' }, { label: 'Title Case', value: 'ct' }, { label: 'Word goal\u2026', value: 'goal' }].concat(XTOOLS) });
+    if (!a) { try { ed.focus({ preventScroll: true }); ed.setSelectionRange(sel.s, sel.e); } catch (e) {} return; }
+    try { ed.focus({ preventScroll: true }); ed.setSelectionRange(sel.s, sel.e); } catch (e) {}
+    if (a === 'sym') return xSymbols(ed, sel.s);
+    if (a === 'up' || a === 'dn') return xMoveLine(ed, a === 'up' ? -1 : 1, sel);
+    if (a === 'dup') { var t = r.lines.join('\n'); insertText(ed, t + '\n' + t, r.ls, r.le); var c = r.ls + t.length + 1 + (sel.s - r.ls); ed.setSelectionRange(c, c); return; }
+    if (a === 'sort' || a === 'dedupe') {
+      var rr = many ? r : { ls: 0, le: ed.value.length, lines: ed.value.split('\n') }, f = MD.front(ed.value);
+      if (!many && f) { var fl = ed.value.split('\n').slice(0, f.end + 1).join('\n').length + 1; rr = { ls: fl, le: ed.value.length, lines: ed.value.slice(fl).split('\n') }; }
+      var L = rr.lines.slice(), before = L.length;
+      if (a === 'sort') { var key = function (l) { return l.replace(/^\s*(?:[-*+]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+)/, '').toLowerCase(); }; var blanksEnd = L.filter(function (l) { return !l.trim(); }); L = L.filter(function (l) { return l.trim(); }).sort(function (x, y) { return key(x).localeCompare(key(y), undefined, { numeric: true }); }).concat(blanksEnd.length && !many ? [''] : []); }
+      else { var seen = {}; L = L.filter(function (l) { var k = l.trim().toLowerCase(); if (!k) return true; if (seen[k]) return false; seen[k] = 1; return true; }); }
+      xReplaceLines(ed, rr, L, many); toast(a === 'sort' ? 'Sorted ' + L.filter(function (l) { return l.trim(); }).length + ' lines' : (before - L.length ? 'Removed ' + (before - L.length) + ' duplicate line' + (before - L.length === 1 ? '' : 's') : 'No duplicate lines')); return;
+    }
+    if (a === 'cu' || a === 'cl' || a === 'ct') return xCase(ed, a === 'cu' ? 'up' : a === 'cl' ? 'low' : 'title', sel);
+    if (a === 'goal') return xSetGoal(editing.n);
+    if (XTOOLFN[a]) return XTOOLFN[a](ed, sel);
+  }
+  var XTOOLS = [], XTOOLFN = {};
+  XKB.tools = xTools;
+  XKB.lup = function (ed) { xMoveLine(ed, -1); };
+  XKB.ldn = function (ed) { xMoveLine(ed, 1); };
+  /* 10 · paste a link over selected text */
+  function xPaste(e) {
+    var ed = e.target, t = (e.clipboardData && e.clipboardData.getData('text/plain') || '').trim();
+    if (!/^https?:\/\/\S+$/i.test(t) || ed.selectionEnd <= ed.selectionStart) return;
+    var s = ed.selectionStart, en = ed.selectionEnd, sel = ed.value.slice(s, en);
+    if (/\n/.test(sel) || /^https?:/i.test(sel)) return;
+    e.preventDefault(); insertText(ed, '[' + sel + '](' + t + ')', s, en); toast('Linked \u201c' + sel.slice(0, 30) + '\u201d');
+  }
+  /* editor hook: runs every time a note opens for editing */
+  function xEditHook(n, ed) {
+    var acts = $('.nav.stick .acts');
+    if (acts) acts.insertAdjacentHTML('afterbegin', '<button class="ib" aria-label="Focus mode" data-act="xfocus"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><circle cx="12" cy="12" r="2.5"/></svg></button>');
+    var nav = $('.nav.stick'); if (nav) nav.insertAdjacentHTML('afterend', '<div class="xcount" id="xcount"></div><div class="xgoalbar" id="xgoalbar" hidden><i></i></div>');
+    var fx = $('#xfocusx'); if (!fx) { fx = document.createElement('button'); fx.id = 'xfocusx'; fx.className = 'xfocusx'; fx.textContent = 'Exit focus'; fx.addEventListener('click', function () { xFocus(false); }); document.body.appendChild(fx); }
+    fx.hidden = !settings.focus; document.body.classList.toggle('xfocus', !!settings.focus);
+    ed.addEventListener('input', function () { xPaintCount(ed); xTypewriter(ed); });
+    ed.addEventListener('keyup', function () { xPaintCount(ed); });
+    ed.addEventListener('click', function () { xTypewriter(ed); });
+    document.addEventListener('selectionchange', function sc() { if (!document.body.contains(ed)) return document.removeEventListener('selectionchange', sc); if (document.activeElement === ed) xPaintCount(ed); });
+    ed.addEventListener('paste', xPaste);
+    xPaintCount(ed);
+  }
+  function xStopEditHook() { document.body.classList.remove('xfocus'); var fx = $('#xfocusx'); if (fx) fx.hidden = true; }
+  act.xfocus = function () { xFocus(); };
+  act.xtw = function (el) { settings.tw = el.dataset.v === '1'; saveSettings(); renderSettings(); };
+  act.xpomo = function () { pomoStart(); };
+  function xWritingSettings() {
+    var seg = function (key, on) { return '<div class="seg">' + [['1', 'On'], ['0', 'Off']].map(function (s) { return '<button class="' + ((!!on) === (s[0] === '1') ? 'on' : '') + '" data-act="' + key + '" data-v="' + s[0] + '" style="font-family:var(--sans);font-size:13px">' + s[1] + '</button>'; }).join('') + '</div>'; };
+    return '<div class="sec"><span>Writing</span></div><div class="group">' +
+      '<div class="item"><span>Typewriter scrolling<small>The line you\u2019re typing stays near the middle of the screen</small></span>' + seg('xtw', settings.tw) + '</div>' +
+      '<div class="item"><span>Focus mode<small>Hides everything but your words while you edit \u00b7 the corner button in the editor</small></span>' + seg('xfocusset', settings.focus) + '</div>' +
+      '<button class="item" data-act="xpomo"><span>Study timer<small>' + (pomoState() ? 'Running \u00b7 tap the timer pill to pause or stop' : 'Pomodoro: 25 min focus, 5 min break, on repeat') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
+      XSETTINGS.map(function (f) { return f(); }).join('') + '</div>';
+  }
+  var XSETTINGS = [];
+  act.xfocusset = function (el) { settings.focus = el.dataset.v === '1'; saveSettings(); renderSettings(); };
+  COMMANDS.push(['Focus mode', 'zen distraction free hide', function () { xFocus(); }], ['Study timer', 'pomodoro focus timer break clock study', function () { pomoStart(); }],
+    ['Typewriter scrolling', 'center line scroll', function () { settings.tw = !settings.tw; saveSettings(); toast('Typewriter scrolling ' + (settings.tw ? 'on' : 'off')); }],
+    ['Word goal for this note', 'target count length essay', function () { var r = route(); if (editing) xSetGoal(editing.n); else if (r.v === 'note' && notes.get(r.id)) xSetGoal(notes.get(r.id)); else toast('Open a note first'); }]);
+  SLASH.push(['sym', 'Symbol', 'arrow greek delta micro degree plus minus approx science math', '\u03a9', 'sym']);
+  if (pomoState()) setTimeout(pomoRun, 400);
+
   window.__axon = { notes: notes, folders: folders, trash: trash, rc: rc, recallStats: recallStats, byTitle: byTitle, backlinks: backlinks, renameNote: renameNote, exportFiles: function () { return notes; }, Zip: Zip, importFiles: importFiles };
   boot();
 })();

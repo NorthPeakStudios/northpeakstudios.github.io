@@ -26,7 +26,7 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preload" href="fonts/instrument-serif-italic.woff2" as="font" type="font/woff2" crossorigin>
 <script src="pwa.js"></script>
-<link rel="stylesheet" href="app.css?v=17">
+<link rel="stylesheet" href="app.css?v=18">
 </head>
 <body>
 <canvas id="aura" aria-hidden="true"></canvas>
@@ -53,6 +53,7 @@
       </div>
       <button id="translate" class="primary" disabled><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg><span class="tl-label">turn it into a poem</span></button>
       <button id="toField" class="switch">no words tonight? <u>drag instead</u></button>
+      <button class="xotd" id="xOtd" hidden></button>
       <p class="privline" id="privline"><svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg><span>stays on your phone unless you sign in to sync</span></p>
     </div>
 
@@ -167,7 +168,7 @@
     </div>
     <p id="installTip" class="install-tip">add liminal to your home screen: tap <b>share</b>, then <b>add to home screen</b>. it opens full-screen, works offline, and your archive stays put.</p>
     <p class="tip-sound">no sound? flip the ringer switch on or turn up the volume.</p>
-    <p class="foot small">liminal 1.1 · <a href="https://northpeakstudios.github.io/" target="_blank" rel="noopener">by Northpeak Studios</a></p>
+    <p class="foot small">liminal 1.2 · <a href="https://northpeakstudios.github.io/" target="_blank" rel="noopener">by Northpeak Studios</a></p>
   </div>
 </div>
 
@@ -218,6 +219,6 @@
 <script src="vpshort.js"></script>
 <script src="np-update.js?v=1" data-sw="sw.js" defer></script>
 <script src="np-email.js?v=1"></script>
-<script type="module" src="js/app.js?v=19"></script>
+<script type="module" src="js/app.js?v=20"></script>
 </body>
 </html>
