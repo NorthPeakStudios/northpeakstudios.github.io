@@ -30,7 +30,7 @@ button.dang{color:var(--bad)}button[disabled]{opacity:.5}
 .chip{border-radius:999px;padding:7px 11px;font-size:13px;background:var(--card);color:var(--mu)}
 .chip.on{background:var(--tx);color:var(--bg);border-color:var(--tx)}
 .tag{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:2px 6px;letter-spacing:.2px}
-.t-syn{background:rgba(124,156,255,.16);color:var(--syn)}.t-axon{background:rgba(61,220,151,.14);color:var(--ax)}.t-aa{background:rgba(245,177,76,.16);color:var(--aa)}
+.t-syn{background:rgba(124,156,255,.16);color:var(--syn)}.t-axon{background:rgba(61,220,151,.14);color:var(--ax)}.t-aa{background:rgba(245,177,76,.16);color:var(--aa)}.t-lim{background:rgba(201,167,255,.16);color:#c9a7ff}
 .s-new{background:rgba(245,177,76,.16);color:var(--warn)}.s-paid{background:rgba(61,220,151,.14);color:var(--ok)}.s-test{background:#2a2f3c;color:var(--mu)}.s-dismissed,.s-declined{background:rgba(255,107,107,.12);color:var(--bad)}
 table{width:100%;border-collapse:collapse}
 th{text-align:left;font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
@@ -172,7 +172,7 @@ select{-webkit-appearance:none;appearance:none;background-image:linear-gradient(
 (function(){
 var API=/\.sites\.tab\.bot$/.test(location.hostname)?'':'https://northpeak-admin.sites.tab.bot';
 var TK_KEY='np_admin_session', ME=null, D=null, filt='all', hideTest=false, view='req', NOTES={}, U=null, LG={u:'',kind:'',items:[]}, setupKey='';
-var BASE={syn:'https://odin-cards.sites.tab.bot',axon:'https://axon-sync.sites.tab.bot'}, PEER={synapse:BASE.syn,axon:BASE.axon};
+var BASE={syn:'https://odin-cards.sites.tab.bot',axon:'https://axon-sync.sites.tab.bot',liminal:'https://liminal-sync.sites.tab.bot'}, PEER={synapse:BASE.syn,axon:BASE.axon,liminal:BASE.liminal};
 var CAPN={view_requests:'see requests',approve:'mark paid',mint_codes:'make codes',dismiss:'dismiss / decline',notes:'add notes',delete:'delete',revoke_codes:'revoke codes',toggle_buying:'open/close buying',view_sheet:'see sheet',view_logs:'see logs',manage_users:'manage users'};
 var $=function(s){return document.querySelector(s)};
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
@@ -240,13 +240,14 @@ function startApp(){
 function switchView(v){view=v;document.querySelectorAll('#tabs button').forEach(function(b){b.classList.toggle('on',b.dataset.v===v)});['req','sheet','more','users','logs'].forEach(function(x){$('#v-'+x).hidden=x!==v});
  if(v==='users')loadUsers();if(v==='logs')loadLogs()}
 function loadAll(){
- var jobs=[CAN('view_requests')?appApi('syn','list'):Promise.resolve(null),CAN('view_requests')?appApi('axon','list'):Promise.resolve(null),CAN('view_sheet')?api('/api/sheet'):Promise.resolve(null),CAN('view_requests')?api('/api/notes'):Promise.resolve(null)];
- return Promise.all(jobs).then(function(v){NOTES={};((v[3]&&v[3].notes)||[]).forEach(function(n){NOTES[n.k]=n});return{ok:true,at:Date.now(),syn:v[0]||{},axon:v[1]||{},sheet:v[2]&&v[2].sheet}})}
+ var jobs=[CAN('view_requests')?appApi('syn','list'):Promise.resolve(null),CAN('view_requests')?appApi('axon','list'):Promise.resolve(null),CAN('view_sheet')?api('/api/sheet'):Promise.resolve(null),CAN('view_requests')?api('/api/notes'):Promise.resolve(null),CAN('view_requests')?appApi('liminal','list'):Promise.resolve(null)];
+ return Promise.all(jobs).then(function(v){NOTES={};((v[3]&&v[3].notes)||[]).forEach(function(n){NOTES[n.k]=n});return{ok:true,at:Date.now(),syn:v[0]||{},axon:v[1]||{},liminal:v[4]||{},sheet:v[2]&&v[2].sheet}})}
 function rows(){
  var out=[];
- var s=(D.syn&&D.syn.requests)||[], a=(D.axon&&D.axon.requests)||[];
+ var s=(D.syn&&D.syn.requests)||[], a=(D.axon&&D.axon.requests)||[], li=(D.liminal&&D.liminal.requests)||[];
  s.forEach(function(r){out.push({app:'syn',id:r.id,t:r.t,name:r.name,contact:r.contact,email:r.email,username:'',plan:r.plan,plan_name:r.plan_name,price:r.price||r.charge,amount:+r.amount||0,status:r.status,code:r.code,mirror:!!r.mirror,link:r.link})});
  a.forEach(function(r){out.push({app:'axon',id:r.id,t:Date.parse(r.created_at)||0,name:r.name,contact:r.phone,username:r.username,plan:r.plan,plan_name:r.plan_name,price:r.price,amount:+r.amount||0,status:r.status,code:r.code,mirror:!!r.mirror,link:r.link,pro:r.pro})});
+ li.forEach(function(r){out.push({app:'liminal',id:r.id,t:Date.parse(r.created_at)||r.t||0,name:r.name,contact:r.phone||r.contact,username:r.username,plan:r.plan,plan_name:r.plan_name,price:r.price,amount:+r.amount||0,status:r.status,code:r.code,mirror:!!r.mirror,link:r.link,pro:r.pro})});
  var keep=out.filter(function(r){return !r.mirror});
  out.forEach(function(r){if(r.mirror){var o=keep.filter(function(k){return k.app!==r.app&&(k.id===r.link||k.link===r.id)})[0];if(o){if(!o.code&&r.code)o.code=r.code;}else keep.push(r);}});
  keep.forEach(function(r){r.aa=r.plan==='all_access';r.note=NOTES[r.app+':'+r.id]});
@@ -257,11 +258,11 @@ function stats(R){
  var real=R.filter(function(r){return r.status!=='test'});var paid=real.filter(function(r){return r.status==='paid'});
  $('#sTot').textContent=real.length;$('#sPaid').textContent=paid.length;$('#sMoney').textContent=money(paid.reduce(function(s,r){return s+(r.amount||0)},0));
  $('#sPend').textContent=real.filter(function(r){return r.status==='new'}).length;}
-var FILTERS=[['all','All'],['new','Pending'],['paid','Paid'],['syn','Synapse'],['axon','Axon'],['aa','All-Access'],['hide','Hide tests']];
+var FILTERS=[['all','All'],['new','Pending'],['paid','Paid'],['syn','Synapse'],['axon','Axon'],['liminal','Liminal'],['aa','All-Access'],['hide','Hide tests']];
 function chips(R){var c=function(k){return R.filter(function(r){return match(r,k)}).length};
  $('#chips').innerHTML=FILTERS.map(function(f){var on=f[0]==='hide'?hideTest:filt===f[0];return '<button class="chip'+(on?' on':'')+'" data-f="'+f[0]+'">'+f[1]+(f[0]==='hide'?'':' '+c(f[0]))+'</button>'}).join('')}
-function match(r,k){if(k==='all')return true;if(k==='new')return r.status==='new';if(k==='paid')return r.status==='paid';if(k==='syn')return r.app==='syn'&&!r.aa;if(k==='axon')return r.app==='axon'&&!r.aa;if(k==='aa')return r.aa;return true}
-function appTag(r){return r.aa?'<span class="tag t-aa">All-Access</span>':r.app==='syn'?'<span class="tag t-syn">Synapse</span>':'<span class="tag t-axon">Axon</span>'}
+function match(r,k){if(k==='all')return true;if(k==='new')return r.status==='new';if(k==='paid')return r.status==='paid';if(k==='syn')return r.app==='syn'&&!r.aa;if(k==='axon')return r.app==='axon'&&!r.aa;if(k==='liminal')return r.app==='liminal'&&!r.aa;if(k==='aa')return r.aa;return true}
+function appTag(r){return r.aa?'<span class="tag t-aa">All-Access</span>':r.app==='syn'?'<span class="tag t-syn">Synapse</span>':r.app==='liminal'?'<span class="tag t-lim">Liminal</span>':'<span class="tag t-axon">Axon</span>'}
 function stTag(s){return '<span class="tag s-'+esc(s)+'">'+esc(s==='new'?'pending':s)+'</span>'}
 function contact(r){var c=String(r.contact||'').trim();if(!c)return r.email?esc(r.email):'';var d=c.replace(/[^\d+]/g,'');if(d.replace(/\D/g,'').length>=10)return '<a href="sms:'+esc(d)+'">'+esc(c)+'</a>';if(c.indexOf('@')>0)return '<a href="mailto:'+esc(c)+'">'+esc(c)+'</a>';return esc(c)}
 function acts(r){
@@ -295,20 +296,21 @@ function renderSheet(){
  var s=D.sheet;
  if(s&&s.values&&s.values.length){var h=s.values[0],b=s.values.slice(1).reverse();$('#sheetBox').innerHTML=tableHTML(h,b.map(function(r){return h.map(function(_,i){return esc(r[i]||'')})}));$('#sheetAt').textContent='synced '+fmtT(s.at)+' · '+b.length+' row'+(b.length===1?'':'s');}
  else{$('#sheetBox').innerHTML='<div class="empty">Sheet copy not synced yet. Open the sheet.</div>';$('#sheetAt').textContent='';}
- if(CAN('view_requests')){var R=rows();$('#liveBox').innerHTML=tableHTML(['Time (PT)','App','Name','Phone','Charge','Status','Request ID'],R.map(function(r){return [esc(fmtT(r.t)),r.aa?'All-Access':r.app==='syn'?'Synapse':'Axon',esc(r.name),esc(r.contact||r.email||''),esc(r.price||money(r.amount)),esc(r.status),'<span class="mono">'+esc(r.id)+'</span>']}))}}
+ if(CAN('view_requests')){var R=rows();$('#liveBox').innerHTML=tableHTML(['Time (PT)','App','Name','Phone','Charge','Status','Request ID'],R.map(function(r){return [esc(fmtT(r.t)),r.aa?'All-Access':r.app==='syn'?'Synapse':r.app==='liminal'?'Liminal':'Axon',esc(r.name),esc(r.contact||r.email||''),esc(r.price||money(r.amount)),esc(r.status),'<span class="mono">'+esc(r.id)+'</span>']}))}}
 function renderMore(){
- var s=D.syn||{},a=D.axon||{};
+ var s=D.syn||{},a=D.axon||{},li=D.liminal||{};
  $('#appsBox').innerHTML=
   '<div class="row" style="justify-content:space-between;margin-bottom:10px"><div><span class="tag t-syn">Synapse</span> '+(s.ok?'<span class="sub">'+((s.requests||[]).length)+' requests</span>':'')+'</div>'+
   (s.ok&&CAN('toggle_buying')?'<button id="openT">Buying '+(s.open?'open ✅':'closed ⛔')+'</button>':s.ok?'<span class="sub">buying '+(s.open?'open':'closed')+'</span>':'')+'</div>'+
   '<div class="row" style="justify-content:space-between"><div><span class="tag t-axon">Axon</span> '+(a.ok?'<span class="sub">'+(a.accounts||0)+' accounts · '+(a.pro_accounts||0)+' with Pro</span>':'')+'</div></div>'+
-  '<div class="row" style="margin-top:12px"><a class="btn" href="https://odin-cards.sites.tab.bot/" target="_blank" rel="noopener">Open Synapse ↗</a><a class="btn" href="https://northpeakstudios.github.io/axon/" target="_blank" rel="noopener">Open Axon ↗</a></div>';
+  '<div class="row" style="justify-content:space-between;margin-top:8px"><div><span class="tag t-lim">Liminal</span> '+(li.ok?'<span class="sub">'+(li.accounts||0)+' accounts · '+(li.pro_accounts||0)+' with Pro</span>':'')+'</div></div>'+
+  '<div class="row" style="margin-top:12px"><a class="btn" href="https://odin-cards.sites.tab.bot/" target="_blank" rel="noopener">Open Synapse ↗</a><a class="btn" href="https://northpeakstudios.github.io/axon/" target="_blank" rel="noopener">Open Axon ↗</a><a class="btn" href="https://northpeakstudios.github.io/liminal/" target="_blank" rel="noopener">Open Liminal ↗</a></div>';
  var C=(s.codes||[]);
  $('#codesBox').innerHTML=tableHTML(['Code','Plan','Made','Status',''],C.map(function(c){var st=c.revoked?'<span class="tag s-dismissed">revoked</span>':(c.used||c.redeemed)?'<span class="tag s-paid">used</span>':'<span class="tag s-new">unused</span>';
   var b=CAN('revoke_codes')?(c.revoked?'':'<button data-c="revoke">Revoke</button>')+'<button class="dang" data-c="code-delete">Delete</button>':'';
   return ['<span class="code" data-copy="'+esc(c.code)+'">'+esc(c.code)+'</span>'+(c.note?'<div class="sub">'+esc(c.note)+'</div>':''),esc(c.product),esc(fmtT(c.created)),st,'<div class="acts" data-code="'+esc(c.code)+'">'+b+'</div>']}));}
 function render(){if(!D)return;if(CAN('view_requests'))renderReq();renderSheet();renderMore();
- var e=[];if(CAN('view_requests')){if(!(D.syn&&D.syn.ok))e.push('synapse');if(!(D.axon&&D.axon.ok))e.push('axon')}
+ var e=[];if(CAN('view_requests')){if(!(D.syn&&D.syn.ok))e.push('synapse');if(!(D.axon&&D.axon.ok))e.push('axon');if(!(D.liminal&&D.liminal.ok))e.push('liminal')}
  $('#upd').textContent='updated '+new Date(D.at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/Los_Angeles'})+(e.length?' · ⚠ '+e.join(' + ')+' not loading':'')}
 function load(quiet){if(!ME)return Promise.resolve();$('#rf').innerHTML='<span class="spin"></span>';return loadAll().then(function(j){$('#rf').textContent='↻';D=j;render();if(view==='logs'&&quiet)loadLogs(true)}).catch(function(){$('#rf').textContent='↻';if(!quiet)toast('Offline? Couldn’t reach the server')})}
 function act(app,path,body,label){return appApi(app,path,body).then(function(j){
@@ -380,13 +382,13 @@ document.addEventListener('click',function(e){
   var r=rows().filter(function(x){return x.app===app&&x.id===id})[0]||{};
   var who=(r.name||'this request')+' — '+(r.price||'');
   if(a==='note'){var tx=prompt('Note on '+who+' (empty = remove)',r.note?r.note.txt:'');if(tx==null)return;api('/api/notes',{app:app,id:id,txt:tx}).then(function(j){toast(j.ok?'Note saved':(j.words||j.error));load(true)});return}
-  if(a==='paid'&&!confirm('Mark '+who+' as PAID?\n\nOnly after the Apple Cash came in.'+(r.aa?'\nAll-Access: unlocks Synapse + Axon.':'')))return;
+  if(a==='paid'&&!confirm('Mark '+who+' as PAID?\n\nOnly after the Apple Cash came in.'+(r.aa?'\nAll-Access: unlocks Synapse + Axon + Liminal.':'')))return;
   if(a==='delete'&&!confirm('Delete '+who+'? This removes the request'+(r.aa?' from both apps':'')+'.'))return;
   t.disabled=true;
-  var twin=null;if(r.aa&&a==='delete'){var o=r.app==='syn'?'axon':'syn',L=((D[o]&&D[o].requests)||[]);twin=L.filter(function(x){return x.mirror&&(x.link===id||x.id===r.link)})[0];if(twin)twin={app:o,id:twin.id};}
-  var delTwin=function(j){if(!twin||!j||!j.ok)return j;return (twin.app==='syn'?appApi('syn','delete',{req:twin.id}):appApi('axon','mark',{id:twin.id,status:'delete'})).then(function(){return load(true)})};
+  var twin=null;if(r.aa&&a==='delete'){['syn','axon','liminal'].forEach(function(o){if(twin||o===r.app)return;var L=((D[o]&&D[o].requests)||[]);var tw=L.filter(function(x){return x.mirror&&(x.link===id||x.id===r.link)})[0];if(tw)twin={app:o,id:tw.id};});}
+  var delTwin=function(j){if(!twin||!j||!j.ok)return j;return (twin.app==='syn'?appApi('syn','delete',{req:twin.id}):appApi(twin.app,'mark',{id:twin.id,status:'delete'})).then(function(){return load(true)})};
   if(app==='syn'){if(a==='paid')act('syn','mint',{req:id},'Paid ✓');else act('syn',a,{req:id},a==='delete'?'Deleted':'Dismissed').then(delTwin);}
-  else{var st={paid:'paid',decline:'declined',delete:'delete',undo:'new'}[a];act('axon','mark',{id:id,status:st},{paid:'Paid ✓',declined:'Declined',delete:'Deleted',new:'Back to pending'}[st]).then(delTwin);}
+  else{var st={paid:'paid',decline:'declined',delete:'delete',undo:'new'}[a];act(app,'mark',{id:id,status:st},{paid:'Paid ✓',declined:'Declined',delete:'Deleted',new:'Back to pending'}[st]).then(delTwin);}
  }
 });
 $('#lgU').addEventListener('change',function(){LG.u=this.value;loadLogs()});
