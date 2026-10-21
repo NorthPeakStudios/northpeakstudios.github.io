@@ -8,7 +8,7 @@
     var ctx = canvas.getContext('2d');
     var W = 0, H = 0, dpr = Math.min(window.devicePixelRatio || 1, 3);
     var view = { x: 0, y: 0, k: 1 };
-    var nodes = [], links = [], byId = {}, adj = {};
+    var nodes = [], links = [], byId = {}, adj = {}, top = {}, hubDeg = 12, dense = false, fitK = 1;
     var selected = opt.selected || null, current = opt.current || null;
     var alpha = 1, raf = 0, dead = false, userMoved = false, settledFit = false;
     var accent = opt.accent || '#ff6a3d';
@@ -17,7 +17,7 @@
       nodes = data.nodes.map(function (n) {
         var m = memory[n.id];
         var key = n.label || n.id, a = hash(key) * Math.PI * 2, rr = 60 + hash(key + 'r') * 160;
-        return { id: n.id, label: n.label, kind: n.kind || 'note', color: n.color || null, deg: 0,
+        return { id: n.id, label: n.label, kind: n.kind || 'note', color: n.color || null, group: n.group || '', deg: 0,
           x: m ? m.x : Math.cos(a) * rr, y: m ? m.y : Math.sin(a) * rr, vx: 0, vy: 0, fixed: false, isNew: !m };
       });
       byId = {}; adj = {};
@@ -33,15 +33,19 @@
         links.push(e);
       });
       nodes.forEach(function (n) {
-        n.r = n.kind === 'tag' ? 3.5 : n.kind === 'ghost' ? 4 : 4 + Math.min(9, Math.sqrt(n.deg) * 2.4);
+        n.r = n.kind === 'tag' ? 3 : n.kind === 'ghost' ? 3.5 : 3 + Math.min(6.5, Math.sqrt(n.deg) * 1.15);
         if (n.isNew) {
           var nb = Object.keys(adj[n.id]).map(function (id) { return memory[id]; }).filter(Boolean);
           if (nb.length) { n.x = nb[0].x + (hash(n.id + 'x') - .5) * 40; n.y = nb[0].y + (hash(n.id + 'y') - .5) * 40; }
         }
       });
+      /* the ~10 best-connected notes keep their labels at the default zoom */
+      top = {}; nodes.filter(function (n) { return n.kind === 'note' && n.deg; }).sort(function (a, b) { return b.deg - a.deg; }).slice(0, 10).forEach(function (n) { top[n.id] = 1; });
+      hubDeg = Math.max(12, nodes.length * 0.25);
+      dense = links.length > nodes.length * 3;
       var fresh = nodes.some(function (n) { return n.isNew; });
       alpha = fresh ? 1 : 0.3;
-      var budget = fresh ? (nodes.length <= 250 ? 900 : nodes.length <= 600 ? 300 : 120) : 30;
+      var budget = fresh ? (nodes.length <= 250 ? 600 : nodes.length <= 600 ? 250 : 100) : 30;
       for (var i = 0; i < budget && alpha > 0.004; i++) tick();
       settledFit = false;
       resize();
@@ -51,15 +55,19 @@
 
     function tick() {
       var n = nodes.length, i, j, a, b, dx, dy, d2, d, f;
-      var rep = 9000, L = 120, ks = 0.03, g = 0.006;
+      /* spread out: strong repulsion, long links, a collision radius per node; hubs (index notes) pull weakly
+         so they don't drag everything into one ball */
+      var rep = dense ? 16000 : 11000, L = dense ? 170 : 130, ks = 0.035, g0 = 0.005;
       for (i = 0; i < n; i++) {
         a = nodes[i];
         for (j = i + 1; j < n; j++) {
           b = nodes[j];
           dx = a.x - b.x; dy = a.y - b.y; d2 = dx * dx + dy * dy;
           if (d2 < 1) { dx = (Math.random() - .5); dy = (Math.random() - .5); d2 = 1; }
-          if (d2 > 250000) continue;
-          d = Math.sqrt(d2); f = (rep / d2 + (d < 120 ? (120 - d) * 0.35 : 0)) * alpha;
+          if (d2 > 640000) continue;
+          d = Math.sqrt(d2);
+          var minD = (a.r + b.r) * 2.2 + 26; /* room for a dot and its label */
+          f = (rep / d2 + (d < minD ? (minD - d) * 0.5 : 0)) * alpha;
           a.vx += dx / d * f; a.vy += dy / d * f; b.vx -= dx / d * f; b.vy -= dy / d * f;
         }
       }
@@ -67,12 +75,20 @@
         a = links[i][0]; b = links[i][1];
         dx = b.x - a.x; dy = b.y - a.y; d = Math.sqrt(dx * dx + dy * dy) || 1;
         var len = (a.kind === 'tag' || b.kind === 'tag') ? L * 0.7 : (a.kind === 'ghost' || b.kind === 'ghost') ? L * 0.8 : L;
-        f = (d - len) * ks * alpha;
+        var st = ks / Math.max(1, Math.min(a.deg, b.deg)) * 3; /* d3-style: links of well-connected notes are weaker */
+        if (a.deg > hubDeg || b.deg > hubDeg) { st *= 0.25; len *= 1.6; }
+        else if (a.group !== b.group) { st *= 0.35; len *= 1.3; } /* links across folders pull less, so each folder forms its own cluster */
+        f = (d - len) * Math.min(ks, st) * alpha;
         a.vx += dx / d * f; a.vy += dy / d * f; b.vx -= dx / d * f; b.vy -= dy / d * f;
       }
+      /* notes from the same top folder drift together a little, so folders read as clusters */
+      var gc = {};
+      for (i = 0; i < n; i++) { a = nodes[i]; if (!a.group) continue; var c = gc[a.group] || (gc[a.group] = { x: 0, y: 0, n: 0 }); c.x += a.x; c.y += a.y; c.n++; }
       for (i = 0; i < n; i++) {
         a = nodes[i];
-        a.vx -= a.x * g * alpha * (a.deg ? 1 : 2.2); a.vy -= a.y * g * alpha * (a.deg ? 1 : 2.2);
+        var cg = a.group && gc[a.group];
+        if (cg && cg.n > 2) { a.vx += (cg.x / cg.n - a.x) * 0.035 * alpha; a.vy += (cg.y / cg.n - a.y) * 0.035 * alpha; }
+        a.vx -= a.x * g0 * alpha * (a.deg ? 1 : 2.2); a.vy -= a.y * g0 * alpha * (a.deg ? 1 : 2.2);
         if (a.fixed) { a.vx = a.vy = 0; continue; }
         a.vx *= 0.6; a.vy *= 0.6;
         var sp = Math.sqrt(a.vx * a.vx + a.vy * a.vy); if (sp > 30) { a.vx *= 30 / sp; a.vy *= 30 / sp; }
@@ -96,7 +112,7 @@
       var top = opt.topInset || 0, bot = opt.bottomInset || 0;
       var padX = 60, padY = 30, bw = Math.max(1, x1 - x0), bh = Math.max(1, y1 - y0);
       var k = Math.min((W - padX * 2) / bw, (H - top - bot - padY * 2 - 16) / bh, 2.2);
-      k = Math.max(0.25, k);
+      k = Math.max(0.15, k); fitK = k;
       view = { k: k, x: W / 2 - (x0 + bw / 2) * k, y: top + (H - top - bot) / 2 - (y0 + bh / 2) * k - 8 };
       draw();
     }
@@ -117,29 +133,35 @@
       ctx.clearRect(0, 0, W, H);
       var sel = selected && byId[selected] ? byId[selected] : null;
       var focus = sel || (current && byId[current]) || null;
-      var nb = focus ? adj[focus.id] : {};
+      /* a hub (an index note linked to most of the vault) only gets its ring: lighting up all its links and labels is the clutter */
+      var hub = !!(focus && focus.deg > hubDeg);
+      var nb = focus && !hub ? adj[focus.id] : {};
+      var zoomIn = view.k / (fitK || 1); /* 1 = the fitted view, >1 = zoomed in */
+      var base = dense ? (focus && !hub ? 0.06 : 0.11) : (focus && !hub ? 0.1 : 0.24);
       ctx.lineWidth = 1;
       links.forEach(function (l) {
         var a = toScreen(l[0]), b = toScreen(l[1]);
-        var hot = focus && (l[0] === focus || l[1] === focus);
-        ctx.strokeStyle = hot ? hexA(accent, 0.75) : (focus ? 'rgba(237,235,230,0.1)' : 'rgba(237,235,230,0.26)');
-        ctx.lineWidth = hot ? 1.4 : 1.1;
+        var hot = focus && !hub && (l[0] === focus || l[1] === focus);
+        ctx.strokeStyle = hot ? hexA(accent, 0.75) : 'rgba(237,235,230,' + base + ')';
+        ctx.lineWidth = hot ? 1.4 : 1;
         var gh = l[0].kind === 'ghost' || l[1].kind === 'ghost';
         if (gh) ctx.setLineDash([3, 4]);
-        else if (l.auto) { ctx.setLineDash([1.5, 3.5]); ctx.strokeStyle = hot ? hexA(accent, 0.6) : 'rgba(237,235,230,0.22)'; ctx.lineWidth = hot ? 1.2 : 1; }
+        else if (l.auto) { ctx.setLineDash([1.5, 3.5]); ctx.strokeStyle = hot ? hexA(accent, 0.6) : 'rgba(237,235,230,' + base * 0.85 + ')'; ctx.lineWidth = hot ? 1.2 : 1; }
         ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
         if (gh || l.auto) ctx.setLineDash([]);
       });
-      var showAll = view.k > 0.75 || nodes.length < 40, labels = [];
+      /* labels: the focus, its neighbors, the ~10 best-connected notes; everything once zoomed in (or a small vault).
+         All of them yield to labels already drawn, so none overlap. */
+      var many = zoomIn > 1.5 || nodes.length < 30, labels = [];
       var order = nodes.slice().sort(function (a, b) { var ra = a === focus ? 2 : nb[a.id] ? 1 : 0, rb = b === focus ? 2 : nb[b.id] ? 1 : 0; return ra - rb; });
       order.forEach(function (n) {
-        var p = toScreen(n), r = n.r * Math.max(0.7, Math.min(1.4, view.k));
+        var p = toScreen(n), r = n.r * Math.max(0.8, Math.min(1.6, view.k / (fitK || 1) * 0.9 + 0.1));
         var isF = focus === n, isN = !!nb[n.id];
         if (isF) {
           ctx.fillStyle = hexA(accent, 0.18);
-          ctx.beginPath(); ctx.arc(p.x, p.y, r + 9, 0, 7); ctx.fill();
+          ctx.beginPath(); ctx.arc(p.x, p.y, r + 8, 0, 7); ctx.fill();
           ctx.strokeStyle = hexA(accent, 0.55); ctx.lineWidth = 1;
-          ctx.beginPath(); ctx.arc(p.x, p.y, r + 5, 0, 7); ctx.stroke();
+          ctx.beginPath(); ctx.arc(p.x, p.y, r + 4.5, 0, 7); ctx.stroke();
         }
         if (n.kind === 'tag') {
           ctx.strokeStyle = isN || isF ? '#edebe6' : 'rgba(237,235,230,0.45)'; ctx.lineWidth = 1.2;
@@ -148,22 +170,25 @@
           ctx.setLineDash([2.5, 2.5]); ctx.strokeStyle = isF ? accent : (isN ? 'rgba(237,235,230,0.7)' : 'rgba(237,235,230,0.32)'); ctx.lineWidth = 1.2;
           ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.stroke(); ctx.setLineDash([]);
         } else {
-          ctx.fillStyle = n.color ? (focus && !isF && !isN ? hexA(n.color, 0.35) : (isF ? accent : n.color)) : (isF ? accent : (focus ? (isN ? '#edebe6' : '#5d5d63') : (n.deg ? '#a9a8a4' : '#5d5d63')));
+          var dim = focus && !hub && !isF && !isN;
+          ctx.fillStyle = n.color ? (dim ? hexA(n.color, 0.3) : (isF ? accent : n.color)) : (isF ? accent : (dim ? '#4a4a50' : (n.deg ? '#b4b3ae' : '#5d5d63')));
           ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fill();
         }
-        if (showAll || isF || isN || n.deg >= 4) labels.push({ n: n, x: p.x, y: p.y + r + 5, f: isF, nb: isN, pr: isF ? 1e6 : isN ? 1e5 + n.deg : n.deg });
+        if (isF || isN || top[n.id] || many) labels.push({ n: n, x: p.x, y: p.y + r + 4, f: isF, nb: isN, pr: isF ? 1e6 : isN ? 1e5 + n.deg : top[n.id] ? 1e4 + n.deg : n.deg });
       });
-      /* labels last, most important first; a label that would overlap one already drawn is skipped (it comes back on zoom or focus) */
       labels.sort(function (a, b) { return b.pr - a.pr; });
       var placed = [];
-      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.lineJoin = 'round';
       labels.forEach(function (L) {
-        var t = L.n.label.length > 26 ? L.n.label.slice(0, 25) + '\u2026' : L.n.label;
+        var t = L.n.label.length > 18 ? L.n.label.slice(0, 17).replace(/\s+$/, '') + '\u2026' : L.n.label;
         ctx.font = (L.f ? '600 13px ' : '12px ') + '-apple-system, system-ui, "Inter", sans-serif';
-        var w = ctx.measureText(t).width + 6, box = { l: L.x - w / 2, r: L.x + w / 2, t: L.y - 1, b: L.y + 15 };
-        if (!L.f && !L.nb && placed.some(function (q) { return box.l < q.r && box.r > q.l && box.t < q.b && box.b > q.t; })) return;
+        var w = ctx.measureText(t).width + 8, box = { l: L.x - w / 2, r: L.x + w / 2, t: L.y - 2, b: L.y + 16 };
+        if (box.r < 0 || box.l > W || box.t < (opt.topInset || 0) - 4 || box.t > H - (opt.bottomInset || 0) * 0.5) return; /* not under the header or off screen */
+        if (!L.f && placed.some(function (q) { return box.l < q.r && box.r > q.l && box.t < q.b && box.b > q.t; })) return;
         placed.push(box);
-        ctx.fillStyle = L.f ? '#edebe6' : (L.nb ? 'rgba(237,235,230,0.85)' : 'rgba(237,235,230,' + (focus ? 0.38 : 0.55) + ')');
+        /* a dark halo keeps text readable over lines */
+        ctx.strokeStyle = 'rgba(11,11,12,0.85)'; ctx.lineWidth = 3.5; ctx.strokeText(t, L.x, L.y);
+        ctx.fillStyle = L.f ? '#edebe6' : (L.nb ? 'rgba(237,235,230,0.9)' : 'rgba(237,235,230,' + (focus && !hub ? 0.45 : 0.72) + ')');
         ctx.fillText(t, L.x, L.y);
       });
     }

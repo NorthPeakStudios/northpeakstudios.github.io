@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.6.16 */
+/* Axon · Northpeak Studios · v1.6.17 */
 (function () {
   'use strict';
-  var VERSION = '1.6.16';
+  var VERSION = '1.6.17';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -1829,7 +1829,7 @@
     var gc = {}; data.nodes.forEach(function (x) { if (!x.kind) gc[x.group || ''] = (gc[x.group || ''] || 0) + 1; });
     var groups = Object.keys(gc).sort(function (a, b) { return gc[b] - gc[a] || a.localeCompare(b); }).map(function (g, i) { return [g, gc[g], g === '' ? '#a9a8a4' : GPAL[(gc[''] ? i - 1 : i) % GPAL.length]]; });
     var gcol = {}; groups.forEach(function (g) { gcol[g[0]] = g[2]; });
-    if (ui.graphColor) data.nodes.forEach(function (x) { if (!x.kind) x.color = gcol[x.group || '']; });
+    if (ui.graphColor !== false) data.nodes.forEach(function (x) { if (!x.kind) x.color = gcol[x.group || '']; });
     var nN = data.nodes.filter(function (x) { return !x.kind; }).length, nG = data.nodes.filter(function (x) { return x.kind === 'ghost'; }).length, eSeen = {}, nL = 0, nA = 0;
     data.links.filter(function (l) { return !l[2]; }).concat(data.links.filter(function (l) { return l[2]; })).forEach(function (l) { var k = l[0] < l[1] ? l[0] + '\u0001' + l[1] : l[1] + '\u0001' + l[0]; if (!eSeen[k] && l[0] !== l[1]) { eSeen[k] = 1; if (l[2]) nA++; else if (String(l[1]).indexOf('ghost:') !== 0) nL++; } });
     var h = '<div class="gwrap"><canvas id="gc" aria-label="Graph of linked notes"></canvas><div class="ghead"><div class="eyebrow">' + nN + ' note' + (nN === 1 ? '' : 's') + ' · ' + nL + ' link' + (nL === 1 ? '' : 's') + (nA ? ' · ' + nA + ' auto' : '') + (nG ? ' · ' + nG + ' unresolved' : '') + '</div><h1 class="h1">Graph</h1>' +
@@ -1837,10 +1837,10 @@
       '<button class="chip' + (ui.graphMode === 'local' ? ' on' : '') + '" data-act="gmode" data-m="local">Local</button>' +
       '<button class="chip" data-act="gfind" title="Find a note and center the graph on it">' + I.search.replace(' class="fi"', '') + ' Find</button>' +
       '<button class="chip' + (ui.graphTags ? ' on' : '') + '" data-act="gtags">Tags</button>' +
-      '<button class="chip' + (ui.graphColor ? ' on' : '') + '" data-act="gcolor" title="Color notes by their top folder">Folders</button>' +
+      '<button class="chip' + (ui.graphColor !== false ? ' on' : '') + '" data-act="gcolor" title="Color notes by their top folder">Folders</button>' +
       '<button class="chip' + (ui.graphAuto !== false ? ' on' : '') + '" data-act="gauto" title="Notes that mention each other by name">Auto-link</button>' +
       '<button class="chip' + (ui.graphGhosts !== false ? ' on' : '') + '" data-act="gghosts" title="Links to notes that don\u2019t exist yet">Unresolved</button></div>' +
-      (ui.graphColor && groups.length ? '<div class="glegend">' + groups.slice(0, 7).map(function (g) { return '<span><i style="background:' + g[2] + '"></i>' + esc(g[0] || 'Vault') + '</span>'; }).join('') + (groups.length > 7 ? '<span>+' + (groups.length - 7) + ' more</span>' : '') + '</div>' : '') + '</div>' +
+      (ui.graphColor !== false && groups.length > 1 ? '<div class="glegend">' + groups.slice(0, 7).map(function (g) { return '<span><i style="background:' + g[2] + '"></i>' + esc(g[0] || 'Vault') + '</span>'; }).join('') + (groups.length > 7 ? '<span>+' + (groups.length - 7) + ' more</span>' : '') + '</div>' : '') + '</div>' +
       (data.nodes.length ? '<div class="gtools"><button class="ib" aria-label="Fit" data-act="gfit">' + I.fit + '</button><button class="ib" aria-label="Zoom in" data-act="gzin">' + I.zin + '</button><button class="ib" aria-label="Zoom out" data-act="gzout">' + I.zout + '</button></div>' : '') +
       (data.nodes.length ? '<div class="ghint" id="ghint">Tap a node · tap again to open · pinch to zoom</div>' : '<div class="gempty">' + EMPTY_ART + '<b>Nothing to map yet</b><p>Each note becomes a dot, and every <span class="kbd">[[link]]</span> draws a line between them.</p><button class="bignew" data-act="newempty">' + I.plus + '<span>New note</span></button></div>') +
       '<div class="gsheet" id="gsheet"></div></div>';
@@ -3497,7 +3497,7 @@
     linkall: function (el) { var n = notes.get(el.dataset.id); if (!n) return; var k = 0; unlinkedMentions(n).forEach(function (m) { k += linkMention(m.note, n.title); }); toast('Linked ' + k + ' mention' + (k === 1 ? '' : 's')); render(); },
     gghosts: function () { ui.graphGhosts = ui.graphGhosts === false; saveMeta(); render(); },
     gauto: function () { ui.graphAuto = ui.graphAuto === false; saveMeta(); render(); },
-    gcolor: function () { ui.graphColor = !ui.graphColor; saveMeta(); render(); },
+    gcolor: function () { ui.graphColor = ui.graphColor === false; saveMeta(); render(); },
     gfind: async function () {
       var id = await pickNote('Center the graph on\u2026');
       if (!id) return;
