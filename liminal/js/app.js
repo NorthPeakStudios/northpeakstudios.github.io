@@ -3,7 +3,7 @@ import { moodColors, mixHex, hexRgb, moodWord, quadrant } from './color.js';
 import { Engine } from './audio.js';
 import { analyze, compose } from './poet.js';
 import { drawScene, sceneFor, SCENES, poster } from './paint.js?v=12';
-import * as cloud from './cloud.js?v=14';
+import * as cloud from './cloud.js?v=15';
 import * as db from './db.js';
 
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
@@ -461,7 +461,17 @@ function bindAccount(){
   on('sAddEmail', () => openAuth('email'));
   on('sSignOut', async () => { await cloud.logout(); toast('signed out · your moments stay here'); renderAccount(); afterAccount(); });
   on('sDelAcct', async e => { const b = e.currentTarget; if (!b.dataset.armed) { b.dataset.armed = 1; $('#sDelAcctSub').textContent = cloud.acct && cloud.acct.pro && !cloud.acct.owner ? 'tap again: deletes the synced copy + account, and liminal pro with it' : 'tap again: deletes the synced copy + account'; return; }
-    try { await cloud.deleteAccount(); toast('account deleted · this phone keeps its moments'); } catch (err) { toast(err.offline ? 'you\'re offline' : 'couldn\'t delete (' + err.message + ')'); } renderAccount(); afterAccount(); });
+    /* np-r2: the second tap asks for the password again; the server checks it before anything is deleted */
+    if (!document.getElementById('sDelForm')) { b.insertAdjacentHTML('afterend', '<form class="row delpw" id="sDelForm" autocomplete="on"><input type="password" id="sDelPw" autocomplete="current-password" maxlength="200" placeholder="your password to confirm" aria-label="your password"><button class="delgo" type="submit">delete</button></form>');
+      const f = document.getElementById('sDelForm'), pi = document.getElementById('sDelPw'); setTimeout(() => pi.focus(), 60);
+      f.onsubmit = async ev => { ev.preventDefault(); const pw = pi.value; if (!pw) { toast('type your password first'); pi.focus(); return; }
+        const go = f.querySelector('.delgo'); go.disabled = true; go.textContent = 'checking…';
+        try { await cloud.deleteAccount(pw); toast('account deleted · this phone keeps its moments'); renderAccount(); afterAccount(); }
+        catch (err) { go.disabled = false; go.textContent = 'delete'; pi.value = '';
+          if (err.message === 'wrong') { toast('that password is wrong'); pi.focus(); }
+          else if (err.message === 'locked') toast('too many tries · wait ' + Math.max(1, Math.ceil(((err.body && err.body.wait) || 60) / 60)) + ' min');
+          else toast(err.offline ? 'you\'re offline' : 'couldn\'t delete (' + err.message + ')'); } }; }
+    else document.getElementById('sDelPw').focus(); });
   on('sPro', () => openPro());
 }
 

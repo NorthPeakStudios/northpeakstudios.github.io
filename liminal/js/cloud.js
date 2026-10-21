@@ -111,7 +111,7 @@ export async function addEmail(email, pass){
   return { ...j, northpeak: n };
 }
 export async function logout(){ try { await api('/api/logout', {}); } catch {} Object.assign(acct, { user: '', kdf: '', token: '', key: '', seq: 0, pro: false, via: null, trialEnd: 0, allAccess: null, owner: false, request: null, synced: 0 }); keyObj = null; save(); LS.set('sync', null); onChange('logout'); }
-export async function deleteAccount(){ await api('/api/delete-account', {}); await logout(); }
+export async function deleteAccount(pass){ const d = await derive(acct.kdf || acct.user, pass); await api('/api/delete-account', { auth: d.auth }); await logout(); }
 export async function refresh(force){
   if (!signedIn()) return null; if (!force && Date.now() - acct.checked < 30000) return null;
   acct.checked = Date.now();

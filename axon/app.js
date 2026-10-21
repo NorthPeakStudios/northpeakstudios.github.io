@@ -605,13 +605,13 @@
     return overlay(function (done) {
       var el = document.createElement('div'); el.className = 'dialog'; el.setAttribute('role', 'dialog');
       el.innerHTML = '<h4>' + esc(o.title) + '</h4>' + (o.message ? '<p>' + esc(o.message) + '</p>' : '') + (o.html || '') +
-        (o.input ? '<input type="text" autocomplete="off" autocapitalize="sentences" spellcheck="false" enterkeyhint="done"><div class="err"></div>' : '') +
+        (o.input ? '<input type="' + (o.input === 'password' ? 'password" autocomplete="current-password" autocapitalize="none"' : 'text" autocomplete="off" autocapitalize="sentences"') + ' spellcheck="false" enterkeyhint="done"><div class="err">' + esc(o.error || '') + '</div>' : '') +
         '<div class="db">' + (o.noCancel ? '' : '<button data-v="0">' + esc(o.cancel || 'Cancel') + '</button>') + '<button class="acc" data-v="1"' + (o.danger ? ' style="background:#ff5a52;border-color:#ff5a52"' : '') + '>' + esc(o.ok || 'OK') + '</button></div>';
       var inp = $('input', el), err = $('.err', el);
       if (inp) { inp.value = o.value || ''; inp.placeholder = o.placeholder || ''; setTimeout(function () { inp.focus(); inp.select(); }, 60); }
       function submit() {
         if (!inp) return done(true);
-        var v = inp.value.trim().replace(/\s+/g, ' ');
+        var v = o.input === 'password' ? inp.value : inp.value.trim().replace(/\s+/g, ' ');
         var e = o.validate ? o.validate(v) : (v ? null : 'Type a name.');
         if (e) { err.textContent = e; return; }
         done(v);
@@ -3962,8 +3962,21 @@
     sydelete: async function () {
       var ok = await dialog({ title: 'Delete the cloud copy?', message: 'Removes your sync account and every encrypted note stored in the cloud, for all devices. The notes on this device are not touched.' + (isPro() && PRO.acct && !PRO.owner ? ' Axon Pro is tied to this account, so it goes too; you\u2019d have to buy it again.' : ''), ok: 'Delete cloud copy', danger: true });
       if (!ok) return;
-      try { await AXS.api('/api/delete-account', { token: sy.token, method: 'POST' }); syForget(); renderSettings(); toast('Cloud copy deleted. Your notes on this device are still here.'); }
-      catch (e) { toast(e.offline ? 'You\u2019re offline. Try again when connected.' : 'Couldn\u2019t delete it (' + e.message + ')'); }
+      /* np-r2: deleting asks for the password again, checked by the server (a signed-in phone alone isn't enough) */
+      for (var msg = ''; ;) {
+        var pw = await dialog({ title: 'Type your password', message: 'To delete the cloud copy, confirm it\u2019s you.', input: 'password', placeholder: 'Your password', ok: 'Delete', danger: true, error: msg, validate: function (v) { return v ? null : 'Type your password.'; } });
+        if (!pw) return;
+        try {
+          toast('Checking your password\u2026');
+          var dd = await AXS.derive(sy.kdf || sy.user, pw);
+          await AXS.api('/api/delete-account', { token: sy.token, body: { auth: dd.auth } });
+          syForget(); renderSettings(); toast('Cloud copy deleted. Your notes on this device are still here.'); return;
+        } catch (e) {
+          if (e.message === 'wrong') { msg = 'That password is wrong.'; continue; }
+          if (e.message === 'locked') { toast('Too many wrong tries. Wait ' + Math.max(1, Math.ceil(((e.body && e.body.wait) || 60) / 60)) + ' min and try again.'); return; }
+          toast(e.offline ? 'You\u2019re offline. Try again when connected.' : 'Couldn\u2019t delete it (' + e.message + ')'); return;
+        }
+      }
     },
     fromtmpl: function () { newFromTemplate(''); },
     usetmpl: function (el) {
