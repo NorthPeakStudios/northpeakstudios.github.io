@@ -1,7 +1,7 @@
 /* Axon · Northpeak Studios · v1.6.21 */
 (function () {
   'use strict';
-  var VERSION = '1.7.0';
+  var VERSION = '1.8.0';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -3348,7 +3348,7 @@
      A record is "changed here" when its current plaintext hash differs from h. */
   var sy = { user: null, token: null, key: null, cursor: 0, map: {}, tomb: {}, fg: {}, last: 0, err: '', did: false }, syBusy = false, syT = null, syAgain = false, syApplying = false;
   function syOn() { return !!(window.AXS && sy.token && sy.key); }
-  function sySave() { DB.put('meta', { k: 'sync', v: { user: sy.user, token: sy.token, cursor: sy.cursor, map: sy.map, tomb: sy.tomb, fg: sy.fg, last: sy.last, did: sy.did, base: sy.base || null } }).catch(function () {}); }
+  function sySave() { DB.put('meta', { k: 'sync', v: { user: sy.user, kdf: sy.kdf || null, token: sy.token, cursor: sy.cursor, map: sy.map, tomb: sy.tomb, fg: sy.fg, last: sy.last, did: sy.did, base: sy.base || null } }).catch(function () {}); }
   function sySoon(ms) { if (!syOn()) return; if (syApplying || syBusy) { syAgain = true; return; } clearTimeout(syT); syT = setTimeout(function () { syncNow(false); }, ms || 3000); }
   function nRec(id) { return 'n:' + id; }
   function notePayload(n) { var o = { k: 'n', t: n.title, f: n.folder || '', b: n.body, c: n.created || 0, u: n.updated || 0 }; if (n.pinned) o.p = 1; if (n.trashed) o.tr = n.trashed; return JSON.stringify(o); }
@@ -3602,7 +3602,7 @@
     if (keepBase && sy.user) { base = { u: sy.user, h: {} }; Object.keys(sy.map).forEach(function (k) { if (sy.map[k].h) base.h[k] = sy.map[k].h; }); }
     else if (keepBase && sy.base) base = sy.base;
     sy.base = base;
-    sy.token = null; sy.key = null; sy.user = null; sy.cursor = 0; sy.map = {}; sy.tomb = {}; sy.fg = {}; sy.last = 0; sy.err = ''; sy.did = false;
+    sy.token = null; sy.key = null; sy.user = null; sy.kdf = null; sy.cursor = 0; sy.map = {}; sy.tomb = {}; sy.fg = {}; sy.last = 0; sy.err = ''; sy.did = false;
     sySave(); DB.del('meta', 'sync-key').catch(function () {});
   }
   async function syStoreKey(raw) {
@@ -3627,9 +3627,11 @@
         '<button class="item" data-act="sysignup"><span>' + proTag('Create a sync account') + '</span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
         '<button class="item" data-act="sylogin"><span>Log in<small>Already synced on another device</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>';
     } else if (PRO.need) {
+      if (!/@/.test(sy.user || '')) h += syEmailItem();
       h += '<button class="item" data-act="getpro" data-what="Cloud sync"><span>Cloud sync needs Axon Pro<small>Signed in as ' + esc(sy.user) + ' \u00b7 ' + (PRO.req && PRO.req.status === 'new' ? 'request sent, it starts by itself once it\u2019s paid' : 'your notes start syncing as soon as Pro is on') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
         '<button class="item" data-act="sylogout"><span>Log out<small>Your notes stay on this device.</small></span></button>';
     } else {
+      if (!/@/.test(sy.user || '')) h += syEmailItem();
       h += '<button class="item" data-act="synow"><span>Sync now<small id="sysub">Signed in as ' + esc(sy.user) + ' \u00b7 last synced ' + syAgo() + (sy.err ? ' \u00b7 ' + esc(sy.err) : '') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
         '<div class="item"><span>End-to-end encrypted<small>Your password is the only key. If you forget it, the cloud copy can\u2019t be recovered, but the notes on this device stay.</small></span></div>' +
         '<button class="item" data-act="sypass"><span>Change password</span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
@@ -3638,33 +3640,53 @@
     }
     return h + '</div>';
   }
+  function syEmailItem() { return '<button class="item" data-act="syemail"><span>Add your email<small>Axon logins are emails now. Add yours once, then log in with it everywhere (it\u2019s your Northpeak account for Synapse and Liminal too).</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>'; }
   function syUI() {
     var s = $('#systate'), b = $('#sysub');
     if (s) s.textContent = PRO.need ? 'Needs Pro' : syBusy ? 'Syncing\u2026' : 'On';
     if (b) b.textContent = 'Signed in as ' + sy.user + ' \u00b7 ' + (syBusy ? 'syncing\u2026' : 'last synced ' + syAgo()) + (sy.err && !syBusy ? ' \u00b7 ' + sy.err : '');
   }
-  /* sign up / log in form */
-  function syForm(mode, msg, prevU) {
-    var vals = { u: '', p: '', p2: '' };
+  /* sign up / log in form: a Northpeak account is an email + password (Oct 21, 2026). Old username accounts still log in
+     (the small "signed up with a username?" link) and then add their email once. */
+  function syForm(mode, msg, prevU, o) {
+    o = o || {};
+    var vals = { u: '', p: '', p2: '', legacy: false };
     return overlay(function (done) {
       var el = document.createElement('div'); el.className = 'dialog syform'; el.setAttribute('role', 'dialog');
-      if (mode === 'change') {
-        el.innerHTML = '<h4>Change sync password</h4><p>Your notes get re-encrypted with the new password. Other devices are logged out and need the new password. <b>If you forget it, the cloud copy can\u2019t be recovered.</b></p>' +
-          '<input type="text" name="u" autocomplete="username" value="' + esc(sy.user || '') + '" style="display:none">' +
-          '<input type="password" name="p" placeholder="Current password" autocomplete="current-password" enterkeyhint="next">' +
-          '<input type="password" name="n1" placeholder="New password (8+ characters)" autocomplete="new-password" enterkeyhint="next" style="margin-top:8px">' +
-          '<input type="password" name="n2" placeholder="New password again" autocomplete="new-password" enterkeyhint="go" style="margin-top:8px">' +
-          '<div class="err">' + esc(msg || '') + '</div><div class="db"><button data-v="0">Cancel</button><button class="acc" data-v="1">Change</button></div>';
-      } else
-      el.innerHTML = '<h4>' + (mode === 'signup' ? 'Create a sync account' : 'Log in to sync') + '</h4>' +
-        '<p>' + (mode === 'signup' ? 'Pick a username and a password you\u2019ll remember. The password encrypts your notes, so <b>if you forget it, the cloud copy can\u2019t be recovered</b> (the notes on this device stay). No email needed.' : 'Use the username and password from your other device.') + '</p>' +
-        '<input type="text" name="u" placeholder="Username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next">' +
-        '<input type="password" name="p" placeholder="Password' + (mode === 'signup' ? ' (8+ characters)' : '') + '" autocomplete="' + (mode === 'signup' ? 'new-password' : 'current-password') + '" enterkeyhint="' + (mode === 'signup' ? 'next' : 'go') + '" style="margin-top:8px">' +
-        (mode === 'signup' ? '<input type="password" name="p2" placeholder="Password again" autocomplete="new-password" enterkeyhint="go" style="margin-top:8px">' : '') +
-        '<div class="err">' + esc(msg || '') + '</div>' +
-        '<div class="db"><button data-v="0">Cancel</button><button class="acc" data-v="1">' + (mode === 'signup' ? 'Create' : 'Log in') + '</button></div>';
-      var err = $('.err', el), ins = el.querySelectorAll(mode === 'change' ? 'input[type=password]' : 'input');
+      var legacy = !!o.legacy;
+      function emailIn(ph) { return '<input type="email" name="u" placeholder="' + (ph || 'Email') + '" autocomplete="username" inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next">'; }
+      function draw() {
+        if (mode === 'change') {
+          el.innerHTML = '<h4>Change sync password</h4><p>Your notes get re-encrypted with the new password. Other devices are logged out and need the new password. <b>If you forget it, the cloud copy can\u2019t be recovered.</b></p>' +
+            '<input type="text" name="u" autocomplete="username" value="' + esc(sy.user || '') + '" style="display:none">' +
+            '<input type="password" name="p" placeholder="Current password" autocomplete="current-password" enterkeyhint="next">' +
+            '<input type="password" name="n1" placeholder="New password (8+ characters)" autocomplete="new-password" enterkeyhint="next" style="margin-top:8px">' +
+            '<input type="password" name="n2" placeholder="New password again" autocomplete="new-password" enterkeyhint="go" style="margin-top:8px">' +
+            '<div class="err">' + esc(msg || '') + '</div><div class="db"><button data-v="0">Cancel</button><button class="acc" data-v="1">Change</button></div>';
+        } else if (mode === 'email') {
+          el.innerHTML = '<h4>Add your email</h4><p>Axon now signs in with an email. Add yours and from now on you log in with <b>your email and this same password</b>, on every device. It\u2019s also your Northpeak account, so the same login works in Synapse and Liminal and All-Access follows you.</p>' +
+            emailIn() +
+            (o.pass ? '' : '<input type="password" name="p" placeholder="Your Axon password" autocomplete="current-password" enterkeyhint="go" style="margin-top:8px">') +
+            '<div class="err">' + esc(msg || '') + '</div><div class="db"><button data-v="0">' + (o.later ? 'Later' : 'Cancel') + '</button><button class="acc" data-v="1">Add email</button></div>';
+        } else {
+          el.innerHTML = '<h4>' + (mode === 'signup' ? 'Create your Northpeak account' : legacy ? 'Log in with your username' : 'Log in to sync') + '</h4>' +
+            '<p>' + (mode === 'signup' ? 'Use your email and a password you\u2019ll remember. It\u2019s one Northpeak account for Axon, Synapse and Liminal. The password encrypts your notes, so <b>if you forget it, the cloud copy can\u2019t be recovered</b> (the notes on this device stay).'
+              : legacy ? 'For accounts made before Axon used emails. After this you\u2019ll add your email once.' : 'Use your Northpeak email and password (the same one as Synapse or Liminal).') + '</p>' +
+            (legacy ? '<input type="text" name="u" placeholder="Username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next">' : emailIn()) +
+            '<input type="password" name="p" placeholder="Password' + (mode === 'signup' ? ' (8+ characters)' : '') + '" autocomplete="' + (mode === 'signup' ? 'new-password' : 'current-password') + '" enterkeyhint="' + (mode === 'signup' ? 'next' : 'go') + '" style="margin-top:8px">' +
+            (mode === 'signup' ? '<input type="password" name="p2" placeholder="Password again" autocomplete="new-password" enterkeyhint="go" style="margin-top:8px">' : '') +
+            '<div class="err">' + esc(msg || '') + '</div>' +
+            (mode === 'login' ? '<button type="button" class="sylegacy" data-legacy="1" style="background:none;border:0;padding:6px 0 0;color:var(--mut,#888);font:inherit;font-size:13px;text-decoration:underline;cursor:pointer">' + (legacy ? 'Use your email instead' : 'Signed up with a username before?') + '</button>' : '') +
+            '<div class="db"><button data-v="0">Cancel</button><button class="acc" data-v="1">' + (mode === 'signup' ? 'Create' : 'Log in') + '</button></div>';
+        }
+        ins = el.querySelectorAll(mode === 'change' ? 'input[type=password]' : 'input');
+        Array.prototype.forEach.call(ins, function (inp, i) {
+          inp.addEventListener('keydown', function (e) { if (e.key !== 'Enter') return; e.preventDefault(); if (ins[i + 1]) ins[i + 1].focus(); else $('button.acc', el).click(); });
+        });
+      }
+      var ins; draw();
       function check() {
+        var err = $('.err', el);
         if (mode === 'change') {
           vals.u = sy.user; vals.p = ins[0].value; vals.n = ins[1].value;
           if (!vals.p) return 'Type your current password.';
@@ -3673,24 +3695,30 @@
           if (vals.n === vals.p) return 'That\u2019s the same as the current password.';
           return null;
         }
-        vals.u = AXS.normUser(ins[0].value); vals.p = ins[1].value; vals.p2 = ins[2] ? ins[2].value : vals.p;
-        if (!/^[a-z0-9][a-z0-9_.-]{2,31}$/.test(vals.u)) return 'Usernames are 3\u201332 letters, numbers, dots, dashes or underscores.';
+        vals.legacy = legacy;
+        if (legacy) {
+          vals.u = AXS.normUser(ins[0].value);
+          if (!/^[a-z0-9][a-z0-9_.-]{2,31}$/.test(vals.u)) return 'Usernames are 3\u201332 letters, numbers, dots, dashes or underscores.';
+        } else {
+          vals.u = AXS.normEmail(ins[0].value);
+          if (!vals.u) return ins[0].value.trim() ? 'That doesn\u2019t look like an email. Check it, like you@gmail.com.' : 'Type your email.';
+        }
+        if (mode === 'email') { vals.p = o.pass || (ins[1] ? ins[1].value : ''); return vals.p ? null : 'Type your Axon password.'; }
+        vals.p = ins[1].value; vals.p2 = ins[2] ? ins[2].value : vals.p;
         if (mode === 'signup' && vals.p.length < 8) return 'Use at least 8 characters for the password.';
         if (!vals.p) return 'Type your password.';
         if (vals.p !== vals.p2) return 'The two passwords don\u2019t match.';
         return null;
       }
       el.addEventListener('click', function (e) {
+        if (e.target.closest('[data-legacy]')) { legacy = !legacy; msg = ''; var keepP = ins[1] ? ins[1].value : ''; draw(); if (ins[1]) ins[1].value = keepP; setTimeout(function () { ins[0].focus(); }, 30); return; }
         var b = e.target.closest('button[data-v]'); if (!b) return;
         if (b.dataset.v === '0') return done(null);
-        var m = check(); if (m) { err.textContent = m; return; }
+        var m = check(); if (m) { $('.err', el).textContent = m; return; }
         done(vals);
       });
-      Array.prototype.forEach.call(ins, function (inp, i) {
-        inp.addEventListener('keydown', function (e) { if (e.key !== 'Enter') return; e.preventDefault(); if (ins[i + 1]) ins[i + 1].focus(); else $('button.acc', el).click(); });
-      });
       if (prevU && mode !== 'change') ins[0].value = prevU;
-      setTimeout(function () { (prevU && mode !== 'change' ? ins[1] : ins[0]).focus(); }, 60);
+      setTimeout(function () { (prevU && mode !== 'change' && ins[1] ? ins[1] : ins[0]).focus(); }, 60);
       return el;
     });
   }
@@ -3703,10 +3731,10 @@
         await syncNow(false);
         if (sy.err) throw new Error(sy.err);
         toast('Checking your password\u2026');
-        var od = await AXS.derive(sy.user, v.p);
-        try { await AXS.api('/api/login', { body: { u: sy.user, auth: od.auth, label: 'password check' } }); }
+        var kl = sy.kdf || sy.user, od = await AXS.derive(kl, v.p);
+        try { await AXS.api('/api/login', { body: Object.assign(/@/.test(sy.user) ? { email: sy.user } : { u: sy.user }, { auth: od.auth, label: 'password check' }) }); }
         catch (e) { if (e.message === 'wrong') { msg = 'The current password is wrong.'; continue; } throw e; }
-        var nd = await AXS.derive(sy.user, v.n), nkey = await AXS.keyFrom(nd.raw);
+        var nd = await AXS.derive(kl, v.n), nkey = await AXS.keyFrom(nd.raw);
         for (var attempt = 0; attempt < 2; attempt++) {
           toast('Re-encrypting your notes\u2026');
           var b = await AXS.api('/api/rekey/begin', { token: sy.token, method: 'POST' }), since = 0, batch = [], bytes = 0;
@@ -3735,36 +3763,93 @@
       }
     }
   }
+  /* All-Access on the Northpeak account -> Axon Pro here, through the same signed check as typing the code */
+  async function syAA(code) {
+    if (!code || !syOn() || isPro()) return false;
+    try {
+      var at = await fetch(NP_SYNAPSE + '/api/pro/link/attest', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code: code, app: 'axon' }), credentials: 'omit' }).then(function (x) { return x.json(); });
+      if (!at || !at.valid) return false;
+      var r = await AXS.api('/api/pro/redeem', { token: sy.token, body: { code: code, m: at.m, sig: at.sig } });
+      PRO.aa = r.code || code; savePro(); await proCheck(true); if (r.pro) proFromServer(true);
+      toast('All-Access from your Northpeak account: Axon Pro is on.'); syncNow(false); return true;
+    } catch (e) { return false; }
+  }
+  /* after a sign-in: the Northpeak (Synapse) side of the same email + password, then All-Access if the account has it */
+  async function syNorthpeak(email, pass, n) {
+    try { if (!n) n = await AXS.northpeak('login', email, pass); if (n && n.ok && n.user && n.user.aaCode) await syAA(n.user.aaCode); } catch (e) {}
+  }
+  async function syAddEmail(o) {
+    o = o || {};
+    var msg = '';
+    for (;;) {
+      var v = await syForm('email', msg, '', o); if (!v) return false;
+      var busy = toast('Adding your email\u2026', null, 20000);
+      try {
+        var kl = sy.kdf || sy.user, d = await AXS.derive(kl, v.p);
+        var n = await AXS.northpeak('signup', v.u, v.p); // the Northpeak account for this email (made now if it's new)
+        var r = await AXS.api('/api/email', { token: sy.token, body: { email: v.u, auth: d.auth } }); d.raw.fill(0);
+        sy.kdf = r.kdf || kl; sy.user = r.email || v.u; sySave();
+        toast(n && n.exists ? 'Email added. Your Synapse account for it has a different password; change one so they match to use a single login.' : 'Email added. Log in with ' + sy.user + ' from now on, in Axon, Synapse and Liminal.');
+        if (n && n.ok) syNorthpeak(v.u, v.p, n);
+        if (route().v === 'settings' && !openOverlays.length) renderSettings();
+        return true;
+      } catch (e) {
+        msg = e.offline ? 'You\u2019re offline. Connect and try again.' : e.message === 'wrong' ? 'That password is wrong.' : e.message === 'taken' ? 'Another Axon account already uses that email.' : e.message === 'bad_email' ? 'That doesn\u2019t look like an email.' : e.message === 'locked' ? 'Too many tries. Wait ' + ((e.body && e.body.wait) || 30) + ' seconds.' : 'Something went wrong (' + e.message + '). Try again.';
+      }
+    }
+  }
   async function syAuth(mode, o) {
     o = o || {};
-    var msg = '', lastU = '';
+    var msg = '', lastU = '', legacy = false;
     for (;;) {
-      var v = await syForm(mode, msg, lastU); if (!v) return false;
-      lastU = v.u;
+      var v = await syForm(mode, msg, lastU, { legacy: legacy }); if (!v) return false;
+      lastU = v.u; legacy = v.legacy;
       var busy = toast(mode === 'signup' ? 'Creating your account and encryption key\u2026' : 'Unlocking\u2026', null, 20000);
       try {
-        var d = await AXS.derive(v.u, v.p);
-        var r = await AXS.api(mode === 'signup' ? '/api/signup' : '/api/login', { body: { u: v.u, auth: d.auth, label: /iPhone|iPad/.test(navigator.userAgent) ? 'iPhone' : 'browser', grand: PRO.grand ? 1 : 0 } });
+        var label = /iPhone|iPad/.test(navigator.userAgent) ? 'iPhone' : 'browser', r = null, d = null, n = null, kl = v.u;
+        if (v.legacy) { // an account from before emails: username + password, then add the email
+          d = await AXS.derive(v.u, v.p);
+          r = await AXS.api('/api/login', { body: { u: v.u, auth: d.auth, label: label, grand: PRO.grand ? 1 : 0 } });
+        } else if (mode === 'signup') {
+          n = await AXS.northpeak('signup', v.u, v.p);
+          if (n.exists) { msg = 'This email already has a Northpeak account (from Synapse or Liminal) with a different password. Use that password, or log in.'; continue; }
+          d = await AXS.derive(v.u, v.p);
+          r = await AXS.api('/api/signup', { body: { email: v.u, auth: d.auth, label: label, grand: PRO.grand ? 1 : 0 } });
+        } else {
+          kl = await AXS.kdf(v.u); d = await AXS.derive(kl, v.p);
+          try { r = await AXS.api('/api/login', { body: { email: v.u, auth: d.auth, label: label, grand: PRO.grand ? 1 : 0 } }); }
+          catch (e) {
+            if (e.message !== 'wrong' || kl !== v.u) throw e;
+            /* no Axon account for this email yet, but it may be a Northpeak account from Synapse or Liminal: then it's made here now */
+            n = await AXS.northpeak('login', v.u, v.p);
+            if (!n.ok) throw e;
+            try { r = await AXS.api('/api/signup', { body: { email: v.u, auth: d.auth, label: label, grand: PRO.grand ? 1 : 0 } }); mode = 'signup'; }
+            catch (e2) { throw e2.message === 'taken' ? e : e2; }
+          }
+        }
         syForget(true);
         var base = sy.base; sy.base = null;
-        sy.user = r.user; sy.token = r.token; sy.key = await syStoreKey(d.raw); d.raw.fill(0);
-        if (base && base.u === r.user) Object.keys(base.h).forEach(function (k) { sy.map[k] = { s: 0, h: base.h[k] }; });
+        sy.user = r.user; sy.kdf = r.kdf || kl; sy.token = r.token; sy.key = await syStoreKey(d.raw); d.raw.fill(0);
+        if (base && (base.u === r.user || base.u === r.name)) Object.keys(base.h).forEach(function (k) { sy.map[k] = { s: 0, h: base.h[k] }; });
         sySave();
         proFromServer(!!r.pro);
         if (r.pro) {
-          toast(mode === 'signup' ? 'Cloud sync is on. Log in with the same username on your other devices.' : 'Logged in. Syncing your notes\u2026');
+          toast(mode === 'signup' ? 'Cloud sync is on. Log in with the same email on your other devices.' : 'Logged in. Syncing your notes\u2026');
           if (route().v === 'settings') renderSettings();
           await syncNow(true);
         } else {
           /* a free account: sync starts once Pro is on (the server checks it too) */
           toast(mode === 'signup' ? 'Account made: ' + r.user : 'Logged in as ' + r.user);
           var j = await proCheck(true);
-          if (!o.forPro && !(j && j.request && j.request.status === 'new')) openPro('Cloud sync');
+          if (!v.legacy && /@/.test(v.u)) await syNorthpeak(v.u, v.p, n);
+          if (!o.forPro && !isPro() && !(j && j.request && j.request.status === 'new')) openPro('Cloud sync');
         }
+        if (r.pro && !v.legacy) syNorthpeak(v.u, v.p, n);
         if (route().v === 'settings' && !openOverlays.length) renderSettings();
+        if (v.legacy && !/@/.test(sy.user)) await syAddEmail({ pass: v.p, later: true });
         return true;
       } catch (e) {
-        msg = e.offline ? 'You\u2019re offline. Connect to the internet and try again.' : e.message === 'taken' ? 'That username is taken. Try another.' : e.message === 'wrong' ? 'Wrong username or password.' : e.message === 'locked' ? 'Too many tries. Wait ' + ((e.body && e.body.wait) || 30) + ' seconds.' : e.message === 'slow_down' ? 'Too many new accounts from here. Try again later.' : 'Something went wrong (' + e.message + '). Try again.';
+        msg = e.offline ? 'You\u2019re offline. Connect to the internet and try again.' : e.message === 'taken' ? 'There\u2019s already an Axon account with this email. Log in instead.' : e.message === 'wrong' ? (v.legacy ? 'Wrong username or password.' : 'Wrong email or password.') : e.message === 'bad_email' ? 'That doesn\u2019t look like an email.' : e.message === 'locked' ? 'Too many tries. Wait ' + ((e.body && e.body.wait) || 30) + ' seconds.' : e.message === 'slow_down' ? 'Too many tries from here. Try again later.' : 'Something went wrong (' + e.message + '). Try again.';
       }
     }
   }
@@ -3865,6 +3950,7 @@
     gotrash: function () { go('#/trash'); },
     sysignup: function () { syAuth('signup'); },
     sylogin: function () { syAuth('login'); },
+    syemail: function () { syAddEmail(); },
     synow: function () { syncNow(true); },
     sypass: function () { syChangePass(); },
     sylogout: async function () {
@@ -4252,7 +4338,7 @@
             h += '<div class="pbox psent"><b>' + I.check + 'Request sent</b><p>Watch Messages for an Apple Cash request for <b>' + ((PRO.req && PRO.req.plan === 'all_access') ? '$100' : '$35') + '</b>' + ((PRO.req && PRO.req.plan === 'all_access') ? ' (Northpeak All-Access)' : '') + ' from Northpeak Studios' + (PRO.req.phone ? ' at <b>' + esc(PRO.req.phone) + '</b>' : '') + '. Pro turns on by itself once it\u2019s paid, on every device logged in as <b>' + esc(sy.user) + '</b>.</p>' +
               '<div class="pbtns"><button class="pmain" data-p="check">Check now</button><button data-p="edit">Change details</button></div>' + (msg ? '<div class="perr">' + esc(msg) + '</div>' : '') + '</div>';
           } else if (mode === 'code') {
-            h += '<div class="pbox"><b>Have a code?</b><p>Enter your Axon code (AXN-XXXX-XXXX) or a Northpeak All-Access code (SYN-XXXX-XXXX) and Axon Pro turns on' + (syOn() ? ' for <b>' + esc(sy.user) + '</b>.' : '. Next you\u2019ll pick a username and password, so it works on all your devices.') + '</p>' +
+            h += '<div class="pbox"><b>Have a code?</b><p>Enter your Axon code (AXN-XXXX-XXXX) or a Northpeak All-Access code (SYN-XXXX-XXXX) and Axon Pro turns on' + (syOn() ? ' for <b>' + esc(sy.user) + '</b>.' : '. Next you\u2019ll sign in with your email and password, so it works on all your devices.') + '</p>' +
               '<input name="pcode" placeholder="AXN-XXXX-XXXX" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go" value="' + esc(code) + '">' +
               (msg ? '<div class="perr">' + esc(msg) + '</div>' : '') +
               '<div class="pbtns"><button class="pmain" data-p="redeem">Unlock</button><button data-p="back">Back</button></div></div>';
@@ -4261,7 +4347,7 @@
             h += '<div class="pbox"><b>Get ' + esc(P.name) + '</b><p>No card needed. Send your name and phone number and Northpeak Studios sends you an <b>Apple Cash request for ' + P.price + '</b> in Messages. Once it\u2019s paid, Pro turns on by itself' + (plan === 'all_access' ? ', and you get one code that unlocks Synapse too' : '') + '.</p>' +
               '<input name="pname" placeholder="Your name" autocomplete="name" enterkeyhint="next" value="' + esc(f.name) + '">' +
               '<input name="pphone" type="tel" placeholder="Phone number for Apple Cash" autocomplete="tel" inputmode="tel" enterkeyhint="go" value="' + esc(f.phone) + '">' +
-              '<p class="pnote">' + (syOn() ? 'Pro goes on your account <b>' + esc(sy.user) + '</b>.' : 'Next you\u2019ll pick a username and password. Pro goes on that account, so you can log in and use it on all your devices.') + '</p>' +
+              '<p class="pnote">' + (syOn() ? 'Pro goes on your account <b>' + esc(sy.user) + '</b>.' : 'Next you\u2019ll sign in with your email and a password. Pro goes on that account, so you can log in and use it on all your devices.') + '</p>' +
               (msg ? '<div class="perr">' + esc(msg) + '</div>' : '') +
               '<div class="pbtns"><button class="pmain" data-p="send">' + (syOn() ? 'Send request' : 'Continue') + '</button></div>' +
               (syOn() ? '' : '<button class="plink" data-p="login">Bought Pro already? Log in</button>') + '<button class="plink" data-p="code">Have a code?</button></div>';

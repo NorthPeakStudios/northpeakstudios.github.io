@@ -47,5 +47,36 @@
     if (!r.ok || !j || !j.ok) { var err = new Error((j && j.error) || ('http_' + r.status)); err.status = r.status; err.body = j; throw err; }
     return j;
   }
-  window.AXS = { derive: derive, keyFrom: keyFrom, seal: seal, open: open, hash: hash, api: api, b64: b64, unb64: unb64, normUser: normUser, url: URL0 };
+
+  /* ---- Northpeak account (Oct 21, 2026): Axon signs in with an email. The same email + password is the person's
+     Northpeak account in Synapse (it lives there), so one login works in Synapse, Axon and Liminal, and All-Access follows it.
+     No secrets here: the only credentials are the person's own email, password and session tokens. ---- */
+  var SYN = 'https://odin-cards.sites.tab.bot';
+  function normEmail(e) { var s = String(e || '').trim().toLowerCase(); return s.length <= 254 && /^[^\s@<>"',;]+@[^\s@<>"',;]+\.[a-z]{2,}$/.test(s) ? s : ''; }
+  async function syn(path, body, tok) {
+    var h = { 'content-type': 'application/json', 'x-syn-bearer': '1' }; if (tok) h.authorization = 'Bearer ' + tok;
+    var r; try { r = await fetch(SYN + path, { method: body ? 'POST' : 'GET', headers: h, body: body ? JSON.stringify(body) : undefined, cache: 'no-store', credentials: 'omit' }); }
+    catch (e) { var ne = new Error('offline'); ne.offline = true; throw ne; }
+    var j = null; try { j = await r.json(); } catch (e) {}
+    if (!r.ok || !j || !j.ok) { var err = new Error((j && j.error) || ('http_' + r.status)); err.status = (j && j.http) || r.status; err.body = j; throw err; }
+    return j;
+  }
+  /* make sure email + password is a Northpeak account: log in, or (kind 'signup') create it.
+     -> { ok, user, token, created } | { exists: true } (the email has one, with another password) | { bad: true } | { skip: why } */
+  async function northpeak(kind, email, pass) {
+    var j = null;
+    try { j = await syn('/api/auth/login', { email: email, password: String(pass) }); }
+    catch (e) {
+      if (e.message !== 'bad_login') return { skip: e.message };
+      if (kind !== 'signup') return { bad: true };
+      try { j = await syn('/api/auth/signup', { email: email, password: String(pass) }); j.created = true; }
+      catch (e2) { return e2.message === 'exists' ? { exists: true } : { skip: e2.message }; }
+    }
+    if (j && j.token) { try { localStorage.setItem('axon.synlink.v1', JSON.stringify({ tok: j.token, email: (j.user && j.user.email) || email, at: Date.now() })); } catch (e) {} } // "Make cards" is already linked too
+    return { ok: true, user: j.user || null, token: j.token || null, created: !!j.created };
+  }
+  /* which name this account's encryption key was made with: the email, or the old username for an account that added an email later */
+  async function kdf(email) { try { var j = await api('/api/kdf', { body: { email: email } }); return j.kdf || email; } catch (e) { if (e.status === 404) return email; throw e; } }
+  window.AXS = { derive: derive, keyFrom: keyFrom, seal: seal, open: open, hash: hash, api: api, b64: b64, unb64: unb64, normUser: normUser, url: URL0,
+    normEmail: normEmail, northpeak: northpeak, kdf: kdf, syn: syn, SYN: SYN };
 })();

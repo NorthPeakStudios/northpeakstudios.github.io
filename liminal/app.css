@@ -334,3 +334,5 @@ body.is-pro .seg-lock{display:none}
 /* the upgrade + sign-in sheets read as solid panels (Odin: less translucent) */
 .pro-sheet,.auth-sheet{background:rgba(3,2,6,.72)}
 .pro-sheet .sheet-card,.auth-sheet .sheet-card{background:#16131f;-webkit-backdrop-filter:none;backdrop-filter:none}
+/* sign-in: the small 'signed up with a username?' link (Oct 21, email logins) */
+.auth-alt{display:block;margin:12px auto 0;background:none;border:0;padding:6px;color:inherit;opacity:.7;font:inherit;font-size:13px;text-decoration:underline;cursor:pointer}

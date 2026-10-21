@@ -25,7 +25,7 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preload" href="fonts/instrument-serif-italic.woff2" as="font" type="font/woff2" crossorigin>
 <script>try{if(navigator.standalone||matchMedia("(display-mode: standalone)").matches)document.documentElement.classList.add("pwa")}catch(e){}</script>
-<link rel="stylesheet" href="app.css?v=13">
+<link rel="stylesheet" href="app.css?v=14">
 </head>
 <body>
 <canvas id="aura" aria-hidden="true"></canvas>
@@ -183,13 +183,14 @@
     <p class="auth-why" id="authWhy">keep your journal safe if you switch phones, and start your 3-day free trial of liminal pro.</p>
     <div class="auth-seg" role="tablist"><button data-k="signup" class="on" role="tab">create account</button><button data-k="login" role="tab">sign in</button></div>
     <form id="authForm" autocomplete="on" novalidate>
-      <label class="fld"><span>username</span><input name="username" id="aUser" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="32" placeholder="pick a username" enterkeyhint="next"></label>
-      <label class="fld"><span>password</span><input name="password" id="aPass" type="password" autocomplete="new-password" maxlength="200" placeholder="8 or more characters" enterkeyhint="next"></label>
+      <label class="fld" id="aUserWrap"><span id="aUserLbl">email</span><input name="email" id="aUser" type="email" inputmode="email" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="254" placeholder="you@example.com" enterkeyhint="next"></label>
+      <label class="fld" id="aPassWrap"><span>password</span><input name="password" id="aPass" type="password" autocomplete="new-password" maxlength="200" placeholder="8 or more characters" enterkeyhint="next"></label>
       <label class="fld" id="aConfWrap"><span>password again</span><input name="confirm" id="aConf" type="password" autocomplete="new-password" maxlength="200" placeholder="same as above" enterkeyhint="go"></label>
       <p class="auth-err" id="authErr" hidden></p>
       <button class="primary" id="authGo" type="submit">create account</button>
+      <button type="button" class="auth-alt" id="aLegacy" hidden>signed up with a username before?</button>
     </form>
-    <p class="auth-fine" id="authFine">no email needed. your password locks your journal on this phone before it syncs, so it can't be reset. keep it somewhere safe.</p>
+    <p class="auth-fine" id="authFine">one northpeak account: the same email + password works in synapse and axon too. your password locks your journal on this phone before it syncs, so it can't be reset. keep it somewhere safe.</p>
   </div>
 </div>
 
@@ -221,6 +222,6 @@ if(sa&&window.screen&&innerHeight>=innerWidth){var vv=window.visualViewport,kb=v
 if(s!==on){on=s;document.documentElement.classList.toggle('vp-short',s);}}
 check();addEventListener('resize',check);addEventListener('orientationchange',function(){setTimeout(check,300)});})();
 </script>
-<script type="module" src="js/app.js?v=12"></script>
+<script type="module" src="js/app.js?v=13"></script>
 </body>
 </html>

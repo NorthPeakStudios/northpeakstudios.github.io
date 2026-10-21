@@ -3,7 +3,7 @@ import { moodColors, mixHex, hexRgb, moodWord, quadrant } from './color.js';
 import { Engine } from './audio.js';
 import { analyze, compose } from './poet.js';
 import { drawScene, sceneFor, SCENES, poster } from './paint.js?v=12';
-import * as cloud from './cloud.js?v=12';
+import * as cloud from './cloud.js?v=13';
 import * as db from './db.js';
 
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
@@ -444,8 +444,9 @@ async function doSync(){
 function renderAccount(quiet){
   const A = cloud.acct, rows = $('#acctRows'), pr = $('#proRows'); if (!rows) return;
   $('#privTitle').textContent = cloud.signedIn() ? 'encrypted, synced to your account' : 'stays on your phone unless you sign in to sync';
-  if (!cloud.signedIn()) rows.innerHTML = `<button class="row" id="sSignIn"><span>sign in to sync</span><small>${A.user ? 'signed out · ' + esc(A.user) : 'username + password'}</small></button>`;
+  if (!cloud.signedIn()) rows.innerHTML = `<button class="row" id="sSignIn"><span>sign in to sync</span><small>${A.user ? 'signed out · ' + esc(A.user) : 'email + password'}</small></button>`;
   else rows.innerHTML = `<div class="row static"><span>${esc(A.user)}</span><small>${syncMsg || (A.synced ? 'synced ' + ago(A.synced) : 'not synced yet')}</small></div>
+    ${/@/.test(A.user || '') ? '' : '<button class="row" id="sAddEmail"><span>add your email</span><small>sign in with it from now on, here and in synapse + axon</small></button>'}
     <button class="row" id="sSyncNow"><span>sync now</span><small>pulls + saves changes</small></button>
     <button class="row" id="sSignOut"><span>sign out</span><small>moments stay on this phone</small></button>
     <button class="row danger" id="sDelAcct"><span>delete account</span><small id="sDelAcctSub">removes the synced copy</small></button>`;
@@ -457,6 +458,7 @@ function bindAccount(){
   const on = (id, fn) => { const b = document.getElementById(id); if (b) b.onclick = fn; };
   on('sSignIn', () => openAuth(cloud.acct.user ? 'login' : 'signup'));
   on('sSyncNow', () => doSync());
+  on('sAddEmail', () => openAuth('email'));
   on('sSignOut', async () => { await cloud.logout(); toast('signed out · your moments stay here'); renderAccount(); afterAccount(); });
   on('sDelAcct', async e => { const b = e.currentTarget; if (!b.dataset.armed) { b.dataset.armed = 1; $('#sDelAcctSub').textContent = 'tap again: deletes the synced copy + account'; return; }
     try { await cloud.deleteAccount(); toast('account deleted · this phone keeps its moments'); } catch (err) { toast(err.offline ? 'you\'re offline' : 'couldn\'t delete (' + err.message + ')'); } renderAccount(); afterAccount(); });
@@ -477,14 +479,14 @@ function renderPro(){
   if (A.pro) h += `<div class="pbox pon"><b>${CHECK}${A.owner ? 'owner 👑' : 'liminal pro is on'}</b><p>it's on your account <b>${esc(A.user)}</b>${A.allAccess ? ' through northpeak all-access' : ''}, on every phone you sign in on. thank you.</p></div>`;
   else {
     if (cloud.onTrial()) h += `<div class="pbox ptrial"><b>free trial · ${daysLeft()} left</b><p>everything in pro is on. keep it after the trial with a one-time $35.</p></div>`;
-    else if (!cloud.signedIn()) h += `<div class="pbox ptrial"><b>try it free for 3 days</b><p>make an account (just a username and password) and every pro feature turns on for 3 days. no card, nothing to cancel.</p><button class="primary" data-p="trial">start my free trial</button></div>`;
+    else if (!cloud.signedIn()) h += `<div class="pbox ptrial"><b>try it free for 3 days</b><p>make an account (just an email and a password) and every pro feature turns on for 3 days. no card, nothing to cancel.</p><button class="primary" data-p="trial">start my free trial</button></div>`;
     if (waiting) h += `<div class="pbox psent"><b>${CHECK}request sent</b><p>watch Messages for an <b>Apple Cash request for ${R.plan === 'all_access' ? '$100' : '$35'}</b> from Northpeak Studios${R.phone ? ' at <b>' + esc(R.phone) + '</b>' : ''}. once it's paid, pro turns on by itself for <b>${esc(A.user)}</b>.</p><div class="pbtns"><button class="pmain" data-p="check">check now</button><button data-p="edit">change details</button></div>${proMsg ? `<p class="perr">${esc(proMsg)}</p>` : ''}</div>`;
     else h += `<div class="pbox"><b>get pro</b><p>no card needed. pick a plan, send your name and phone number, and Northpeak Studios sends you an <b>Apple Cash request</b> in Messages. once it's paid, pro turns on by itself.</p>
       <div class="plans"><label class="plan${proPlan === 'liminal_pro' ? ' on' : ''}"><input type="radio" name="plan" value="liminal_pro"${proPlan === 'liminal_pro' ? ' checked' : ''}><span><b>liminal pro</b><small>this app, for good</small></span><em>$35</em></label>
       <label class="plan${proPlan === 'all_access' ? ' on' : ''}"><input type="radio" name="plan" value="all_access"${proPlan === 'all_access' ? ' checked' : ''}><span><b>northpeak all-access</b><small>every northpeak app: synapse, axon, liminal + future ones</small></span><em>$100</em></label></div>
       <input name="pname" placeholder="your name" autocomplete="name" enterkeyhint="next" maxlength="80" value="${esc((R && R.name) || '')}">
       <input name="pphone" type="tel" placeholder="phone number for Apple Cash" autocomplete="tel" inputmode="tel" enterkeyhint="go" maxlength="40" value="${esc((R && R.phone) || '')}">
-      <p class="pnote">${cloud.signedIn() ? `pro goes on your account <b>${esc(A.user)}</b>.` : 'next you\'ll pick a username and password. pro goes on that account so it follows you to a new phone.'} $35 per app, or $100 for all of them. Apple Cash only.</p>
+      <p class="pnote">${cloud.signedIn() ? `pro goes on your account <b>${esc(A.user)}</b>.` : 'next you\'ll sign in with your email. pro goes on that account so it follows you to a new phone.'} $35 per app, or $100 for all of them. Apple Cash only.</p>
       ${proMsg ? `<p class="perr">${esc(proMsg)}</p>` : ''}<div class="pbtns"><button class="pmain" data-p="send">${cloud.signedIn() ? 'send request' : 'continue'}</button></div></div>`;
     h += `<details class="pcode"${proMode === 'code' ? ' open' : ''}><summary>have a code?</summary><p>a liminal code (LIM-…) or a northpeak all-access code (SYN-…).</p><div class="pcrow"><input name="pcode" placeholder="LIM-XXXX-XXXX" autocapitalize="characters" autocorrect="off" spellcheck="false" maxlength="20"><button data-p="redeem">unlock</button></div></details>`;
   }
@@ -522,42 +524,62 @@ $('#proCard').addEventListener('click', async e => {
 });
 let pendingRequest = null, pendingCode = null;
 
-/* sign in / sign up */
-let authKind = 'signup', authForPro = false;
+/* sign in / sign up: a Northpeak account = email + password (Oct 21, 2026). Old username accounts sign in through the
+   small "signed up with a username?" link and then add their email once (kind 'email'). */
+let authKind = 'signup', authForPro = false, authLegacy = false, heldPw = '';
 function openAuth(kind, forPro){
-  authKind = kind; authForPro = !!forPro; paintAuth(); $('#authErr').hidden = true;
+  authKind = kind; authForPro = !!forPro; authLegacy = false; paintAuth(); $('#authErr').hidden = true;
   $('#auth').classList.add('open'); $('#auth').setAttribute('aria-hidden', 'false');
-  if (kind === 'login' && cloud.acct.user) $('#aUser').value = cloud.acct.user;
+  $('#aUser').value = kind === 'login' && /@/.test(cloud.acct.user || '') ? cloud.acct.user : '';
 }
-function closeAuth(){ $('#auth').classList.remove('open'); $('#auth').setAttribute('aria-hidden', 'true'); $('#aPass').value = ''; $('#aConf').value = ''; }
+function closeAuth(){ $('#auth').classList.remove('open'); $('#auth').setAttribute('aria-hidden', 'true'); $('#aPass').value = ''; $('#aConf').value = ''; heldPw = ''; }
 function paintAuth(){
-  const up = authKind === 'signup';
+  const up = authKind === 'signup', em = authKind === 'email', lg = authLegacy && authKind === 'login';
+  $('.auth-seg').hidden = em;
   $$('.auth-seg button').forEach(b => b.classList.toggle('on', b.dataset.k === authKind));
-  $('#authTitle').textContent = up ? (authForPro ? 'start your free trial' : 'create an account') : 'welcome back';
-  $('#authWhy').textContent = up ? 'sync your journal so it survives a new phone, and get 3 days of liminal pro free.' : 'sign in and your journal comes back, along with pro if you have it.';
+  $('#authTitle').textContent = em ? 'add your email' : up ? (authForPro ? 'start your free trial' : 'create an account') : lg ? 'sign in with your username' : 'welcome back';
+  $('#authWhy').textContent = em ? 'liminal signs in with an email now. add yours and from then on you sign in with it and this same password, here and in synapse + axon.' : up ? 'sync your journal so it survives a new phone, and get 3 days of liminal pro free.' : lg ? 'for accounts made before liminal used emails. next you\'ll add your email once.' : 'sign in with your northpeak email (the same one as synapse or axon) and your journal comes back, along with pro if you have it.';
   $('#aConfWrap').hidden = !up; $('#aPass').autocomplete = up ? 'new-password' : 'current-password'; $('#aPass').placeholder = up ? '8 or more characters' : 'your password';
-  $('#aUser').placeholder = up ? 'pick a username' : 'your username';
-  $('#authGo').textContent = up ? (authForPro ? 'create account · start trial' : 'create account') : 'sign in';
+  $('#aPassWrap').hidden = em && !!heldPw;
+  const u = $('#aUser');
+  $('#aUserLbl').textContent = lg ? 'username' : 'email';
+  u.type = lg ? 'text' : 'email'; u.inputMode = lg ? 'text' : 'email'; u.name = lg ? 'username' : 'email'; u.maxLength = lg ? 32 : 254;
+  u.placeholder = lg ? 'your username' : 'you@example.com';
+  const alt = $('#aLegacy'); alt.hidden = authKind !== 'login'; alt.textContent = lg ? 'use your email instead' : 'signed up with a username before?';
+  $('#authGo').textContent = em ? 'add email' : up ? (authForPro ? 'create account · start trial' : 'create account') : 'sign in';
 }
-$$('.auth-seg button').forEach(b => b.onclick = () => { authKind = b.dataset.k; paintAuth(); $('#authErr').hidden = true; });
+$$('.auth-seg button').forEach(b => b.onclick = () => { authKind = b.dataset.k; authLegacy = false; paintAuth(); $('#authErr').hidden = true; });
+$('#aLegacy').onclick = () => { authLegacy = !authLegacy; $('#aUser').value = ''; paintAuth(); $('#authErr').hidden = true; $('#aUser').focus(); };
 $('#aClose').onclick = closeAuth;
 $('#auth').addEventListener('click', e => { if (e.target.id === 'auth') closeAuth(); });
 $('#authForm').addEventListener('submit', async e => {
   e.preventDefault(); const err = m => { $('#authErr').textContent = m; $('#authErr').hidden = !m; };
-  const u = cloud.normUser($('#aUser').value), pw = $('#aPass').value, up = authKind === 'signup';
-  if (!cloud.validUser(u)) return err('usernames are 3–32 letters, numbers, dots, dashes or underscores.');
-  if (pw.length < 8) return err('passwords need 8 or more characters.');
+  const up = authKind === 'signup', em = authKind === 'email', lg = authLegacy && authKind === 'login';
+  const raw = $('#aUser').value, pw = em && heldPw ? heldPw : $('#aPass').value;
+  const id = lg ? cloud.normUser(raw) : cloud.normEmail(raw);
+  if (lg && !cloud.validUser(id)) return err('usernames are 3–32 letters, numbers, dots, dashes or underscores.');
+  if (!lg && !id) return err(raw.trim() ? 'that doesn\'t look like an email. check it, like you@gmail.com.' : 'type your email.');
+  if (up ? pw.length < 8 : !pw) return err(up ? 'passwords need 8 or more characters.' : 'type your password.');
   if (up && pw !== $('#aConf').value) return err('the two passwords don\'t match.');
-  err(''); const b = $('#authGo'); b.disabled = true; b.textContent = up ? 'locking your journal…' : 'signing in…';
+  err(''); const b = $('#authGo'); b.disabled = true; b.textContent = em ? 'adding…' : up ? 'locking your journal…' : 'signing in…';
   try {
-    await cloud.auth(authKind, u, pw);
-    closeAuth(); toast(up ? 'account made · pro trial on for 3 days' : 'signed in as ' + u);
+    if (em) {
+      const j = await cloud.addEmail(id, pw);
+      closeAuth(); toast(j.northpeak && j.northpeak.exists ? 'email added · your synapse account for it has another password' : 'email added · sign in with it from now on');
+      if (j.northpeak && j.northpeak.ok && await cloud.linkNorthpeak(id, pw, j.northpeak)) toast('all-access from your northpeak account ✓');
+      renderAccount(); afterAccount(); b.disabled = false; paintAuth(); return;
+    }
+    const j = await cloud.auth(authKind, id, pw, { legacy: lg });
+    const made = up || j.created;
+    closeAuth(); toast(made ? 'account made · pro trial on for 3 days' : 'signed in as ' + cloud.acct.user);
+    if (!lg && await cloud.linkNorthpeak(id, pw, j.northpeak)) toast('all-access from your northpeak account ✓');
     await doSync(); afterAccount();
     if (pendingRequest) { const pq = pendingRequest; pendingRequest = null; try { await cloud.requestPro(pq.plan, pq.name, pq.phone); } catch {} }
     if (pendingCode) { const pc = pendingCode; pendingCode = null; try { await cloud.redeem(pc); toast('unlocked ✓'); } catch { toast('that code didn\'t work'); } }
-    if ($('#pro').classList.contains('open')) { if (up && authForPro && !cloud.acct.request) closePro(); else renderPro(); }
+    if ($('#pro').classList.contains('open')) { if (made && authForPro && !cloud.acct.request) closePro(); else renderPro(); }
+    if (lg && !/@/.test(cloud.acct.user || '')) { heldPw = pw; authKind = 'email'; authLegacy = false; paintAuth(); $('#aUser').value = ''; $('#auth').classList.add('open'); $('#auth').setAttribute('aria-hidden', 'false'); }
   } catch (x) {
-    err(x.offline ? 'you\'re offline. connect and try again.' : x.message === 'taken' ? 'that username is taken. try another.' : x.message === 'wrong' ? 'that username and password don\'t match.' : x.message === 'locked' ? 'too many tries. wait a few minutes.' : x.message === 'slow_down' ? 'too many new accounts from here. try later.' : 'that didn\'t work (' + x.message + ').');
+    err(x.offline ? 'you\'re offline. connect and try again.' : x.message === 'np_exists' ? 'this email already has a northpeak account (from synapse or axon) with another password. use that password, or sign in.' : x.message === 'taken' ? (em ? 'another liminal account already uses that email.' : 'there\'s already an account with this email. sign in instead.') : x.message === 'wrong' ? (em ? 'that password is wrong.' : lg ? 'that username and password don\'t match.' : 'that email and password don\'t match.') : x.message === 'bad_email' ? 'that doesn\'t look like an email.' : x.message === 'locked' ? 'too many tries. wait a few minutes.' : x.message === 'slow_down' ? 'too many tries from here. try later.' : 'that didn\'t work (' + x.message + ').');
   }
   b.disabled = false; paintAuth();
 });
