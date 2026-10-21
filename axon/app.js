@@ -1977,7 +1977,7 @@
   function isStandalone() { return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; }
   function renderSettings() {
     var h = '<div class="page"><div class="eyebrow">Axon</div><h1 class="h1">Settings</h1>' +
-      '<div class="group progrp"><button class="item" data-act="getpro"><span>' + (isPro() ? 'Axon Pro is on' : 'Get Axon Pro \u00b7 $35') + '<small>' + (isPro() ? (PRO.acct ? 'On your account ' + esc(PRO.acct) + ', on every device you log in on' : 'This device had Axon before Pro, so it keeps every feature') : PRO.req && PRO.req.status === 'new' && syOn() ? 'Request sent \u00b7 turns on by itself once the Apple Cash payment is marked paid' : 'Sync, History, Graph, Templates, Daily notes, Recall and more \u00b7 one time') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button></div>' +
+      '<div class="group progrp"><button class="item" data-act="getpro"><span>' + (isPro() ? (PRO.owner ? 'Owner \ud83d\udc51' : 'Axon Pro is on') : 'Get Axon Pro \u00b7 $35') + '<small>' + (isPro() ? (PRO.acct ? 'On your account ' + esc(PRO.acct) + ', on every device you log in on' : 'This device had Axon before Pro, so it keeps every feature') : PRO.req && PRO.req.status === 'new' && syOn() ? 'Request sent \u00b7 turns on by itself once the Apple Cash payment is marked paid' : 'Sync, History, Graph, Templates, Daily notes, Recall and more \u00b7 one time') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button></div>' +
       '<div class="sec"><span>Reading</span></div><div class="group">' +
       '<div class="item"><span>Text size</span><div class="seg">' + SIZES.map(function (s) { return '<button class="' + (settings.fs === s[1] ? 'on' : '') + '" data-act="fs" data-v="' + s[1] + '" style="font-size:' + (s[1] - 3) + 'px">' + s[0] + '</button>'; }).join('') + '</div></div>' +
       '<div class="preview prose">The <a class="wl" href="#" data-noop="1">Basal ganglia</a> gate movement; dopamine tips the balance toward <strong>go</strong>.</div></div>' +
@@ -4208,6 +4208,7 @@
     try {
       var j = await AXS.api('/api/me', { token: sy.token }), had = PRO.need && !isPro() || PRO.need;
       if ((j.allAccess || null) !== (PRO.aa || null)) { PRO.aa = j.allAccess || null; savePro(); }
+      if ('owner' in j && !!j.owner !== !!PRO.owner) { PRO.owner = !!j.owner; savePro(); }
       proFromServer(!!j.pro, j.request || null);
       if (j.pro && had) { toast('Axon Pro is on. Thank you!'); syncNow(false); }
       if (route().v === 'settings' && !openOverlays.length) renderSettings();
@@ -4243,7 +4244,7 @@
         var P = NP_PLANS[plan];
         h += '<div class="phero"><div class="pprice">' + P.price + '</div><div class="pone">' + P.one + '</div>' + (what && !isPro() ? '<p class="pwhy"><b>' + esc(what) + '</b> is part of Axon Pro.</p>' : '') + '</div>';
         if (isPro() && !(PRO.grand && !PRO.acct && syOn() && PRO.need)) {
-          h += '<div class="pbox pon"><b>Axon Pro is on' + '</b><p>' + (PRO.acct ? 'It\u2019s on your account <b>' + esc(PRO.acct) + '</b>, so it works on every device you log in on.' : 'This device had Axon before Pro existed, so it keeps every Pro feature for good.') + '</p></div>';
+          h += '<div class="pbox pon"><b>' + (PRO.owner ? 'Owner \ud83d\udc51' : 'Axon Pro is on') + '</b><p>' + (PRO.acct ? 'It\u2019s on your account <b>' + esc(PRO.acct) + '</b>, so it works on every device you log in on.' : 'This device had Axon before Pro existed, so it keeps every Pro feature for good.') + '</p></div>';
           if (PRO.aa) h += '<div class="pbox pon"><b>Northpeak All-Access</b><p>Your code <b class="pcode">' + esc(PRO.aa) + '</b> unlocks every Northpeak app. In Synapse, open <b>Settings \u203a Synapse Pro \u203a Have an unlock code?</b> and enter it.</p></div>';
         }
         if (!isPro() || (PRO.grand && !PRO.acct && syOn() && PRO.need)) {
@@ -4301,7 +4302,7 @@
       });
       async function redeem() { // an All-Access code: Synapse signs a yes, this account's Pro turns on
         code = ($('[name=pcode]', el).value || '').trim().toUpperCase();
-        if (code.replace(/[^0-9A-Z]/g, '').replace(/^(SYN|AXN)/, '').length !== 8) { msg = 'Type the whole code, like AXN-AB12-CD34 or SYN-AB12-CD34.'; paint(); return; }
+        if (code.replace(/[^0-9A-Z]/g, '').replace(/^(SYN|AXN|OWNER)/, '').length !== 8) { msg = 'Type the whole code, like AXN-AB12-CD34 or SYN-AB12-CD34.'; paint(); return; }
         msg = '';
         if (!syOn()) { var ok = await syAuth('signup', { forPro: true }); if (!ok) { paint(); return; } }
         var bt = $('[data-p=redeem]', el); if (bt) { bt.disabled = true; bt.textContent = 'Checking\u2026'; }
@@ -4309,9 +4310,9 @@
         if (!/^AXN/.test(code.replace(/[^0-9A-Z]/g, ''))) try { var at = await fetch(NP_SYNAPSE + '/api/pro/link/attest', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code: code, app: 'axon' }), credentials: 'omit' }).then(function (x) { return x.json(); }); if (at && at.valid) proof = { m: at.m, sig: at.sig }; } catch (e) {}
         try {
           var r = await AXS.api('/api/pro/redeem', { token: sy.token, body: Object.assign({ code: code }, proof) });
-          var own = r.product === 'axon_pro'; if (!own) PRO.aa = r.code || code; savePro(); mode = ''; plan = own ? 'axon_pro' : 'all_access';
+          var own = r.product === 'axon_pro'; if (r.owner) PRO.owner = true; else if (!own) PRO.aa = r.code || code; savePro(); mode = ''; plan = own ? 'axon_pro' : 'all_access';
           await proCheck(true); if (r.pro) proFromServer(true);
-          toast('Axon Pro is on. Thank you!'); syncNow(false);
+          toast(r.owner ? 'Owner unlocked \ud83d\udc51' : 'Axon Pro is on. Thank you!'); syncNow(false);
         } catch (e) {
           msg = e.offline ? 'You\u2019re offline. Connect and try again.' : e.message === 'used' ? 'That code is already unlocking another Axon account.' : e.message === 'slow_down' ? 'Too many tries. Wait a bit and try again.' : e.message === 'bad_code' ? 'That code didn\u2019t work. Check it and try again.' : 'That didn\u2019t go through (' + e.message + '). Try again.';
         }

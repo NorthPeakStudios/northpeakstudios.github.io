@@ -44,7 +44,7 @@ export async function api(path, body, opt = {}){
 let onChange = () => {};
 export function onAccountChange(fn){ onChange = fn; }
 function signedOutByServer(){ if (!acct.token) return; Object.assign(acct, { token: '', key: '' }); keyObj = null; save(); onChange('signed_out'); }
-function take(j){ if ('pro' in j) acct.pro = !!j.pro; if ('trial_end' in j) acct.trialEnd = +j.trial_end || 0; if (j.now) acct.skew = Date.now() - j.now; if ('via' in j) acct.via = j.via; if ('allAccess' in j) acct.allAccess = j.allAccess; if ('request' in j) acct.request = j.request; }
+function take(j){ if ('pro' in j) acct.pro = !!j.pro; if ('trial_end' in j) acct.trialEnd = +j.trial_end || 0; if (j.now) acct.skew = Date.now() - j.now; if ('via' in j) acct.via = j.via; if ('allAccess' in j) acct.allAccess = j.allAccess; if ('owner' in j) acct.owner = !!j.owner; if ('request' in j) acct.request = j.request; }
 
 /* sign up / log in: the password never leaves the phone; only a verifier derived from it does */
 export async function auth(kind, user, pass){
@@ -55,7 +55,7 @@ export async function auth(kind, user, pass){
   if (prev !== user) { LS.set('sync', { base: {}, dirty: [], gone: [] }); }
   onChange(kind); return j;
 }
-export async function logout(){ try { await api('/api/logout', {}); } catch {} Object.assign(acct, { user: '', token: '', key: '', seq: 0, pro: false, via: null, trialEnd: 0, allAccess: null, request: null, synced: 0 }); keyObj = null; save(); LS.set('sync', null); onChange('logout'); }
+export async function logout(){ try { await api('/api/logout', {}); } catch {} Object.assign(acct, { user: '', token: '', key: '', seq: 0, pro: false, via: null, trialEnd: 0, allAccess: null, owner: false, request: null, synced: 0 }); keyObj = null; save(); LS.set('sync', null); onChange('logout'); }
 export async function deleteAccount(){ await api('/api/delete-account', {}); await logout(); }
 export async function refresh(force){
   if (!signedIn()) return null; if (!force && Date.now() - acct.checked < 30000) return null;
@@ -109,7 +109,7 @@ export async function redeem(code){
     try { const a = await api('/api/pro/link/attest', { code, app: 'liminal' }, { base: SYNAPSE, auth: false }); if (!a.valid) { const e = new Error('bad_code'); throw e; } body = { code: a.code, m: a.m, sig: a.sig }; }
     catch (e) { if (e.message === 'bad_code' || e.message === 'slow_down' || e.offline) throw e; }
   }
-  const j = await api('/api/pro/redeem', body); acct.pro = !!j.pro; if (j.product === 'all_access') acct.allAccess = j.code; save(); onChange('pro'); return j;
+  const j = await api('/api/pro/redeem', body); acct.pro = !!j.pro; if (j.owner) acct.owner = true; if (j.product === 'all_access') acct.allAccess = j.code; save(); onChange('pro'); return j;
 }
 /* a signed note for Synapse (an All-Access request shows on both admin lists) — carried by this page, best effort */
 async function hop(rl, n = 0){ if (!rl || n > 3) return; const base = rl.to === 'synapse' ? SYNAPSE : rl.to === 'liminal' ? API : null; if (!base) return;

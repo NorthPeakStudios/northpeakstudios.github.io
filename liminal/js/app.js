@@ -449,7 +449,7 @@ function renderAccount(quiet){
     <button class="row" id="sSyncNow"><span>sync now</span><small>pulls + saves changes</small></button>
     <button class="row" id="sSignOut"><span>sign out</span><small>moments stay on this phone</small></button>
     <button class="row danger" id="sDelAcct"><span>delete account</span><small id="sDelAcctSub">removes the synced copy</small></button>`;
-  const ps = A.pro ? 'on' + (A.allAccess ? ' · all-access' : '') : cloud.onTrial() ? 'free trial · ' + daysLeft() + ' left' : trialUsed() ? 'trial ended' : 'free';
+  const ps = A.pro ? (A.owner ? 'owner 👑' : 'on' + (A.allAccess ? ' · all-access' : '')) : cloud.onTrial() ? 'free trial · ' + daysLeft() + ' left' : trialUsed() ? 'trial ended' : 'free';
   pr.innerHTML = `<button class="row" id="sPro"><span>liminal pro</span><small class="${isPro() ? 'pro-on' : ''}">${ps}</small></button>`;
   if (quiet) return bindAccount(); bindAccount();
 }
@@ -474,7 +474,7 @@ function renderPro(){
   const A = cloud.acct, R = A.request, el = $('#proCard'), waiting = R && R.status === 'new' && proMode !== 'edit';
   let h = `<div class="grabber"></div><div class="sheet-head"><h3>liminal <em>pro</em></h3><button class="icon-btn" data-p="close" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     <div class="phero"><div class="pprice">$35</div><div class="pone">one time · yours for good · no subscription</div>${proWhat && !isPro() ? `<p class="pwhy"><b>${esc(proWhat)}</b> is part of liminal pro.</p>` : ''}</div>`;
-  if (A.pro) h += `<div class="pbox pon"><b>${CHECK}liminal pro is on</b><p>it's on your account <b>${esc(A.user)}</b>${A.allAccess ? ' through northpeak all-access' : ''}, on every phone you sign in on. thank you.</p></div>`;
+  if (A.pro) h += `<div class="pbox pon"><b>${CHECK}${A.owner ? 'owner 👑' : 'liminal pro is on'}</b><p>it's on your account <b>${esc(A.user)}</b>${A.allAccess ? ' through northpeak all-access' : ''}, on every phone you sign in on. thank you.</p></div>`;
   else {
     if (cloud.onTrial()) h += `<div class="pbox ptrial"><b>free trial · ${daysLeft()} left</b><p>everything in pro is on. keep it after the trial with a one-time $35.</p></div>`;
     else if (!cloud.signedIn()) h += `<div class="pbox ptrial"><b>try it free for 3 days</b><p>make an account (just a username and password) and every pro feature turns on for 3 days. no card, nothing to cancel.</p><button class="primary" data-p="trial">start my free trial</button></div>`;
@@ -515,7 +515,7 @@ $('#proCard').addEventListener('click', async e => {
     if (!code) return;
     if (!cloud.signedIn()) { pendingCode = code; return openAuth('signup', true); }
     b.disabled = true; b.textContent = '…';
-    try { const j = await cloud.redeem(code); proMsg = ''; toast(j.product === 'all_access' ? 'all-access unlocked ✓' : 'liminal pro unlocked ✓'); afterAccount(); }
+    try { const j = await cloud.redeem(code); proMsg = ''; toast(j.owner ? 'owner unlocked 👑' : j.product === 'all_access' ? 'all-access unlocked ✓' : 'liminal pro unlocked ✓'); afterAccount(); }
     catch (err) { proMsg = ''; toast(err.message === 'used' ? 'that code is already on another account' : err.message === 'slow_down' ? 'too many tries, wait a bit' : err.offline ? 'you\'re offline' : 'that code didn\'t work'); }
     return renderPro();
   }
