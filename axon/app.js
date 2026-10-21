@@ -1,7 +1,7 @@
 /* Axon · Northpeak Studios · v1.6.21 */
 (function () {
   'use strict';
-  var VERSION = '1.6.21';
+  var VERSION = '1.7.0';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -809,7 +809,7 @@
       '<button class="ib" aria-label="Note options" data-act="notemore" data-id="' + n.id + '">' + I.more + '</button></div></div>' +
       (n.folder ? '<div class="crumb">' + esc(crumbOf(n.folder)) + '</div>' : '') + '<h1 class="ntitle">' + esc(n.title) + '</h1>' + dayNav(n) +
       '<div class="meta">' + tags.map(function (t) { return '<span class="tag" data-tag="' + esc(t) + '">#' + esc(t) + '</span>'; }).join('') +
-      '<span>' + (tags.length ? '· ' : '') + (n.pinned ? 'pinned · ' : '') + 'edited ' + agoLong(n.updated) + ' · ' + wc + ' word' + (wc === 1 ? '' : 's') + (wc > 150 ? ' · ' + readMin(wc) + ' min read' : '') + (nc ? ' · </span><button class="cardct" data-act="cards" data-id="' + n.id + '">' + I.recall + nc + ' card' + (nc === 1 ? '' : 's') + '</button>' : '</span>') + (qn >= 2 ? '<button class="cardct qzb" data-act="quiz" data-scope="n:' + n.id + '">' + I.check + 'Quiz</button>' : '') + '</div>' +
+      '<span>' + (tags.length ? '· ' : '') + (n.pinned ? 'pinned · ' : '') + 'edited ' + agoLong(n.updated) + ' · ' + wc + ' word' + (wc === 1 ? '' : 's') + (wc > 150 ? ' · ' + readMin(wc) + ' min read' : '') + (nc ? ' · </span><button class="cardct" data-act="cards" data-id="' + n.id + '">' + I.recall + nc + ' card' + (nc === 1 ? '' : 's') + '</button>' : '</span>') + (qn >= 2 ? '<button class="cardct qzb" data-act="quiz" data-scope="n:' + n.id + '">' + I.check + 'Quiz</button>' : '') + (n.body.trim() ? '<button class="cardct synb" data-act="synmake" data-id="' + n.id + '">' + I.recall + 'Synapse cards</button>' : '') + '</div>' +
       copyBanner(n) + '<article class="prose" id="prose">' + (n.body.trim() ? dedupeTitle(MD.render(n.body, mdOpt()), n.title) : '<button class="empty-note" data-act="edit">Empty note. Tap here to start writing \u2014 type / for blocks.</button>') + '</article>' +
       '<section class="bl" id="backlinks"><h3><span>' + bl.length + ' backlink' + (bl.length === 1 ? '' : 's') + '</span>' + ((out.length || unresolvedOf(n).length) ? '<button class="outb" data-act="outlinks" data-id="' + n.id + '">' + out.length + ' out' + (unresolvedOf(n).length ? ' \u00b7 ' + unresolvedOf(n).length + ' unresolved' : '') + '</button>' : '') + '</h3>' +
       (bl.length ? bl.map(function (o) { return '<button class="bi" data-act="open" data-id="' + o.id + '"><b>' + esc(o.title) + '</b><span>' + backlinkSnippet(o.body, n.title) + '</span></button>'; }).join('') :
@@ -1421,7 +1421,7 @@
     kb = document.createElement('div'); kb.className = 'kb';
     var btns = [['plus', I.plus, 'Insert block'], ['undo', I.undo, 'Undo'], ['redo', I.redo, 'Redo'], ['link', '[[', 'Link a note'], ['img', I.img, 'Add image'], ['h', '#', 'Heading'],
       ['b', '<b style="font-family:var(--sans)">B</b>', 'Bold'], ['i', '<i style="font-family:var(--serif)">I</i>', 'Italic'], ['hl', I.hl, 'Highlight'], ['task', I.check, 'Checklist'], ['ul', I.list, 'Bullet list'],
-      ['outdent', I.outdent, 'Outdent'], ['indent', I.indent, 'Indent'], ['quote', I.quote, 'Quote'], ['code', '`', 'Code'], ['card', '::', 'Flashcard']];
+      ['outdent', I.outdent, 'Outdent'], ['indent', I.indent, 'Indent'], ['quote', I.quote, 'Quote'], ['code', '`', 'Code'], ['card', '::', 'Flashcard'], ['syn', I.recall, 'Make Synapse cards']];
     kb.innerHTML = '<div class="kbs">' + btns.map(function (b) { return '<button data-k="' + b[0] + '" aria-label="' + b[2] + '"' + (b[0] === 'plus' ? ' class="kplus"' : '') + '>' + b[1] + '</button>'; }).join('') + '</div><button class="done" data-k="done">Done</button>';
     /* pointerdown keeps the keyboard up; the action runs on a real tap so the row can scroll */
     kb.addEventListener('pointerdown', function (e) { if (e.target.closest('button')) e.preventDefault(); });
@@ -1518,6 +1518,7 @@
   function kbAction(k, ed) {
     if (k === 'done') { stopEditing(false); return; }
     if (k === 'plus') { openSlash(ed); return; }
+    if (k === 'syn') { if (editing) { if (ed.selectionEnd - ed.selectionStart > 3) synSel = { text: ed.value.slice(ed.selectionStart, ed.selectionEnd), id: editing.n.id, t: Date.now() }; synOpen(editing.n); } return; }
     if (k === 'undo') return undo(ed);
     if (k === 'redo') return redo(ed);
     if (k === 'link') {
@@ -2004,6 +2005,9 @@
       '<div class="item"><span>New cards a day</span><div class="seg">' + [[10, '10'], [20, '20'], [50, '50'], [9999, 'All']].map(function (s) { return '<button class="' + ((settings.newPerDay || 20) === s[0] ? 'on' : '') + '" data-act="newper" data-v="' + s[0] + '" style="font-family:var(--sans);font-size:13px">' + s[1] + '</button>'; }).join('') + '</div></div>' +
       '<button class="item" data-act="gorecall"><span>Open Recall<small>' + (function () { var s = recallStats(); return s.total ? s.total + ' card' + (s.total === 1 ? '' : 's') + ' \u00b7 ' + s.due + ' due today' : 'Lines like question :: answer or {{c::cloze}} become review cards'; })() + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<button class="item danger" data-act="resetrecall"><span>Reset Recall progress</span></button></div>' +
+      '<div class="sec"><span>Synapse</span></div><div class="group">' + (function () { var st = window.SYNLINK && SYNLINK.state(); return st ?
+        '<div class="item"><span>Connected to Synapse<small>Cards you make go to ' + esc(st.email) + '. Open a note \u203a Synapse cards.</small></span></div><button class="item danger" data-act="synlogout"><span>Disconnect Synapse</span></button>' :
+        '<button class="item" data-act="synconnect"><span>Connect Synapse<small>Turn notes into flashcards in your Synapse decks (Axon Pro)</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>'; })() + '</div>' +
       '<div class="sec"><span>Help</span></div><div class="group">' +
       '<button class="item" data-act="guide"><span>Formatting guide<small>Every block you can put in a note, and the shortcuts</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<div class="item"><span>Templates<small>Make a folder called \u201cTemplates\u201d. Notes in it appear in New from template. {{date}}, {{time}} and {{title}} fill in for you.</small></span></div></div>' +
@@ -2256,13 +2260,14 @@
   }
   async function noteMenu(n, preset) {
     var nc = MD.cards(n.body).length;
-    var a = preset || await sheet({ title: n.title, left: true, actions: [{ label: n.pinned ? 'Unpin' : 'Pin to top', value: 'pin', icon: I.pin }, { label: 'Find in note', value: 'find', icon: I.search }, { label: 'Share\u2026', value: 'share', icon: I.ext }, { label: 'Copy as Markdown', value: 'copy', icon: I.copy }, { label: proTag('History\u2026'), value: 'hist', icon: I.restore }, { label: proTag(copyOrigin(n) ? 'Merge into \u201c' + copyOrigin(n).title + '\u201d\u2026' : 'Merge a note into this\u2026'), value: 'merge', icon: I.copy }, { label: 'Rename', value: 'rename', icon: I.edit }, { label: 'Move to folder', value: 'move', icon: I.folder.replace(' class="fi"', '') }, { label: 'Duplicate', value: 'dup', icon: I.copy }]
+    var a = preset || await sheet({ title: n.title, left: true, actions: [{ label: n.pinned ? 'Unpin' : 'Pin to top', value: 'pin', icon: I.pin }, { label: 'Find in note', value: 'find', icon: I.search }, { label: 'Make Synapse cards\u2026', value: 'syn', icon: I.recall }, { label: 'Share\u2026', value: 'share', icon: I.ext }, { label: 'Copy as Markdown', value: 'copy', icon: I.copy }, { label: proTag('History\u2026'), value: 'hist', icon: I.restore }, { label: proTag(copyOrigin(n) ? 'Merge into \u201c' + copyOrigin(n).title + '\u201d\u2026' : 'Merge a note into this\u2026'), value: 'merge', icon: I.copy }, { label: 'Rename', value: 'rename', icon: I.edit }, { label: 'Move to folder', value: 'move', icon: I.folder.replace(' class="fi"', '') }, { label: 'Duplicate', value: 'dup', icon: I.copy }]
       .concat(inTemplates(n) ? [] : [{ label: proTag('Save as template'), value: 'tmpl', icon: I.tmpl }])
       .concat(nc ? [{ label: proTag('Review ' + nc + ' card' + (nc === 1 ? '' : 's') + ' now'), value: 'review', icon: I.recall }, { label: proTag('Export ' + nc + ' card' + (nc === 1 ? '' : 's') + ' (CSV for Synapse)'), value: 'cards', icon: I.copy }] : [])
       .concat([{ label: proTag('Local graph'), value: 'lg', icon: I.graph }, { label: 'Move to Trash', value: 'delete', danger: true, icon: I.trash }]) });
     var PM = { hist: 'History', merge: 'Merge', tmpl: 'Templates', review: 'Recall', cards: 'Flashcard export', lg: 'Graph' };
     if (PM[a] && !proOk(PM[a])) return;
     if (a === 'cards') { exportCards(n); return; }
+    if (a === 'syn') { synOpen(n); return; }
     if (a === 'find') { if (route().v !== 'note') go('#/n/' + n.id); openFind(n); return; }
     if (a === 'share') { shareNote(n); return; }
     if (a === 'copy') { copyNote(n); return; }
@@ -4318,6 +4323,166 @@
     });
     if (route().v === 'settings' && !openOverlays.length) renderSettings();
   }
+
+
+  /* ---------- Synapse cards: a note (or a selection) becomes real flashcards in a Synapse deck ---------- */
+  var synSel = { text: '', id: null, t: 0 };
+  document.addEventListener('selectionchange', function () {
+    try {
+      if (editing) { var ed = $('#ed'); if (ed && document.activeElement === ed && ed.selectionEnd - ed.selectionStart > 3) synSel = { text: ed.value.slice(ed.selectionStart, ed.selectionEnd), id: editing.n.id, t: Date.now() }; return; }
+      var s = window.getSelection && window.getSelection(), tx = s ? String(s) : '', r = route();
+      if (tx.trim().length > 3 && r.v === 'note' && s.anchorNode && viewEl.contains(s.anchorNode)) synSel = { text: tx, id: r.id, t: Date.now() };
+    } catch (e) {}
+  });
+  function synSelFor(n) { return n && synSel.id === n.id && synSel.text.trim().length > 3 && Date.now() - synSel.t < 90000 ? synSel.text : ''; }
+  function synSent() { try { return JSON.parse(localStorage.getItem('axon.synsent') || '{}') || {}; } catch (e) { return {}; } }
+  function synSentSave(m) { try { localStorage.setItem('axon.synsent', JSON.stringify(m)); } catch (e) {} }
+  var SYN_KIND = { card: 'Card', term: 'Term', list: 'List', gist: 'Q&A', cloze: 'Cloze', own: 'New' };
+  async function synConnect(why) {
+    return overlay(function (done) {
+      var el = document.createElement('div'); el.className = 'dialog syncon'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Connect Synapse');
+      el.innerHTML = '<h4>Connect Synapse</h4><p>' + esc(why || 'Sign in with your Synapse account once. Cards you make here go straight into your Synapse decks, on every device.') + '</p>' +
+        '<input name="se" type="email" placeholder="Synapse email" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="next">' +
+        '<input name="sp" type="password" placeholder="Synapse password" autocomplete="current-password" enterkeyhint="go">' +
+        '<div class="err"></div><p class="sysmall">No Synapse account yet? <a href="' + SYNLINK.SYN + '/" target="_blank" rel="noopener">Make one in Synapse</a> (free 3-day trial), then come back.</p>' +
+        '<div class="db"><button data-v="0">Cancel</button><button class="acc" data-v="1">Connect</button></div>';
+      var err = $('.err', el);
+      async function go1() {
+        var e1 = $('[name=se]', el).value.trim(), p1 = $('[name=sp]', el).value;
+        if (!/@/.test(e1)) { err.textContent = 'Type the email you use in Synapse.'; return; }
+        if (!p1) { err.textContent = 'Type your Synapse password.'; return; }
+        var b = $('[data-v="1"]', el); b.disabled = true; b.textContent = 'Connecting\u2026'; err.textContent = '';
+        try { var s = await SYNLINK.login(e1, p1); done(s); }
+        catch (x) { b.disabled = false; b.textContent = 'Connect'; err.textContent = x.offline ? 'You\u2019re offline. Connect and try again.' : x.message === 'bad_login' ? 'That email and password don\u2019t match a Synapse account.' : x.message === 'slow_down' ? 'Too many tries. Wait a few minutes.' : 'That didn\u2019t work (' + x.message + '). Try again.'; }
+      }
+      el.addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; if (b.dataset.v === '1') go1(); else done(null); });
+      el.addEventListener('keydown', function (e) { if (e.key !== 'Enter') return; e.preventDefault(); if (e.target.name === 'se') $('[name=sp]', el).focus(); else go1(); });
+      setTimeout(function () { var i = $('[name=se]', el); if (i) i.focus(); }, 60);
+      return el;
+    });
+  }
+  async function synMake(n, selText) {
+    if (!window.SYNLINK) { toast('Reload Axon to use Synapse cards'); return; }
+    var src = selText || n.body, fromSel = !!selText;
+    var gen = SYNLINK.generate(src, { title: n.title }), sent = synSent(), mine = sent[n.id] || {}, was = mine.f || {};
+    var cards = gen.map(function (c, i) { c.on = !was[SYNLINK.norm(c.front)]; c.old = !c.on; c.i = i; return c; });
+    var blocked = gen.blocked || 0, secOff = {}, conn = SYNLINK.state(), dks = null, dkErr = '', phase = 'edit', result = null, busy = false, msg = '';
+    var deck = mine.deck ? { id: mine.deck.id, name: mine.deck.name, isNew: false } : { id: null, name: n.title.slice(0, 80) || 'Axon', isNew: true };
+    function secs() { var o = [], m = {}; cards.forEach(function (c) { if (c.sec && !m[c.sec]) { m[c.sec] = 1; o.push(c.sec); } }); return o; }
+    function live() { return cards.filter(function (c) { return c.on && !c.gone && !secOff[c.sec || ''] && SYNLINK.nob(c.front); }); }
+    function loadDecks() {
+      if (!conn) return;
+      SYNLINK.decks().then(function (d) { dks = d; dkErr = '';
+        if (deck.isNew) { var ex = d.filter(function (x) { return x.name.toLowerCase() === deck.name.toLowerCase(); })[0]; if (ex) deck = { id: ex.id, name: ex.name, isNew: false }; }
+        paintTop(); }).catch(function (e) { dkErr = e.status === 401 || e.status === 403 ? 'signed out' : 'offline'; if (dkErr === 'signed out') { conn = null; } paintTop(); });
+    }
+    await overlay(function (done) {
+      var el = document.createElement('div'); el.className = 'mergev synv'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Make Synapse cards');
+      function head() {
+        var k = live().length;
+        return '<div class="mvh"><button data-s="close">' + (phase === 'done' ? 'Done' : 'Cancel') + '</button><b>Make cards</b>' +
+          (phase === 'done' ? '<span class="pgap"></span>' : '<button class="acc" data-s="send"' + (k && !busy ? '' : ' disabled') + '>' + (busy ? 'Sending\u2026' : 'Add ' + k) + '</button>') + '</div>';
+      }
+      function topHtml() {
+        var ss = secs(), h = '<div class="syntop">';
+        h += '<div class="synfrom">' + I.recall + '<span>' + (fromSel ? 'From your selection in <b>' + esc(n.title) + '</b>' : 'From <b>' + esc(n.title) + '</b>') + ' \u00b7 ' + cards.filter(function (c) { return !c.gone; }).length + ' card' + (cards.length === 1 ? '' : 's') + ' found' + (blocked ? ' \u00b7 ' + blocked + ' left out (dosing amounts and adult topics stay out of Synapse)' : '') + '</span></div>';
+        h += '<button class="syndeck" data-s="deck"><span class="sl">Deck</span><span class="sv">' + esc(deck.name) + (deck.isNew ? ' <i>new</i>' : '') + '</span>' + I.chev + '</button>';
+        h += '<div class="synconn">' + (conn ? 'Synapse: <b>' + esc(conn.email) + '</b> <button class="plink" data-s="switch">Switch</button>' : 'Not connected yet. You\u2019ll sign in to Synapse once when you add.') + (dkErr === 'offline' ? ' \u00b7 couldn\u2019t load decks' : '') + '</div>';
+        if (ss.length > 1) h += '<div class="synsecs" aria-label="Sections">' + ss.map(function (s) { return '<button class="chip' + (secOff[s] ? '' : ' on') + '" data-s="sec" data-sec="' + esc(s) + '">' + esc(s) + '</button>'; }).join('') + '</div>';
+        if (!isPro()) h += '<div class="synpro">Previewing is free. Adding cards to Synapse is part of <b>Axon Pro</b> (or Northpeak All-Access).</div>';
+        if (msg) h += '<div class="perr">' + esc(msg) + '</div>';
+        return h + '</div>';
+      }
+      function cardHtml(c) {
+        if (c.gone || secOff[c.sec || '']) return '';
+        var cl = c.type === 'cloze';
+        return '<div class="sc' + (c.on ? '' : ' off') + '" data-i="' + c.i + '"><div class="sch"><button class="scchk" data-s="tog" aria-pressed="' + c.on + '" aria-label="' + (c.on ? 'Included' : 'Left out') + '">' + (c.on ? I.check : '') + '</button>' +
+          '<span class="sck k-' + c.kind + '">' + (SYN_KIND[c.kind] || 'Card') + '</span>' + (c.old ? '<span class="scold">sent before</span>' : '') + (c.sec ? '<span class="scsec">' + esc(c.sec) + '</span>' : '<span class="scsec"></span>') +
+          '<button class="scdel" data-s="del" aria-label="Delete card">' + I.x + '</button></div>' +
+          '<label class="scl">' + (cl ? 'Cloze text <small>{{c1::hidden}} parts are blanked</small>' : 'Front') + '</label><textarea data-f="front" rows="1" spellcheck="true">' + esc(c.front) + '</textarea>' +
+          '<label class="scl">' + (cl ? 'Extra <small>optional, shown with the answer</small>' : 'Back') + '</label><textarea data-f="back" rows="1" spellcheck="true">' + esc(c.back || '') + '</textarea></div>';
+      }
+      function paintTop() { var t = $('.syntop', el); if (t) t.outerHTML = topHtml(); var hd = $('.mvh', el); if (hd) hd.outerHTML = head(); }
+      function grow(t) { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight + 2, 260) + 'px'; }
+      function paint() {
+        if (phase === 'done') {
+          el.innerHTML = head() + '<div class="mvbody"><div class="pbox pon syndone"><b>' + I.check + result.notes + ' card' + (result.notes === 1 ? '' : 's') + ' added to \u201c' + esc(result.deck) + '\u201d</b>' +
+            '<p>They\u2019re in your Synapse account <b>' + esc(conn.email) + '</b> as normal cards: study them, spaced repetition and all. Open Synapse (or pull down to sync) and they show up. Each one links back to this note.</p>' +
+            '<div class="pbtns"><a class="pmain synopen" href="' + SYNLINK.SYN + '/" target="_blank" rel="noopener">Open Synapse</a><button data-s="close">Done</button></div></div></div>';
+          return;
+        }
+        var body = cards.filter(function (c) { return !c.gone; }).length ? cards.map(cardHtml).join('') : '<div class="synempty"><b>No cards found yet</b><p>Axon makes cards from headings with lists under them, lines like <b>Term: definition</b>, <b>bold</b> or ==highlighted== key terms, and lines you wrote as <b>question :: answer</b> or {{c::cloze}}. Add some, or write one below.</p></div>';
+        el.innerHTML = head() + '<div class="mvbody">' + topHtml() + '<div class="sclist">' + body + '</div><button class="synadd" data-s="add">' + I.plus + 'Add a card</button></div>';
+        Array.prototype.forEach.call(el.querySelectorAll('textarea'), grow); setTimeout(function () { Array.prototype.forEach.call(el.querySelectorAll('textarea'), grow); }, 40);
+      }
+      el.addEventListener('input', function (e) {
+        var t = e.target; if (t.tagName !== 'TEXTAREA') return; var box = t.closest('.sc'); if (!box) return;
+        var c = cards[+box.dataset.i]; c[t.dataset.f] = t.value; if (t.dataset.f === 'front') c.type = /\{\{c\d*::/.test(t.value) ? 'cloze' : 'basic'; grow(t);
+        var hd = $('.mvh', el); if (hd) hd.outerHTML = head();
+      });
+      el.addEventListener('click', async function (e) {
+        var b = e.target.closest('[data-s]'); if (!b || b.disabled) return;
+        var s = b.dataset.s, box = b.closest('.sc'), c = box ? cards[+box.dataset.i] : null;
+        if (s === 'close') { done(null); return; }
+        if (s === 'tog' && c) { c.on = !c.on; box.outerHTML = cardHtml(c); var hd = $('.mvh', el); if (hd) hd.outerHTML = head(); return; }
+        if (s === 'del' && c) { c.gone = true; box.remove(); var hd2 = $('.mvh', el); if (hd2) hd2.outerHTML = head(); return; }
+        if (s === 'sec') { var k = b.dataset.sec; secOff[k] = !secOff[k]; paint(); return; }
+        if (s === 'add') { cards.push({ kind: 'own', type: 'basic', front: '', back: '', sec: '', on: true, i: cards.length }); paint(); var ts = el.querySelectorAll('.sc textarea[data-f=front]'); if (ts.length) { ts[ts.length - 1].focus(); ts[ts.length - 1].scrollIntoView({ block: 'center' }); } return; }
+        if (s === 'switch') { await SYNLINK.logout(); conn = await synConnect(); dks = null; if (conn) loadDecks(); paintTop(); return; }
+        if (s === 'deck') { pickDeck(); return; }
+        if (s === 'send') send();
+      });
+      async function pickDeck() {
+        if (!conn) { conn = await synConnect('Sign in with your Synapse account so Axon can see your decks.'); if (!conn) return; paintTop(); }
+        if (!dks) { try { dks = await SYNLINK.decks(); } catch (x) { dks = []; msg = x.offline ? 'Offline: couldn\u2019t load your decks.' : ''; } }
+        var nm = n.title.slice(0, 80) || 'Axon', has = dks.some(function (d) { return d.name.toLowerCase() === nm.toLowerCase(); });
+        var opts = (has ? [] : [{ label: 'New deck \u201c' + nm + '\u201d', value: '\u0001' + nm, icon: I.plus }]).concat(dks.map(function (d) { return { label: d.name, value: d.id, icon: I.recall }; })).concat([{ label: 'New deck\u2026', value: '\u0002', icon: I.plus }]);
+        var v = await sheet({ title: 'Add cards to', left: true, actions: opts });
+        if (!v) return;
+        if (v === '\u0002') {
+          var nn = await dialog({ title: 'New Synapse deck', input: true, value: n.title.slice(0, 80), placeholder: 'Deck name', ok: 'Use this deck', validate: function (x) { return x ? (x.length > 80 ? 'Keep it under 80 characters.' : null) : 'Type a name.'; } });
+          if (!nn) return; var ex = dks.filter(function (d) { return d.name.toLowerCase() === nn.toLowerCase(); })[0];
+          deck = ex ? { id: ex.id, name: ex.name, isNew: false } : { id: null, name: nn, isNew: true };
+        } else if (v.charAt(0) === '\u0001') deck = { id: null, name: v.slice(1), isNew: true };
+        else { var d = dks.filter(function (x) { return x.id === v; })[0]; if (d) deck = { id: d.id, name: d.name, isNew: false }; }
+        msg = ''; paintTop();
+      }
+      async function send() {
+        var list = live(); if (!list.length) return;
+        if (!proOk('Synapse cards')) return;
+        var bad = list.filter(function (c) { return !SYNLINK.okText(SYNLINK.nob(c.front), SYNLINK.nob(c.back)); });
+        if (bad.length) { msg = bad.length + ' card' + (bad.length === 1 ? ' has' : 's have') + ' dosing amounts or an adult topic, which Synapse doesn\u2019t take. Edit or leave ' + (bad.length === 1 ? 'it' : 'them') + ' out.'; paintTop(); return; }
+        if (!conn) { conn = await synConnect(); if (!conn) return; }
+        busy = true; msg = ''; paintTop();
+        try {
+          if (!dks) { try { dks = await SYNLINK.decks(); } catch (x) { if (x.status === 401 || x.status === 403) throw x; } }
+          if (deck.isNew && dks) { var ex = dks.filter(function (d) { return d.name.toLowerCase() === deck.name.toLowerCase(); })[0]; if (ex) deck = { id: ex.id, name: ex.name, isNew: false }; }
+          if (deck.isNew && !deck.id) deck.id = SYNLINK.newId();
+          var r = await SYNLINK.send(list.map(function (c) { return { type: c.type, front: c.front, back: c.back }; }), deck, { id: n.id, title: n.title, url: SYNLINK.AXON_URL + '#/n/' + encodeURIComponent(n.id) }, ['axon'].concat(MD.tags(n.body).slice(0, 8)));
+          var m = synSent(), me = m[n.id] || { f: {} }; list.forEach(function (c) { me.f[SYNLINK.norm(c.front)] = 1; }); me.deck = { id: deck.id, name: deck.name }; me.t = Date.now(); m[n.id] = me; synSentSave(m);
+          if (dks && deck.isNew) dks.push({ id: deck.id, name: deck.name });
+          deck.isNew = false; result = { notes: r.notes, deck: deck.name }; phase = 'done'; busy = false; paint();
+        } catch (x) {
+          busy = false;
+          if (x.status === 401 || x.status === 403) { await SYNLINK.logout(); conn = null; msg = 'Your Synapse sign-in ended. Tap Add to sign in again.'; }
+          else msg = x.offline ? 'You\u2019re offline. Nothing was sent; try again when you\u2019re connected.' : 'Synapse didn\u2019t take the cards (' + x.message + '). Nothing was lost here; try again.';
+          paintTop();
+        }
+      }
+      paint();
+      return el;
+    });
+  }
+  async function synOpen(n) {
+    if (!n) return;
+    var sel = synSelFor(n);
+    if (sel) { var a = await sheet({ title: 'Make Synapse cards', actions: [{ label: 'From the selected text', value: 'sel', icon: I.recall }, { label: 'From the whole note', value: 'all', icon: I.doc.replace(' class="fi"', '') }] }); if (!a) return; synMake(n, a === 'sel' ? sel : ''); }
+    else synMake(n, '');
+    setTimeout(function () { var s = SYNLINK.state(); if (s) SYNLINK.check().catch(function () {}); }, 50);
+  }
+  act.synmake = function (el) { synOpen(notes.get(el.dataset.id || route().id)); };
+  act.synlogout = async function () { await SYNLINK.logout(); toast('Synapse disconnected'); renderSettings(); };
+  act.synconnect = async function () { var s = await synConnect(); if (s) toast('Connected to Synapse as ' + s.email); renderSettings(); };
 
   /* ---------- boot ---------- */
   async function boot() {
