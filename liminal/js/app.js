@@ -502,8 +502,9 @@ function renderPro(){
       <input name="pphone" type="tel" placeholder="phone number for Apple Cash" autocomplete="tel" inputmode="tel" enterkeyhint="go" maxlength="40" value="${esc((R && R.phone) || '')}">
       <p class="pnote">${cloud.signedIn() ? `pro goes on your account <b>${esc(A.user)}</b>.` : 'next you\'ll sign in with your email. pro goes on that account so it follows you to a new phone.'} $35 per app, or $100 for all of them. Apple Cash only.</p>
       ${proMsg ? `<p class="perr">${esc(proMsg)}</p>` : ''}<div class="pbtns"><button class="pmain" data-p="send">${cloud.signedIn() ? 'send request' : 'continue'}</button></div></div>`;
-    h += `<details class="pcode"${proMode === 'code' ? ' open' : ''}><summary>have a code?</summary><p>a liminal code (LIM-…) or a northpeak all-access code (SYN-…).</p><div class="pcrow"><input name="pcode" placeholder="LIM-XXXX-XXXX" autocapitalize="characters" autocorrect="off" spellcheck="false" maxlength="20"><button data-p="redeem">unlock</button></div></details>`;
   }
+  /* redeem always reachable (Oct 21): a pro account can still enter an owner / all-access / BOT code */
+  h += `<details class="pcode"${proMode === 'code' ? ' open' : ''}><summary>have a code?</summary><p>a liminal code (LIM-…) or a northpeak all-access code (SYN-…).</p><div class="pcrow"><input name="pcode" placeholder="LIM-XXXX-XXXX" autocapitalize="characters" autocorrect="off" spellcheck="false" maxlength="20"><button data-p="redeem">unlock</button></div></details>`;
   h += `<ul class="plist">${PRO_LIST.map(x => `<li>${CHECK}<span><b>${esc(x[0])}</b>${x[1] ? esc(x[1]) : ''}</span></li>`).join('')}</ul>
     <div class="care pcare"><p>always free, for everyone: the journal (typing a feeling, keeping a moment, your list of moments, export and delete), sync, and the <b>988</b> card if things feel heavy.</p></div>`;
   el.innerHTML = h;

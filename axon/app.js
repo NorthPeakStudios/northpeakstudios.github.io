@@ -4339,6 +4339,12 @@
     await overlay(function (done) {
       var el = document.createElement('div'); el.className = 'mergev prov'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Axon Pro');
       function waiting() { return PRO.req && PRO.req.status === 'new' && syOn() && mode !== 'edit'; }
+      function codeBox() { var h = '';
+            h += '<div class="pbox"><b>Have a code?</b><p>Enter your Axon code (AXN-XXXX-XXXX) or a Northpeak All-Access code (SYN-XXXX-XXXX) and Axon Pro turns on' + (syOn() ? ' for <b>' + esc(sy.user) + '</b>.' : '. Next you\u2019ll sign in with your email and password, so it works on all your devices.') + '</p>' +
+              '<input name="pcode" placeholder="AXN-XXXX-XXXX" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go" value="' + esc(code) + '">' +
+              (msg ? '<div class="perr">' + esc(msg) + '</div>' : '') +
+              '<div class="pbtns"><button class="pmain" data-p="redeem">Unlock</button><button data-p="back">Back</button></div></div>';
+        return h; }
       function paint() {
         var h = '<div class="mvh"><button data-p="close">Close</button><b>Axon Pro</b><span class="pgap"></span></div><div class="mvbody pbody">';
         var P = NP_PLANS[plan];
@@ -4346,16 +4352,15 @@
         if (isPro() && !(PRO.grand && !PRO.acct && syOn() && PRO.need)) {
           h += '<div class="pbox pon"><b>' + (PRO.owner ? 'Owner \ud83d\udc51' : 'Axon Pro is on') + '</b><p>' + (PRO.acct ? 'It\u2019s on your account <b>' + esc(PRO.acct) + '</b>, so it works on every device you log in on.' : 'This device had Axon before Pro existed, so it keeps every Pro feature for good.') + '</p></div>';
           if (PRO.aa) h += '<div class="pbox pon"><b>Northpeak All-Access</b><p>Your code <b class="pcode">' + esc(PRO.aa) + '</b> unlocks every Northpeak app. In Synapse, open <b>Settings \u203a Synapse Pro \u203a Have an unlock code?</b> and enter it.</p></div>';
+          /* redeem always reachable (Oct 21): a Pro account can still enter an owner / All-Access / BOT code */
+          h += mode === 'code' ? codeBox() : '<button class="plink" data-p="code">Have a code?</button>';
         }
         if (!isPro() || (PRO.grand && !PRO.acct && syOn() && PRO.need)) {
           if (waiting()) {
             h += '<div class="pbox psent"><b>' + I.check + 'Request sent</b><p>Watch Messages for an Apple Cash request for <b>' + ((PRO.req && PRO.req.plan === 'all_access') ? '$100' : '$35') + '</b>' + ((PRO.req && PRO.req.plan === 'all_access') ? ' (Northpeak All-Access)' : '') + ' from Northpeak Studios' + (PRO.req.phone ? ' at <b>' + esc(PRO.req.phone) + '</b>' : '') + '. Pro turns on by itself once it\u2019s paid, on every device logged in as <b>' + esc(sy.user) + '</b>.</p>' +
               '<div class="pbtns"><button class="pmain" data-p="check">Check now</button><button data-p="edit">Change details</button></div>' + (msg ? '<div class="perr">' + esc(msg) + '</div>' : '') + '</div>';
           } else if (mode === 'code') {
-            h += '<div class="pbox"><b>Have a code?</b><p>Enter your Axon code (AXN-XXXX-XXXX) or a Northpeak All-Access code (SYN-XXXX-XXXX) and Axon Pro turns on' + (syOn() ? ' for <b>' + esc(sy.user) + '</b>.' : '. Next you\u2019ll sign in with your email and password, so it works on all your devices.') + '</p>' +
-              '<input name="pcode" placeholder="AXN-XXXX-XXXX" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go" value="' + esc(code) + '">' +
-              (msg ? '<div class="perr">' + esc(msg) + '</div>' : '') +
-              '<div class="pbtns"><button class="pmain" data-p="redeem">Unlock</button><button data-p="back">Back</button></div></div>';
+            h += codeBox();
           } else {
             h += '<div class="pplans" role="radiogroup" aria-label="Plan">' + ['axon_pro', 'all_access'].map(function (k) { var x = NP_PLANS[k]; return '<button class="pplan' + (plan === k ? ' on' : '') + '" role="radio" aria-checked="' + (plan === k) + '" data-p="plan" data-plan="' + k + '"><b>' + x.name + '</b><span>' + x.price + ' \u00b7 ' + x.sub + '</span></button>'; }).join('') + '</div>';
             h += '<div class="pbox"><b>Get ' + esc(P.name) + '</b><p>No card needed. Send your name and phone number and Northpeak Studios sends you an <b>Apple Cash request for ' + P.price + '</b> in Messages. Once it\u2019s paid, Pro turns on by itself' + (plan === 'all_access' ? ', and you get one code that unlocks Synapse too' : '') + '.</p>' +
