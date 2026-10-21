@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://liminal-sync.sites.tab.bot https://odin-cards.sites.tab.bot; font-src 'self' data:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <!-- no zoom on iPhone: pinch, double-tap, input focus -->
 <style id="np-nozoom">html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}</style>
-<script>(function(){if(window.__npNoZoom)return;window.__npNoZoom=1;var p=function(e){e.preventDefault()},o={passive:false};['gesturestart','gesturechange','gestureend'].forEach(function(t){document.addEventListener(t,p,o)});document.addEventListener('dblclick',function(e){var t=e.target;if(!(t&&t.closest&&t.closest('input,textarea,select,[contenteditable]')))e.preventDefault()},o);var b=function(e){var t=e.target;if(t&&/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)&&parseFloat(getComputedStyle(t).fontSize)<16)t.style.fontSize='16px'};document.addEventListener('touchstart',b,{passive:true,capture:true});document.addEventListener('focusin',b,true)})();</script>
+<script src="nozoom.js"></script>
 <title>Liminal — capture a feeling without explaining it</title>
 <meta name="description" content="Type how you feel. Liminal answers with a poem, color, sound and a quiet question, and keeps a private visual archive of who you were in each moment. Private: stays on your phone unless you sign in to sync.">
 <meta name="theme-color" content="#07060b">
@@ -24,7 +25,7 @@
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preload" href="fonts/instrument-serif-italic.woff2" as="font" type="font/woff2" crossorigin>
-<script>try{if(navigator.standalone||matchMedia("(display-mode: standalone)").matches)document.documentElement.classList.add("pwa")}catch(e){}</script>
+<script src="pwa.js"></script>
 <link rel="stylesheet" href="app.css?v=14">
 </head>
 <body>
@@ -214,14 +215,7 @@
   </div>
 </div>
 
-<script>
-/* Some iOS home-screen launches lay the page out one status bar shorter than the screen (innerHeight = screen.height - ~59): the page cannot
-   draw into that bottom strip and the home indicator sits there. Detect it (yes/no only) so CSS drops the home-indicator padding under the tab bar. */
-(function(){var on=false;function check(){var s=on;try{var sa=navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
-if(sa&&window.screen&&innerHeight>=innerWidth){var vv=window.visualViewport,kb=vv&&innerHeight-vv.height>80,d=Math.max(screen.height,screen.width)-innerHeight;if(!kb&&d<=140)s=d>=30;}else s=false;}catch(e){s=false}
-if(s!==on){on=s;document.documentElement.classList.toggle('vp-short',s);}}
-check();addEventListener('resize',check);addEventListener('orientationchange',function(){setTimeout(check,300)});})();
-</script>
+<script src="vpshort.js"></script>
 <script src="np-update.js?v=1" data-sw="sw.js" defer></script>
 <script type="module" src="js/app.js?v=14"></script>
 </body>
