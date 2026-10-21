@@ -564,7 +564,7 @@ body.reviewing #view{padding-bottom:calc(var(--bpad) + 16px)}
   background:rgba(11,11,12,.96);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border-bottom:1px solid transparent}
 
 /* Discover */
-#view.dview{scroll-snap-type:y proximity;scroll-padding-top:10px}
+#view.dview{scroll-snap-type:y mandatory;scroll-padding:0 0 calc(var(--tabh) + var(--bpad)) 0;overscroll-behavior-y:contain}
 .dhead{display:flex;align-items:flex-end;gap:6px;margin-bottom:4px}
 .dhead .dht{flex:1;min-width:0}
 .dhead .h1{margin-bottom:8px}
@@ -612,6 +612,22 @@ body.reviewing #view{padding-bottom:calc(var(--bpad) + 16px)}
 .dempty .rart{margin-bottom:14px}
 
 .dhead{scroll-snap-align:start}
+/* TikTok-style feed: each card is one screen (between the top of the view and the tab bar) and a swipe locks on exactly the next one */
+#view.dview .dhead{scroll-margin-top:14px}
+#view.dview .dfeed{gap:12px}
+#view.dview .dcard{scroll-snap-align:start;scroll-snap-stop:always;scroll-margin-top:6px;
+  height:calc(var(--dpage, calc(100dvh - var(--sat) - var(--tabh) - var(--bpad))) - 12px);min-height:0;flex:none}
+#view.dview .dcard.gone{height:0!important;margin-top:-12px}
+#view.dview .dimg{height:40%;min-height:120px;flex:none}
+#view.dview .dimg.ph{height:26%}
+#view.dview .dbody{min-height:0;overflow:hidden}
+#view.dview .dt{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;flex:none;cursor:pointer}
+#view.dview .dx{flex:0 1 auto;min-height:0;overflow:hidden;cursor:pointer}
+#view.dview .dx.clip{-webkit-mask-image:linear-gradient(#000 calc(100% - 3.2em),transparent);mask-image:linear-gradient(#000 calc(100% - 3.2em),transparent)}
+#view.dview .dacts{flex:none;padding-top:4px}
+#view.dview .dsrc{flex:none}
+#view.dview #dmore{scroll-snap-align:end;min-height:72px;justify-content:center}
+#view.dview #dmore .dempty{scroll-snap-align:none}
 
 /* backup nudge on the Notes screen */
 .bkup{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 6px 10px 12px;border:1px solid var(--line2);border-radius:14px;background:var(--card)}

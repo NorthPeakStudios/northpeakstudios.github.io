@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.6.17 */
+/* Axon · Northpeak Studios · v1.6.19 */
 (function () {
   'use strict';
-  var VERSION = '1.6.18';
+  var VERSION = '1.6.19';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -667,6 +667,7 @@
 
   function render() {
     if (currentHash !== null) scrollMem[currentHash] = viewEl.scrollTop;
+    if (viewEl.classList.contains('dview')) dKeepFeed();
     if (editing) stopEditing(true);
     if (graphCtl) { graphCtl.destroy(); graphCtl = null; }
     closePeek(); closeFind();
@@ -2693,10 +2694,12 @@
     await loadDMeta();
     if (route().v !== 'discover') return;
     var only = onlyId ? notes.get(onlyId) : null, topics = discoverTopics(onlyId);
+    if (!dShuffle && dRestore(onlyId)) return;
+    dKeep = null;
     if (dShuffle) { dShuffle = false; var head = topics.slice(0, 24); for (var si = head.length - 1; si > 0; si--) { var sj = Math.floor(Math.random() * (si + 1)); var sx = head[si]; head[si] = head[sj]; head[sj] = sx; } topics = head.concat(topics.slice(24)); }
     if (ds && ds.ctrl) ds.ctrl.abort();
     ds = { only: onlyId || '', topics: topics, ti: 0, seen: {}, req: 0, budget: 10, batch: 0, offline: false, loading: false, ctrl: new AbortController(), count: 0, last: [] };
-    viewEl.classList.add('dview');
+    viewEl.classList.add('dview'); dSizePage();
     var h = '<div class="dhead">' + (only ? '<button class="back" data-act="back" data-to="#/n/' + only.id + '">' + I.back + '</button>' : '') + '<div class="dht"><div class="eyebrow">' + (only ? 'For this note' : 'From your notes') + '</div><h1 class="h1">Discover</h1></div>' +
       (topics.length ? '<button class="ib" aria-label="Shuffle" data-act="dshuffle">' + I.restore + '</button>' : '') + '</div>';
     if (only) h += '<div class="dfor">' + I.doc + '<span>' + esc(only.title) + '</span><button data-act="dall">All notes</button></div>';
@@ -2745,6 +2748,7 @@
         im.dataset.bound = 1;
         im.addEventListener('error', function () { var d = im.parentNode; d.classList.add('ph'); d.innerHTML = '<span>' + esc((d.dataset.l || '?').charAt(0)) + '</span>'; });
       });
+      dClip();
     }
     st.count += cards.length; st.batch++; st.loading = false;
     if (!more) return;
@@ -2762,15 +2766,102 @@
   function watchMore() {
     if (dObs) dObs.disconnect();
     var b = $('.dmorebtn'); if (!b || !('IntersectionObserver' in window)) return;
-    dObs = new IntersectionObserver(function (en) { if (en[0].isIntersecting && ds && ds.batch < 4 && !ds.loading) { dObs.disconnect(); loadBatch(); } }, { root: viewEl, rootMargin: '0px 0px 600px 0px' });
+    dObs = new IntersectionObserver(function (en) { if (en[0].isIntersecting && ds && ds.batch < 4 && !ds.loading) { dObs.disconnect(); loadBatch(); } }, { root: viewEl, rootMargin: '0px 0px ' + Math.max(600, Math.round(viewEl.clientHeight * 1.6)) + 'px 0px' });
     dObs.observe(b);
   }
+  /* TikTok-style feed: one card per screen, snaps and locks on the next one; the feed is kept while you visit other tabs */
+  var dKeep = null;
+  function dSizePage() {
+    var vr = viewEl.getBoundingClientRect(), tb = $('#tabbar'), bottom = vr.bottom;
+    if (tb && getComputedStyle(tb).display !== 'none' && getComputedStyle(tb).visibility !== 'hidden') { var t = tb.getBoundingClientRect().top; if (t > vr.top + 200 && t < bottom) bottom = t; }
+    var pg = Math.round(bottom - vr.top);
+    if (pg > 200) viewEl.style.setProperty('--dpage', pg + 'px');
+  }
+  function dClip() {
+    document.querySelectorAll('.dview .dx').forEach(function (x) { x.classList.toggle('clip', x.scrollHeight > x.clientHeight + 2); });
+  }
+  function dCurrent() {
+    var cards = document.querySelectorAll('.dview .dcard:not(.gone)'), vt = viewEl.getBoundingClientRect().top, best = -1, bd = 1e9;
+    for (var i = 0; i < cards.length; i++) { var d = Math.abs(cards[i].getBoundingClientRect().top - vt); if (d < bd) { bd = d; best = i; } }
+    return { cards: cards, i: best, top: viewEl.scrollTop };
+  }
+  function dKeepFeed() {
+    var st = ds;
+    if (!st || !st.count || !$('#dfeed')) { dKeep = null; return; }
+    var c = dCurrent(), title = c.i >= 0 ? c.cards[c.i].dataset.title : '';
+    if (viewEl.scrollTop < 40) title = '';
+    dKeep = { hash: currentHash, only: st.only, html: viewEl.innerHTML, st: st, title: title, at: Date.now() };
+  }
+  function dRestore(onlyId) {
+    var k = dKeep;
+    if (!k || k.hash !== location.hash || k.only !== (onlyId || '') || Date.now() - k.at > 30 * 60000) return false;
+    var st = k.st; st.ctrl = new AbortController(); st.loading = false;
+    ds = st; viewEl.classList.add('dview'); dSizePage();
+    viewEl.innerHTML = k.html;
+    var feed = $('#dfeed');
+    if (feed) {
+      feed.querySelectorAll('.dskel, .dcard.gone').forEach(function (n) { n.remove(); });
+      feed.querySelectorAll('img[data-thumb]').forEach(function (im) {
+        im.dataset.bound = 1;
+        im.addEventListener('error', function () { var d = im.parentNode; d.classList.add('ph'); d.innerHTML = '<span>' + esc((d.dataset.l || '?').charAt(0)) + '</span>'; });
+      });
+      feed.querySelectorAll('.dcard').forEach(function (c) { var t = c.dataset.title; if (dHidden[t]) c.remove(); else { var b = c.querySelector('.dsave'); if (b) { var on = !!dSaved[t]; b.classList.toggle('on', on); var sp = b.querySelector('span'); if (sp) sp.textContent = on ? 'Saved' : 'Save'; } } });
+    }
+    var more = $('#dmore');
+    if (more && more.querySelector('.dload')) more.innerHTML = st.ti < st.topics.length ? '<button class="pill dmorebtn" data-act="dmore">Show more</button>' : '<div class="dend">You\u2019ve reached the end \u00b7 write more and come back</div>';
+    var target = k.title ? Array.prototype.find.call(document.querySelectorAll('.dview .dcard'), function (c) { return c.dataset.title === k.title; }) : null;
+    var y = target ? target.offsetTop - (parseFloat(getComputedStyle(target).scrollMarginTop) || 0) : 0;
+    viewEl.scrollTop = y;
+    requestAnimationFrame(function () { if (ds === st) { viewEl.scrollTop = y; dClip(); watchMore(); } });
+    return true;
+  }
+  /* lock on exactly one card per gesture: a wheel/trackpad flick pages once, and a touch fling that lands more than one card away is pulled back to the next one */
+  function dStops() {
+    var out = [0], max = viewEl.scrollHeight - viewEl.clientHeight;
+    document.querySelectorAll('.dview .dcard:not(.gone)').forEach(function (c) { out.push(Math.max(0, Math.min(max, c.offsetTop - 6))); });
+    var last = out[out.length - 1]; if (max - last > 40) out.push(max);
+    return out;
+  }
+  function dNear(stops, y) { var b = 0; for (var i = 1; i < stops.length; i++) if (Math.abs(stops[i] - y) < Math.abs(stops[b] - y)) b = i; return b; }
+  var dWheel = { lock: 0, last: 0 }, dTouch = null, dSettle = 0;
+  viewEl.addEventListener('wheel', function (e) {
+    if (!viewEl.classList.contains('dview') || e.ctrlKey || Math.abs(e.deltaY) <= Math.abs(e.deltaX) || !document.querySelector('.dview .dcard:not(.dskel)')) return;
+    e.preventDefault();
+    var now = Date.now(), quiet = now - dWheel.last > 220; dWheel.last = now;
+    if (now < dWheel.lock && !quiet) return;
+    if (Math.abs(e.deltaY) < 4) return;
+    var stops = dStops(), i = dNear(stops, viewEl.scrollTop), j = Math.max(0, Math.min(stops.length - 1, i + (e.deltaY > 0 ? 1 : -1)));
+    dWheel.lock = now + 550;
+    if (j !== i) viewEl.scrollTo({ top: stops[j], behavior: 'smooth' });
+  }, { passive: false });
+  viewEl.addEventListener('touchstart', function (e) {
+    if (!viewEl.classList.contains('dview')) return;
+    var stops = dStops(); dTouch = { i: dNear(stops, viewEl.scrollTop), on: true };
+  }, { passive: true });
+  viewEl.addEventListener('touchend', function () { if (dTouch) dTouch.on = false; }, { passive: true });
+  function dCheckLanding() {
+    if (!dTouch || dTouch.on || !viewEl.classList.contains('dview')) return;
+    var stops = dStops(), y = viewEl.scrollTop, i = dNear(stops, y), from = dTouch.i;
+    if (Math.abs(i - from) > 1) { var j = from + (i > from ? 1 : -1); dTouch = null; viewEl.scrollTo({ top: stops[j], behavior: 'smooth' }); return; }
+    if (Math.abs(stops[i] - y) < 3) dTouch = null;
+  }
+  viewEl.addEventListener('scroll', function () {
+    if (!dTouch || !viewEl.classList.contains('dview')) return;
+    clearTimeout(dSettle); dSettle = setTimeout(dCheckLanding, 160);
+  }, { passive: true });
+  if ('onscrollend' in window) viewEl.addEventListener('scrollend', function () { clearTimeout(dSettle); dCheckLanding(); });
+  window.addEventListener('resize', function () {
+    if (!viewEl.classList.contains('dview')) return;
+    var c = dCurrent(), t = c.i >= 0 && viewEl.scrollTop > 40 ? c.cards[c.i] : null;
+    dSizePage();
+    requestAnimationFrame(function () { dClip(); if (t && t.isConnected) viewEl.scrollTop = t.offsetTop - (parseFloat(getComputedStyle(t).scrollMarginTop) || 0); });
+  });
   function dcardHTML(c) {
     var p = c.p, src = notes.get(c.t.src), saved = dSaved[p.title];
     return '<article class="dcard" data-title="' + esc(p.title) + '" data-url="' + esc(p.url) + '" data-src="' + esc(c.t.src || '') + '">' +
       '<div class="dimg' + (p.thumb ? '' : ' ph') + '" data-l="' + esc(p.title) + '">' + (p.thumb ? '<img data-thumb="1" src="' + esc(p.thumb) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '<span>' + esc(p.title.charAt(0)) + '</span>') + '</div>' +
       '<div class="dbody"><button class="dwhy" data-act="dsrc" data-id="' + esc(c.t.src || '') + '">' + (c.rel ? 'More like <b>' + esc(c.rel) + '</b>' : 'Because you wrote about <b>' + esc(c.t.label) + '</b>') + (src && norm(src.title) !== norm(c.rel || c.t.label) ? '<span> \u00b7 ' + esc(src.title) + '</span>' : '') + '</button>' +
-      '<h2 class="dt">' + esc(p.title) + '</h2><p class="dx">' + esc(cleanExtract(p.extract)) + '</p>' +
+      '<h2 class="dt" data-act="dopen">' + esc(p.title) + '</h2><p class="dx" data-act="dopen">' + esc(cleanExtract(p.extract)) + '</p>' +
       '<div class="dacts"><button class="dsave' + (saved ? ' on' : '') + '" data-act="dsave">' + I.pin.replace('<svg', '<svg class="di"') + '<span>' + (saved ? 'Saved' : 'Save') + '</span></button>' +
       '<button data-act="dopen">' + I.ext + '<span>Open</span></button><button class="dno" data-act="dhide" aria-label="Not interested">' + I.x + '<span>Hide</span></button></div>' +
       '<div class="dsrc">Wikipedia</div></div></article>';
@@ -3517,14 +3608,14 @@
     dall: function () { go('#/discover', true); },
     dshuffle: function () { dShuffle = true; render(); },
     dmore: function () { loadBatch(); },
-    dretry: function () { render(); },
+    dretry: function () { dKeep = null; render(); },
     dsrc: function (el) { if (el.dataset.id && notes.get(el.dataset.id)) go('#/n/' + el.dataset.id); },
     dsave: function (el) { var c = el.closest('.dcard'); if (c) discoverSave(c); },
     dopen: function (el) { var c = el.closest('.dcard'); if (c) window.open(c.dataset.url, '_blank', 'noopener'); },
     dhide: function (el) { var c = el.closest('.dcard'); if (c) discoverHide(c); },
     dclear: async function () {
       var ok = await dialog({ title: 'Clear Discover history?', message: 'Hidden cards come back and the offline copy is cleared. Your notes don\u2019t change.', ok: 'Clear' });
-      if (!ok) return; dHidden = {}; dSaved = {}; try { await DC.clear('cache'); await DC.clear('meta'); } catch (e) {} toast('Discover history cleared');
+      if (!ok) return; dKeep = null; dHidden = {}; dSaved = {}; try { await DC.clear('cache'); await DC.clear('meta'); } catch (e) {} toast('Discover history cleared');
     },
     dnet: function (el) { settings.discoverNet = el.dataset.v === '1'; saveSettings(); renderSettings(); },
     dailytmpl: async function () {
