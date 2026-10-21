@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.6.20 */
+/* Axon · Northpeak Studios · v1.6.21 */
 (function () {
   'use strict';
-  var VERSION = '1.6.20';
+  var VERSION = '1.6.21';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -660,6 +660,7 @@
     if (p[0] === 'tasks') return { v: 'tasks' };
     if (p[0] === 'discover') return { v: 'discover', id: decodeURIComponent(p[1] || '') };
     if (p[0] === 'guide') return { v: 'guide' };
+    if (p[0] === 'quiz') return { v: 'quiz', scope: decodeURIComponent(p.slice(1).join('/') || 'all') };
     return { v: 'vault' };
   }
   function setTab(t) { document.querySelectorAll('.tb').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === t); }); }
@@ -679,7 +680,7 @@
     var r = route();
     tidyDaily(r.v === 'note' ? r.id : null);
     viewEl.className = '';
-    var tab = { vault: 'notes', folder: 'notes', note: 'notes', graph: 'graph', search: 'notes', settings: 'settings', recall: 'notes', review: 'notes', trash: 'notes', guide: 'settings', discover: 'discover' }[r.v];
+    var tab = { vault: 'notes', folder: 'notes', note: 'notes', graph: 'graph', search: 'notes', settings: 'settings', recall: 'notes', review: 'notes', trash: 'notes', guide: 'settings', discover: 'discover', quiz: 'notes' }[r.v];
     setTab(tab);
     setFab(/^(vault|folder|note|search)$/.test(r.v));
     if (PRO_VIEWS[r.v] && !isPro()) { renderLocked(r.v); viewEl.scrollTop = 0; return; }
@@ -695,6 +696,7 @@
     else if (r.v === 'trash') renderTrash();
     else if (r.v === 'tasks') renderTasks();
     else if (r.v === 'discover') renderDiscover(r.id);
+    else if (r.v === 'quiz') { renderQuiz(r.scope); return; }
     else if (r.v === 'guide') renderGuide();
     viewEl.scrollTop = scrollMem[currentHash] || 0;
   }
@@ -798,7 +800,7 @@
     if (!n) { toast('That note no longer exists'); go('#/', true); return; }
     opts = opts || {};
     ui.lastNote = n.id; saveMeta();
-    var hasFront = !!MD.front(n.body), tags = hasFront ? [] : MD.tags(n.body), bl = backlinks(n), out = outNotes(n), nc = MD.recall(n.body).length, wc = words(n.body), um = unlinkedMentions(n);
+    var hasFront = !!MD.front(n.body), tags = hasFront ? [] : MD.tags(n.body), bl = backlinks(n), out = outNotes(n), nc = MD.recall(n.body).length, qn = qzPairs(n).length, wc = words(n.body), um = unlinkedMentions(n);
     var backTo = n.folder ? '#/f/' + encodeURIComponent(n.folder) : '#/';
     var h = '<div class="page"><div class="nav stick"><button class="back" data-act="back" data-to="' + backTo + '">' + I.back + '<span>' + esc(n.folder ? folderName(n.folder) : 'Notes') + '</span></button><div class="acts">' +
       '<button class="ib" aria-label="Edit" data-act="edit">' + I.edit + '</button>' +
@@ -807,7 +809,7 @@
       '<button class="ib" aria-label="Note options" data-act="notemore" data-id="' + n.id + '">' + I.more + '</button></div></div>' +
       (n.folder ? '<div class="crumb">' + esc(crumbOf(n.folder)) + '</div>' : '') + '<h1 class="ntitle">' + esc(n.title) + '</h1>' + dayNav(n) +
       '<div class="meta">' + tags.map(function (t) { return '<span class="tag" data-tag="' + esc(t) + '">#' + esc(t) + '</span>'; }).join('') +
-      '<span>' + (tags.length ? '· ' : '') + (n.pinned ? 'pinned · ' : '') + 'edited ' + agoLong(n.updated) + ' · ' + wc + ' word' + (wc === 1 ? '' : 's') + (wc > 150 ? ' · ' + readMin(wc) + ' min read' : '') + (nc ? ' · </span><button class="cardct" data-act="cards" data-id="' + n.id + '">' + I.recall + nc + ' card' + (nc === 1 ? '' : 's') + '</button>' : '</span>') + '</div>' +
+      '<span>' + (tags.length ? '· ' : '') + (n.pinned ? 'pinned · ' : '') + 'edited ' + agoLong(n.updated) + ' · ' + wc + ' word' + (wc === 1 ? '' : 's') + (wc > 150 ? ' · ' + readMin(wc) + ' min read' : '') + (nc ? ' · </span><button class="cardct" data-act="cards" data-id="' + n.id + '">' + I.recall + nc + ' card' + (nc === 1 ? '' : 's') + '</button>' : '</span>') + (qn >= 2 ? '<button class="cardct qzb" data-act="quiz" data-scope="n:' + n.id + '">' + I.check + 'Quiz</button>' : '') + '</div>' +
       copyBanner(n) + '<article class="prose" id="prose">' + (n.body.trim() ? dedupeTitle(MD.render(n.body, mdOpt()), n.title) : '<button class="empty-note" data-act="edit">Empty note. Tap here to start writing \u2014 type / for blocks.</button>') + '</article>' +
       '<section class="bl" id="backlinks"><h3><span>' + bl.length + ' backlink' + (bl.length === 1 ? '' : 's') + '</span>' + ((out.length || unresolvedOf(n).length) ? '<button class="outb" data-act="outlinks" data-id="' + n.id + '">' + out.length + ' out' + (unresolvedOf(n).length ? ' \u00b7 ' + unresolvedOf(n).length + ' unresolved' : '') + '</button>' : '') + '</h3>' +
       (bl.length ? bl.map(function (o) { return '<button class="bi" data-act="open" data-id="' + o.id + '"><b>' + esc(o.title) + '</b><span>' + backlinkSnippet(o.body, n.title) + '</span></button>'; }).join('') :
@@ -2586,6 +2588,212 @@
     drawReview(); updateBadge();
   }
 
+  /* ---------- Quiz: Q:A pairs from your notes, autograded ---------- */
+  var qz = null, qzFrom = '', QZ_KEY = 'axon-quiz-history';
+  function qzBody(body) {
+    var s = String(body || '').replace(/\r\n?/g, '\n');
+    if (/^---\n/.test(s)) { var e = s.indexOf('\n---', 3); if (e > 0) s = s.slice(e + 4); }
+    return s.replace(/```[\s\S]*?(```|$)/g, '');
+  }
+  function qzLine(l) { return l.replace(/^\s*(?:>\s*)*/, '').replace(/^(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?/, '').trim(); }
+  var QZ_Q = /^(?:\*\*|__)?(?:Q|Question)\s*(?:\d+\s*)?[:.)](?:\*\*|__)?\s+(.+)$/i, QZ_A = /^(?:\*\*|__)?(?:A|Ans|Answer)\s*:(?:\*\*|__)?\s*(.+)$/i, QZ_IN = /\s(?:\*\*|__)?(?:A|Answer)\s*:(?:\*\*|__)?\s+/;
+  function qzPairs(n) {
+    var out = [], seen = {};
+    function add(q, a) {
+      q = cardText(q).replace(/\u0007/g, '_____'); a = cardText(a);
+      if (!q || !a || q.length > 500 || a.length > 300) return;
+      var k = q.toLowerCase() + '\u0001' + a.toLowerCase(); if (seen[k]) return; seen[k] = 1;
+      out.push({ q: q, a: a, note: n });
+    }
+    var lines = qzBody(n.body).split('\n'), pend = null, gap = 0, m;
+    for (var i = 0; i < lines.length; i++) {
+      var t = qzLine(lines[i]); if (!t) continue;
+      var ci = t.indexOf(' :: ');
+      if (ci > 0) { add(t.slice(0, ci), t.slice(ci + 4)); pend = null; continue; }
+      if (/\{\{c\d*::/.test(t)) { qzCloze(t).forEach(function (c) { add(c.q, c.a); }); pend = null; continue; }
+      if ((m = t.match(QZ_Q))) {
+        var qq = m[1], sp = qq.search(QZ_IN);
+        if (sp > 0) { add(qq.slice(0, sp), qq.slice(sp).replace(QZ_IN, '')); pend = null; }
+        else { pend = qq; gap = 0; }
+        continue;
+      }
+      if (pend && (m = t.match(QZ_A))) { add(pend, m[1]); pend = null; continue; }
+      if (pend && ++gap > 6) pend = null;
+      if (!pend && (m = t.replace(/\*\*|__/g, '').match(/^(.{3,}\?)\s*:\s+(.+)$/))) add(m[1], m[2]);
+    }
+    return out;
+  }
+  /* "The {{c1::hippocampus}} makes memories" -> "The _____ makes memories" / "hippocampus" (one question per cloze group) */
+  function qzCloze(t) {
+    var re = /\{\{c(\d*)::([^}]*?)(?:::([^}]*))?\}\}/g, m, groups = {}, order = [], k = 0;
+    while ((m = re.exec(t))) { var g = m[1] || ('u' + (k++)); if (!groups[g]) { groups[g] = []; order.push(g); } groups[g].push(m[2]); }
+    return order.map(function (g) {
+      var j = 0, q = t.replace(/\{\{c(\d*)::([^}]*?)(?:::([^}]*))?\}\}/g, function (all, num, txt, hint) { var gg = num || ('u' + (j++)); return gg === g ? (hint ? '\u0007 (' + hint + ')' : '\u0007') : txt; });
+      return { q: q, a: groups[g].join(' / ') };
+    });
+  }
+  function qzNorm(s) {
+    var x = String(s || '').toLowerCase();
+    try { x = x.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch (e) {}
+    try { x = x.replace(/&/g, ' and ').replace(new RegExp('[^\\p{L}\\p{N}]+', 'gu'), ' '); } catch (e) { x = x.replace(/[^\w\u00c0-\uffff]+/g, ' '); }
+    x = x.replace(/\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/g, function (w) { return QZ_NUM.indexOf(w); });
+    return x.trim().replace(/^(?:the|an|a)\s+/, '');
+  }
+  var QZ_NUM = 'zero one two three four five six seven eight nine ten eleven twelve'.split(' ');
+  function qzAlts(a) {
+    var out = [];
+    function push(x) { x = qzNorm(x); if (x && out.indexOf(x) < 0) out.push(x); }
+    var w = String(a); push(w); push(w.replace(/\([^)]*\)/g, ' '));
+    w.split(/\s*[\/|]\s*/).forEach(function (p) { push(p); push(p.replace(/\([^)]*\)/g, ' ')); var mm = p.match(/\(([^)]+)\)/); if (mm) push(mm[1]); });
+    return out;
+  }
+  function qzLev(a, b) {
+    if (a === b) return 0; var m = a.length, n = b.length, prev = [], cur, i, j;
+    for (j = 0; j <= n; j++) prev[j] = j;
+    for (i = 1; i <= m; i++) { cur = [i]; for (j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1)); prev = cur; }
+    return prev[n];
+  }
+  /* forgiving grading: case, accents, punctuation, spacing and a leading "the/a/an" never matter; small typos (about 15% of the
+     answer's letters) are fine; any alternative split by / or | counts; numbers must be exact */
+  function qzGrade(given, answer) {
+    var g = qzNorm(given); if (!g) return false;
+    return qzAlts(answer).some(function (x) {
+      if (x === g || x.replace(/ /g, '') === g.replace(/ /g, '')) return true;
+      if ((x.match(/\d+/g) || []).join(' ') !== (g.match(/\d+/g) || []).join(' ')) return false;
+      var tol = Math.floor(x.length * 0.15);
+      return tol > 0 && Math.abs(x.length - g.length) <= tol && qzLev(x, g) <= tol;
+    });
+  }
+  function qzNotes(scope) {
+    var all = Array.from(notes.values()).filter(function (n) { return !inTemplates(n); }), s = String(scope || 'all');
+    if (s.indexOf('n:') === 0) { var one = notes.get(s.slice(2)); return one ? [one] : []; }
+    if (s.indexOf('f:') === 0) { var f = s.slice(2); return all.filter(function (n) { return n.folder === f || n.folder.indexOf(f + '/') === 0; }); }
+    if (s.indexOf('t:') === 0) { var tg = s.slice(2).toLowerCase(); return all.filter(function (n) { return MD.tags(n.body).indexOf(tg) >= 0; }); }
+    return all;
+  }
+  function qzSetLabel(scope) {
+    var s = String(scope || 'all');
+    if (s.indexOf('n:') === 0) { var n = notes.get(s.slice(2)); return n ? n.title : 'This note'; }
+    if (s.indexOf('f:') === 0) return s.slice(2).split('/').join(' / ');
+    if (s.indexOf('t:') === 0) return '#' + s.slice(2);
+    return 'All notes';
+  }
+  function qzItems(scope) { var out = []; qzNotes(scope).forEach(function (n) { out = out.concat(qzPairs(n)); }); return out; }
+  function qzHist() { try { var h = JSON.parse(localStorage.getItem(QZ_KEY) || '[]'); return Array.isArray(h) ? h : []; } catch (e) { return []; } }
+  function qzShuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), x = a[i]; a[i] = a[j]; a[j] = x; } return a; }
+  function qzTime(ms) { var s = Math.max(0, Math.round(ms / 1000)); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
+  function qzOpen(scope) { var h = location.hash; if (!/^#\/quiz/.test(h)) qzFrom = h; qz = null; go('#/quiz/' + encodeURIComponent(scope || 'all')); }
+  function renderQuiz(scope) {
+    document.body.classList.add('reviewing');
+    if (!qz || qz.scope !== scope) qz = { scope: scope, phase: 'setup', mode: (qzHist()[0] || {}).mode === 'mc' ? 'mc' : 'type', count: 0 };
+    drawQuiz();
+  }
+  function qzTop(mid) { return '<div class="rvtop"><button class="ib" data-act="qzclose" aria-label="Close">' + I.x + '</button>' + mid + '</div>'; }
+  function drawQuiz() {
+    var st = qz, h = '<div class="rv qz">';
+    if (st.phase === 'setup') {
+      var items = qzItems(st.scope), answers = {};
+      items.forEach(function (it) { answers[qzNorm(it.a)] = 1; });
+      var mcOk = Object.keys(answers).length >= 4, srcN = {};
+      items.forEach(function (it) { srcN[it.note.id] = 1; });
+      /* every place a quiz can come from: all notes, each folder and tag that has questions, each note with questions */
+      var opts = [], byNote = [], fol = {}, tgs = {};
+      Array.from(notes.values()).forEach(function (n) {
+        if (inTemplates(n)) return; var k = qzPairs(n).length; if (!k) return;
+        byNote.push([n, k]);
+        if (n.folder) { var parts = n.folder.split('/'); for (var i = 1; i <= parts.length; i++) { var p = parts.slice(0, i).join('/'); fol[p] = (fol[p] || 0) + k; } }
+        MD.tags(n.body).forEach(function (t) { tgs[t] = (tgs[t] || 0) + k; });
+      });
+      var total = byNote.reduce(function (s, x) { return s + x[1]; }, 0);
+      opts.push('<option value="all"' + (st.scope === 'all' ? ' selected' : '') + '>All notes (' + total + ')</option>');
+      function grp(label, list) { if (list.length) opts.push('<optgroup label="' + label + '">' + list.join('') + '</optgroup>'); }
+      function o(v, t) { return '<option value="' + esc(v) + '"' + (st.scope === v ? ' selected' : '') + '>' + esc(t) + '</option>'; }
+      grp('Notes', byNote.sort(function (a, b) { return a[0].title.localeCompare(b[0].title); }).map(function (x) { return o('n:' + x[0].id, x[0].title + ' (' + x[1] + ')'); }));
+      grp('Folders', Object.keys(fol).sort().map(function (f) { return o('f:' + f, f.split('/').join(' / ') + ' (' + fol[f] + ')'); }));
+      grp('Tags', Object.keys(tgs).sort().map(function (t) { return o('t:' + t, '#' + t + ' (' + tgs[t] + ')'); }));
+      if (!/^all$/.test(st.scope) && !items.length) opts.push(o(st.scope, qzSetLabel(st.scope) + ' (0)'));
+      if (!mcOk && st.mode === 'mc') st.mode = 'type';
+      h += qzTop('<span class="qzh">Quiz</span><span></span>');
+      if (!total) {
+        h += '<div class="rvdone"><div class="rart">' + I.check + '</div><b>No questions yet</b><p>Write them in any note and Quiz grades you on them:</p>' +
+          '<p class="qzfmt"><span class="kbd">question :: answer</span><span class="kbd">Q: question</span><span class="kbd">A: answer</span><span class="kbd">What is ATP? : energy</span><span class="kbd">The {{c::hippocampus}} stores memories</span></p></div></div>';
+        viewEl.innerHTML = h; viewEl.scrollTop = 0; return;
+      }
+      var n = items.length, cnt = st.count && st.count < n ? st.count : 0;
+      h += '<div class="qzset"><label class="qzl" for="qzsrc">Questions from</label><select id="qzsrc" class="qzsel">' + opts.join('') + '</select>' +
+        '<div class="qzinfo">' + (n ? n + ' question' + (n === 1 ? '' : 's') + (Object.keys(srcN).length > 1 ? ' from ' + Object.keys(srcN).length + ' notes' : '') + ' \u00b7 shuffled' : 'No questions here. Pick another set.') + '</div>' +
+        '<div class="qzl">How you answer</div><div class="qzmodes">' +
+        '<button class="' + (st.mode === 'type' ? 'on' : '') + '" data-act="qzmode" data-m="type">Type it<small>autograded, typos ok</small></button>' +
+        '<button class="' + (st.mode === 'mc' ? 'on' : '') + '" data-act="qzmode" data-m="mc"' + (mcOk ? '' : ' disabled') + '>Multiple choice<small>' + (mcOk ? '4 options' : 'needs 4+ answers') + '</small></button></div>' +
+        (n > 10 ? '<div class="qzl">How many</div><div class="seg qzcount">' + [[10, '10'], [20, '20'], [0, 'All ' + n]].filter(function (c) { return !c[0] || c[0] < n; }).map(function (c) { return '<button class="' + (cnt === c[0] ? 'on' : '') + '" data-act="qzcount" data-c="' + c[0] + '">' + c[1] + '</button>'; }).join('') + '</div>' : '') +
+        '<button class="bignew" data-act="qzstart"' + (n ? '' : ' disabled') + '>Start quiz</button>';
+      var hist = qzHist().slice(0, 5);
+      if (hist.length) h += '<div class="sec"><span>Recent quizzes</span></div><div class="qzhist">' + hist.map(function (x) {
+        return '<div class="qzhr"><span class="nm">' + esc(x.set) + '<small>' + (x.mode === 'mc' ? 'Multiple choice' : 'Typed') + ' \u00b7 ' + x.right + '/' + x.total + ' \u00b7 ' + agoLong(x.at) + '</small></span><b class="' + (x.pct >= 80 ? 'hi' : x.pct < 50 ? 'lo' : '') + '">' + x.pct + '%</b></div>';
+      }).join('') + '</div>';
+      h += '</div></div>';
+      viewEl.innerHTML = h; viewEl.scrollTop = 0;
+      var sel = $('#qzsrc'); if (sel) sel.addEventListener('change', function () { qz = null; go('#/quiz/' + encodeURIComponent(sel.value), true); });
+      return;
+    }
+    if (st.phase === 'end') {
+      var right = st.res.filter(function (r) { return r.ok; }).length, tot = st.res.length, pct = tot ? Math.round(right / tot * 100) : 0, missed = st.res.filter(function (r) { return !r.ok; });
+      h += qzTop('<span class="qzh"></span><span></span>') + '<div class="qzend"><div class="qzpct">' + pct + '%</div><b>' + right + ' of ' + tot + ' right</b><p>' + qzTime(st.ms) + ' \u00b7 ' + (st.mode === 'mc' ? 'Multiple choice' : 'Typed') + ' \u00b7 ' + esc(st.label) + '</p>' +
+        '<div class="qzbtns">' + (missed.length ? '<button class="bignew" data-act="qzretry">Retry ' + missed.length + ' missed</button>' : '') + '<button class="' + (missed.length ? 'pill' : 'bignew') + '" data-act="qzagain">New quiz, same set</button><button class="pill qzdone" data-act="qzclose">Done</button></div>' +
+        (missed.length ? '<div class="sec"><span>Missed</span></div><div class="qzmiss">' + missed.map(function (r) { return '<div class="qzm"><span class="q">' + esc(r.it.q) + '</span><span class="a">' + esc(r.it.a) + '</span>' + (r.given ? '<span class="y">You: ' + esc(r.given) + '</span>' : '<span class="y">Skipped</span>') + '</div>'; }).join('') + '</div>' : '<p class="qzall">Perfect run \u2014 nothing missed.</p>') +
+        '</div></div>';
+      viewEl.innerHTML = h; viewEl.scrollTop = 0; return;
+    }
+    var it = st.q[st.i], r = st.res[st.i], typed = st.mode === 'type' || it.typed, total = st.q.length;
+    h += qzTop('<div class="rvbar"><i style="width:' + Math.round((st.i + (r ? 1 : 0)) / total * 100) + '%"></i></div><span class="rvct">' + (st.i + 1) + ' / ' + total + '</span>') +
+      '<div class="rvcard qzcard"><span class="rvsrc">' + esc(it.note.title) + (st.mode === 'mc' && it.typed ? ' \u00b7 type it' : '') + '</span><span class="rvq">' + esc(it.q) + '</span>';
+    if (r) h += '<div class="qzfb ' + (r.ok ? 'ok' : 'bad') + '"><b>' + (r.ok ? (r.over ? '\u2713 Counted as right' : '\u2713 Correct') : '\u2717 Not quite') + '</b>' +
+      (r.ok && !r.over && typed && qzNorm(r.given) === qzAlts(it.a)[0] ? '' : '<span class="qa">Answer: ' + esc(it.a) + '</span>') + (typed && r.given && (!r.ok || r.over || qzNorm(r.given) !== qzAlts(it.a)[0]) ? '<span class="qy">You said: ' + esc(r.given) + '</span>' : '') + '</div>';
+    h += '</div>';
+    if (typed) {
+      if (!r) h += '<form class="qzform" id="qzform" autocomplete="off"><input id="qzin" type="text" placeholder="Type your answer" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done"><button type="submit">Check</button></form><button class="qzskip" data-act="qzskip">I don\u2019t know</button>';
+    } else {
+      h += '<div class="qzopts">' + it.opts.map(function (o, k) {
+        var cls = r ? (k === it.ci ? 'ok' : (k === r.pick ? 'bad' : 'off')) : '';
+        return '<button class="' + cls + '" data-act="qzpick" data-k="' + k + '"' + (r ? ' disabled' : '') + '>' + esc(o) + '</button>';
+      }).join('') + '</div>';
+    }
+    if (r) h += '<div class="rvbtns one"><button class="g-show" data-act="qznext" id="qznext">' + (st.i + 1 < total ? 'Next' : 'See score') + '</button></div>' + (typed && !r.ok && r.given ? '<button class="qzover" data-act="qzover">I was right</button>' : '');
+    h += '</div>';
+    viewEl.innerHTML = h; viewEl.scrollTop = 0;
+    var form = $('#qzform');
+    if (form) { form.addEventListener('submit', function (e) { e.preventDefault(); qzAnswer($('#qzin').value); }); var inp = $('#qzin'); try { inp.focus({ preventScroll: true }); } catch (e) { inp.focus(); } }
+    else if (r) { var nx = $('#qznext'); if (nx) try { nx.focus({ preventScroll: true }); } catch (e) {} }
+  }
+  function qzBegin(items, label) {
+    var st = qz, list = qzShuffle(items);
+    if (st.count && st.count < list.length) list = list.slice(0, st.count);
+    if (st.mode === 'mc') {
+      var pool = {}; items.concat(qzItems(st.scope)).forEach(function (x) { var k = qzNorm(x.a); if (k && !pool[k]) pool[k] = x.a; });
+      list = list.map(function (x) {
+        var c = Object.assign({}, x), mine = qzNorm(x.a);
+        var ds = qzShuffle(Object.keys(pool).filter(function (k) { return k !== mine && !qzGrade(pool[k], x.a) && !qzGrade(x.a, pool[k]); })).slice(0, 3).map(function (k) { return pool[k]; });
+        if (ds.length < 3) { c.typed = true; return c; }
+        c.opts = qzShuffle(ds.concat([x.a])); c.ci = c.opts.indexOf(x.a); return c;
+      });
+    }
+    st.q = list; st.res = []; st.i = 0; st.t0 = Date.now(); st.phase = 'q'; st.label = label;
+    drawQuiz();
+  }
+  function qzAnswer(given) {
+    var st = qz; if (!st || st.phase !== 'q' || st.res[st.i]) return;
+    var it = st.q[st.i];
+    given = String(given || '').trim(); if (!given) { var inp = $('#qzin'); if (inp) inp.focus(); return; }
+    st.res[st.i] = { it: it, given: given, ok: qzGrade(given, it.a) };
+    drawQuiz();
+  }
+  function qzFinish() {
+    var st = qz; st.phase = 'end'; st.ms = Date.now() - st.t0;
+    var right = st.res.filter(function (r) { return r.ok; }).length, tot = st.res.length;
+    try { var h = qzHist(); h.unshift({ at: Date.now(), set: st.label, scope: st.scope, mode: st.mode, right: right, total: tot, pct: tot ? Math.round(right / tot * 100) : 0, ms: st.ms }); localStorage.setItem(QZ_KEY, JSON.stringify(h.slice(0, 50))); } catch (e) {}
+    drawQuiz();
+  }
+
   /* ---------- Discover: a feed of things related to what you write ---------- */
   var DSTOP = {};
   ('a about above after again against all also am an and any are as at be because been before being below between both but by can could did do does doing down during each few for from further had has have having he her here hers him his how i if in into is it its itself just like me more most my no nor not now of off on once only or other our out over own same she should so some such than that the their them then there these they this those through to too under until up very was we were what when where which while who whom why will with would you your yours yes ok okay one two three four five first second next last new note notes untitled today tomorrow yesterday thing things stuff really very much many make made get got go going went see seen use used using need needs want wants know think way ways lot lots good great bad better best also maybe still well even every something anything nothing everything someone people person time times day days week weeks year years part parts kind type types example examples etc ' +
@@ -2912,7 +3120,7 @@
   var COMMANDS = [
     ['New note', 'create add write', function () { newNote(); }], ['New note from template', 'template starter', function () { newFromTemplate(); }],
     ['Today\u2019s note', 'daily journal date', function () { openDaily(); }], ['Calendar', 'daily notes month day journal', function () { openCalendar(ymd(new Date())); }], ['Jot to today\u2019s note', 'quick capture add line journal', function () { jot(); }], ['Start Recall review', 'quiz flashcards study cards', function () { go('#/review/all'); }],
-    ['Open Recall', 'cards spaced repetition', function () { go('#/recall'); }], ['Discover', 'feed explore wikipedia learn', function () { go('#/discover'); }], ['Graph', 'map links', function () { go('#/graph'); }], ['Random note', 'surprise shuffle lucky', function () { randomNote(); }], ['Auto-link all mentions', 'autolink link everything graph connect', function () { autoLinkAll(); }],
+    ['Open Recall', 'cards spaced repetition', function () { go('#/recall'); }], ['Quiz', 'test exam autograded questions answers q&a multiple choice', function () { var r = route(); qzOpen(r.v === 'note' && r.id && qzPairs(notes.get(r.id) || { body: '' }).length ? 'n:' + r.id : 'all'); }], ['Discover', 'feed explore wikipedia learn', function () { go('#/discover'); }], ['Graph', 'map links', function () { go('#/graph'); }], ['Random note', 'surprise shuffle lucky', function () { randomNote(); }], ['Auto-link all mentions', 'autolink link everything graph connect', function () { autoLinkAll(); }],
     ['Search text', 'find full', function (q) { go('#/search/' + encodeURIComponent(q || '')); }], ['All notes', 'list every', function () { go('#/f/*'); }],
     ['New folder', 'directory', function () { newFolder(''); }], ['Trash', 'deleted restore bin', function () { go('#/trash'); }],
     ['Formatting guide', 'help markdown how syntax', function () { go('#/guide'); }], ['Settings', 'preferences accent text size', function () { go('#/settings'); }],
@@ -3617,6 +3825,17 @@
     today: function () { openDaily(); },
     qs: function () { openSwitcher(); },
     dnote: function (el) { go('#/discover/' + encodeURIComponent(el.dataset.id)); },
+    quiz: function (el) { qzOpen(el.dataset.scope || 'all'); },
+    qzclose: function () { var to = qzFrom && !/^#\/quiz/.test(qzFrom) ? qzFrom : '#/'; qz = null; go(to); },
+    qzmode: function (el) { if (el.disabled || !qz) return; qz.mode = el.dataset.m === 'mc' ? 'mc' : 'type'; drawQuiz(); },
+    qzcount: function (el) { if (!qz) return; qz.count = +el.dataset.c || 0; drawQuiz(); },
+    qzstart: function () { if (!qz) return; var items = qzItems(qz.scope); if (!items.length) return; qzBegin(items, qzSetLabel(qz.scope)); },
+    qzskip: function () { var st = qz; if (!st || st.phase !== 'q' || st.res[st.i]) return; st.res[st.i] = { it: st.q[st.i], given: '', ok: false }; drawQuiz(); },
+    qzpick: function (el) { var st = qz; if (!st || st.phase !== 'q' || st.res[st.i]) return; var it = st.q[st.i], k = +el.dataset.k; st.res[st.i] = { it: it, given: it.opts[k], pick: k, ok: k === it.ci }; drawQuiz(); },
+    qznext: function () { var st = qz; if (!st || st.phase !== 'q' || !st.res[st.i]) return; if (st.i + 1 < st.q.length) { st.i++; drawQuiz(); } else qzFinish(); },
+    qzover: function () { var st = qz, r = st && st.res[st.i]; if (!r || r.ok) return; r.ok = true; r.over = true; drawQuiz(); },
+    qzretry: function () { var st = qz; if (!st) return; var missed = st.res.filter(function (r) { return !r.ok; }).map(function (r) { var c = Object.assign({}, r.it); delete c.opts; delete c.ci; delete c.typed; return c; }); if (!missed.length) return; st.count = 0; qzBegin(missed, st.label.replace(/ \u00b7 missed$/, '') + ' \u00b7 missed'); },
+    qzagain: function () { var st = qz; if (!st) return; st.phase = 'setup'; drawQuiz(); },
     dall: function () { go('#/discover', true); },
     dshuffle: function () { dShuffle = true; dForce = true; render(); },
     dmore: function () { loadBatch(); },
@@ -3698,7 +3917,8 @@
     cards: async function (el) {
       var n = notes.get(el.dataset.id); if (!n) return;
       var s = recallStats(n.id);
-      var a = await sheet({ title: s.total + ' Recall card' + (s.total === 1 ? '' : 's'), message: (s.due ? s.due + ' to review now' : 'None due right now') + ' \u00b7 lines with :: or {{c::}} in this note', actions: [{ label: s.due ? 'Review ' + s.due + ' now' : 'Practice all ' + s.total, value: 'rev', icon: I.recall }, { label: 'Export CSV for Synapse', value: 'csv', icon: I.copy }] });
+      var a = await sheet({ title: s.total + ' Recall card' + (s.total === 1 ? '' : 's'), message: (s.due ? s.due + ' to review now' : 'None due right now') + ' \u00b7 lines with :: or {{c::}} in this note', actions: [{ label: s.due ? 'Review ' + s.due + ' now' : 'Practice all ' + s.total, value: 'rev', icon: I.recall }, { label: 'Export CSV for Synapse', value: 'csv', icon: I.copy }].concat(qzPairs(n).length >= 2 ? [{ label: 'Quiz me (autograded)', value: 'quiz', icon: I.check }] : []) });
+      if (a === 'quiz') { qzOpen('n:' + n.id); return; }
       if (a === 'rev') { rv = null; go('#/review/' + encodeURIComponent(n.id) + (s.due ? '' : '/practice')); }
       else if (a === 'csv') exportCards(n);
     },

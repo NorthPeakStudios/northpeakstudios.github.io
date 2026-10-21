@@ -629,6 +629,60 @@ body.reviewing #view{padding-bottom:calc(var(--bpad) + 16px)}
 #view.dview #dmore{scroll-snap-align:end;min-height:72px;justify-content:center}
 #view.dview #dmore .dempty{scroll-snap-align:none}
 
+/* Quiz: autograded Q:A from your notes */
+.qz .qzh{flex:1;font-family:var(--serif);font-size:22px}
+.qzset{display:flex;flex-direction:column;gap:8px}
+.qzl{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-top:14px}
+.qzsel{width:100%;height:50px;border-radius:14px;border:1px solid var(--line2);background:var(--card);color:var(--text);padding:0 14px;-webkit-appearance:none;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--dim) 50%),linear-gradient(135deg,var(--dim) 50%,transparent 50%);background-position:calc(100% - 20px) 22px,calc(100% - 15px) 22px;background-size:5px 5px;background-repeat:no-repeat}
+.qzinfo{font-size:13.5px;color:var(--dim)}
+.qzmodes{display:flex;gap:10px}
+.qzmodes button{flex:1;min-height:66px;border-radius:16px;border:1px solid var(--line2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:16px;font-weight:600;color:var(--text)}
+.qzmodes button small{font-size:12px;font-weight:400;color:var(--faint)}
+.qzmodes button.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.qzmodes button:disabled{opacity:.4}
+.qzcount{align-self:flex-start}
+.qzcount button{padding:0 12px;font-family:var(--sans);font-size:14px}
+.qzset .bignew{margin:22px auto 4px}
+.qzset .bignew:disabled{opacity:.4}
+.qzhist{display:flex;flex-direction:column}
+.qzhr{display:flex;align-items:center;gap:12px;min-height:54px;border-bottom:1px solid var(--line)}
+.qzhr .nm{flex:1;min-width:0;font-size:15.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qzhr .nm small{display:block;font-size:12.5px;color:var(--faint);margin-top:2px}
+.qzhr b{font-variant-numeric:tabular-nums;font-size:17px;color:var(--dim)}
+.qzhr b.hi{color:#5fd38d}.qzhr b.lo{color:#ff7a72}
+.qzfmt{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:14px!important}
+.qzcard{flex:0 1 auto;min-height:190px}
+.qzcard .rvq{margin-top:18px}
+.qzfb{margin-top:auto;padding-top:20px;display:flex;flex-direction:column;gap:6px;font-size:15.5px;line-height:1.45;animation:rvin .22s ease}
+.qzfb b{font-size:18px;font-weight:600}
+.qzfb.ok b{color:#5fd38d}.qzfb.bad b{color:#ff7a72}
+.qzfb .qa{color:var(--text)}.qzfb .qy{color:var(--dim)}
+.qzform{display:flex;gap:8px;margin-top:14px}
+.qzform input{flex:1;min-width:0;height:56px;border-radius:16px;border:1px solid var(--line2);background:var(--card);padding:0 16px;outline:0}
+.qzform input:focus{border-color:var(--accent)}
+.qzform button{height:56px;padding:0 20px;border-radius:16px;background:var(--accent);color:#0b0b0c;font-weight:600;font-size:16px;flex:none}
+.qzskip,.qzover{display:block;margin:10px auto 0;color:var(--faint);font-size:14.5px;padding:8px 12px}
+.qzover{color:var(--accent)}
+.qzopts{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.qzopts button{min-height:56px;border-radius:16px;border:1px solid var(--line2);background:var(--card);padding:12px 16px;text-align:left;font-size:16px;line-height:1.3;color:var(--text)}
+.qzopts button.ok{border-color:#5fd38d;background:rgba(95,211,141,.15)}
+.qzopts button.bad{border-color:#ff7a72;background:rgba(255,122,114,.15)}
+.qzopts button.off{opacity:.5}
+.qzend{text-align:center;padding:8px 2px 20px}
+.qzpct{font-family:var(--serif);font-size:72px;line-height:1;color:var(--accent);margin-top:14px}
+.qzend>b{display:block;font-family:var(--serif);font-weight:400;font-size:26px;margin-top:10px}
+.qzend>p{color:var(--dim);margin:6px 0 0;font-size:14.5px}
+.qzbtns{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:22px}
+.qzbtns .bignew{margin-top:0}
+.qzbtns .pill{height:40px;padding:0 18px;border-radius:20px}
+.qzbtns .qzdone{color:var(--dim)}
+.qzmiss{text-align:left}
+.qzm{padding:12px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:3px}
+.qzm .q{font-size:15.5px;line-height:1.4}.qzm .a{color:#5fd38d;font-size:15px}.qzm .y{color:var(--faint);font-size:13.5px}
+.qzall{color:var(--dim);margin-top:22px}
+.cardct.qzb{margin-left:10px}
+.qz .rvbtns button:focus{outline:0}
+
 /* backup nudge on the Notes screen */
 .bkup{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 6px 10px 12px;border:1px solid var(--line2);border-radius:14px;background:var(--card)}
 .bkup>svg{width:22px;height:22px;flex:none;fill:none;stroke:var(--accent);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
