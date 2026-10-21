@@ -3628,6 +3628,7 @@
         '<button class="item" data-act="sylogin"><span>Log in<small>Already synced on another device</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>';
     } else if (PRO.need) {
       if (!/@/.test(sy.user || '')) h += syEmailItem();
+      else h += syChEmailItem();
       h += '<button class="item" data-act="getpro" data-what="Cloud sync"><span>Cloud sync needs Axon Pro<small>Signed in as ' + esc(sy.user) + ' \u00b7 ' + (PRO.req && PRO.req.status === 'new' ? 'request sent, it starts by itself once it\u2019s paid' : 'your notes start syncing as soon as Pro is on') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
         '<button class="item" data-act="sylogout"><span>Log out<small>Your notes stay on this device.</small></span></button>' +
         '<button class="item danger" data-act="sydelete"><span>Delete account</span></button>';
@@ -3635,12 +3636,14 @@
       if (!/@/.test(sy.user || '')) h += syEmailItem();
       h += '<button class="item" data-act="synow"><span>Sync now<small id="sysub">Signed in as ' + esc(sy.user) + ' \u00b7 last synced ' + syAgo() + (sy.err ? ' \u00b7 ' + esc(sy.err) : '') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
         '<div class="item"><span>End-to-end encrypted<small>Your password is the only key. If you forget it, the cloud copy can\u2019t be recovered, but the notes on this device stay.</small></span></div>' +
+        syChEmailItem() +
         '<button class="item" data-act="sypass"><span>Change password</span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
         '<button class="item" data-act="sylogout"><span>Log out<small>Stops syncing on this device. Your notes stay here.</small></span></button>' +
         '<button class="item danger" data-act="sydelete"><span>Delete cloud copy</span></button>';
     }
     return h + '</div>';
   }
+  function syChEmailItem() { return /@/.test(sy.user || '') ? '<button class="item" data-act="sychemail"><span>Change email<small>Moves your account, Pro and notes to a new email. Synapse and Liminal follow it.</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' : ''; }
   function syEmailItem() { return '<button class="item" data-act="syemail"><span>Add your email<small>Axon logins are emails now. Add yours once, then log in with it everywhere (it\u2019s your Northpeak account for Synapse and Liminal too).</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>'; }
   function syUI() {
     var s = $('#systate'), b = $('#sysub');
@@ -3665,7 +3668,11 @@
             '<input type="password" name="n2" placeholder="New password again" autocomplete="new-password" enterkeyhint="go" style="margin-top:8px">' +
             '<div class="err">' + esc(msg || '') + '</div><div class="db"><button data-v="0">Cancel</button><button class="acc" data-v="1">Change</button></div>';
         } else if (mode === 'email') {
-          el.innerHTML = '<h4>Add your email</h4><p>Axon now signs in with an email. Add yours and from now on you log in with <b>your email and this same password</b>, on every device. It\u2019s also your Northpeak account, so the same login works in Synapse and Liminal and All-Access follows you.</p>' +
+          if (o.change) el.innerHTML = '<h4>Change email</h4><p>Your account, Pro and synced notes move to the new email. You log in with <b>the new email and this same password</b> from now on, and the old email stops working. Synapse and Liminal follow it.</p>' +
+            '<input type="email" name="u" placeholder="New email" autocomplete="username" inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next">' +
+            '<input type="password" name="p" placeholder="Your password" autocomplete="current-password" enterkeyhint="go" style="margin-top:8px">' +
+            '<div class="err">' + esc(msg || '') + '</div><div class="db"><button data-v="0">Cancel</button><button class="acc" data-v="1">Change email</button></div>';
+          else el.innerHTML = '<h4>Add your email</h4><p>Axon now signs in with an email. Add yours and from now on you log in with <b>your email and this same password</b>, on every device. It\u2019s also your Northpeak account, so the same login works in Synapse and Liminal and All-Access follows you.</p>' +
             emailIn() +
             (o.pass ? '' : '<input type="password" name="p" placeholder="Your Axon password" autocomplete="current-password" enterkeyhint="go" style="margin-top:8px">') +
             '<div class="err">' + esc(msg || '') + '</div><div class="db"><button data-v="0">' + (o.later ? 'Later' : 'Cancel') + '</button><button class="acc" data-v="1">Add email</button></div>';
@@ -3778,6 +3785,59 @@
   /* after a sign-in: the Northpeak (Synapse) side of the same email + password, then All-Access if the account has it */
   async function syNorthpeak(email, pass, n) {
     try { if (!n) n = await AXS.northpeak('login', email, pass); if (n && n.ok && n.user && n.user.aaCode) await syAA(n.user.aaCode); } catch (e) {}
+    try { if (n && n.ok && n.moves && window.NPEmail) await NPEmail.apply(n.moves, pass, { skip: 'axon' }); } catch (e) {} // np-email-change v1: Liminal follows too
+  }
+  /* np-email-change v1 (Oct 21, 2026): change the email on an email account. The Axon account moves first (password checked
+     there); then the Northpeak account in Synapse, then Liminal's account through Synapse's signed note. If the new email is
+     already someone else's Northpeak account, Axon is put back. */
+  function synLinkGet() { try { var x = JSON.parse(localStorage.getItem('axon.synlink.v1') || 'null'); return x && x.tok ? x : null; } catch (e) { return null; } }
+  function synLinkSet(tok, email) { try { if (tok) localStorage.setItem('axon.synlink.v1', JSON.stringify({ tok: tok, email: email, at: Date.now() })); } catch (e) {} }
+  async function syChangeEmail() {
+    var msg = '';
+    for (;;) {
+      var v = await syForm('email', msg, '', { change: true }); if (!v) return false;
+      if (v.u === sy.user) { msg = 'That\u2019s already your email.'; continue; }
+      var busy = toast('Changing your email\u2026', null, 40000), old = sy.user, kl = sy.kdf || sy.user;
+      try {
+        var d = await AXS.derive(kl, v.p);
+        var r = await AXS.api('/api/email', { token: sy.token, body: { email: v.u, auth: d.auth } }); d.raw.fill(0);
+        var lk = synLinkGet(), sc = { skip: 'none' };
+        if (window.NPEmail) { try { sc = await NPEmail.changeSynapse(old, v.u, v.p, lk && lk.email === old ? lk.tok : null); } catch (e) { sc = { error: 'offline' }; } }
+        if (sc.error === 'exists') { // the new email is another Northpeak account: put Axon back on the old email
+          try { var d2 = await AXS.derive(kl, v.p); await AXS.api('/api/email', { token: sy.token, body: { email: old, auth: d2.auth } }); d2.raw.fill(0); } catch (e) {}
+          msg = 'That email already has a Northpeak account (from Synapse or Liminal). Use a different one.'; continue;
+        }
+        sy.kdf = r.kdf || kl; sy.user = r.email || v.u; sySave();
+        var also = '';
+        if (sc.ok) {
+          synLinkSet(sc.token, sy.user);
+          var mv = {}; try { mv = await NPEmail.apply(sc.moves, v.p, { skip: 'axon' }); } catch (e) {}
+          also = mv.liminal ? ' Synapse and Liminal changed too.' : ' Your Synapse login changed too.';
+        } else if (sc.skip === 'bad_login') { // no Synapse account with this password for the old email: make sure the new email has one
+          var n = null; try { n = await AXS.northpeak('signup', sy.user, v.p); } catch (e) {}
+          if (n && n.exists) also = ' Your Synapse account for it has a different password; change one so they match.';
+        } else if (sc.error && sc.error !== 'none') also = ' Synapse couldn\u2019t be changed right now (' + sc.error + '); change it there too.';
+        if (busy && busy.remove) busy.remove();
+        toast('Email changed to ' + sy.user + '. Log in with it from now on.' + also, null, 6000);
+        if (route().v === 'settings' && !openOverlays.length) renderSettings();
+        return true;
+      } catch (e) {
+        msg = e.offline ? 'You\u2019re offline. Connect and try again.' : e.message === 'wrong' ? 'That password is wrong.' : e.message === 'taken' ? 'Another Axon account already uses that email.' : e.message === 'email_locked' ? 'This account\u2019s email is locked (owner accounts keep theirs).' : e.message === 'bad_email' ? 'That doesn\u2019t look like an email.' : e.message === 'locked' ? 'Too many tries. Wait ' + ((e.body && e.body.wait) || 30) + ' seconds.' : 'Something went wrong (' + e.message + '). Try again.';
+      }
+    }
+  }
+  /* signed in on an email that changed in Synapse or Liminal: this account follows it (its own session is the proof) */
+  var syMoveLast = 0;
+  async function syFollowEmail() {
+    if (!window.NPEmail || !syOn() || !/@/.test(sy.user || '') || Date.now() - syMoveLast < 10 * 60e3) return;
+    syMoveLast = Date.now();
+    var lk = synLinkGet(); if (!lk) return;
+    try {
+      var me = await NPEmail.synMe(lk.tok);
+      if (!me || !me.user || me.user.email === sy.user || !(me.moves || []).some(function (m) { return m.old === sy.user; })) return;
+      var res = await NPEmail.apply(me.moves, null, { only: 'axon', tokens: { axon: sy.token } });
+      if (res.axon) { sy.user = me.user.email; sySave(); synLinkSet(lk.tok, sy.user); toast('Your Northpeak email is now ' + sy.user + '. Axon uses it too.'); if (route().v === 'settings' && !openOverlays.length) renderSettings(); }
+    } catch (e) {}
   }
   async function syAddEmail(o) {
     o = o || {};
@@ -3824,8 +3884,15 @@
             /* no Axon account for this email yet, but it may be a Northpeak account from Synapse or Liminal: then it's made here now */
             n = await AXS.northpeak('login', v.u, v.p);
             if (!n.ok) throw e;
-            try { r = await AXS.api('/api/signup', { body: { email: v.u, auth: d.auth, label: label, grand: PRO.grand ? 1 : 0 } }); mode = 'signup'; }
-            catch (e2) { throw e2.message === 'taken' ? e : e2; }
+            /* np-email-change v1: the email may have changed in Synapse or Liminal; then the Axon account on the old email moves to it */
+            if (n.moves && window.NPEmail) {
+              var mvd = {}; try { mvd = await NPEmail.apply(n.moves, v.p, { only: 'axon' }); } catch (e3) {}
+              if (mvd.axon) { kl = await AXS.kdf(v.u); d = await AXS.derive(kl, v.p); r = await AXS.api('/api/login', { body: { email: v.u, auth: d.auth, label: label, grand: PRO.grand ? 1 : 0 } }); }
+            }
+            if (!r) {
+              try { r = await AXS.api('/api/signup', { body: { email: v.u, auth: d.auth, label: label, grand: PRO.grand ? 1 : 0 } }); mode = 'signup'; }
+              catch (e2) { throw e2.message === 'taken' ? e : e2; }
+            }
           }
         }
         syForget(true);
@@ -3954,6 +4021,7 @@
     syemail: function () { syAddEmail(); },
     synow: function () { syncNow(true); },
     sypass: function () { syChangePass(); },
+    sychemail: function () { syChangeEmail(); },
     sylogout: async function () {
       var ok = await dialog({ title: 'Log out of cloud sync?', message: 'This device stops syncing. All your notes stay here, and the cloud copy stays in your account.', ok: 'Log out' });
       if (!ok) return;
@@ -4307,6 +4375,8 @@
     proLast = Date.now();
     try {
       var j = await AXS.api('/api/me', { token: sy.token }), had = PRO.need && !isPro() || PRO.need;
+      if (j.email && j.email !== sy.user) { sy.user = j.email; sySave(); } /* np-email-change v1: changed on another device */
+      else syFollowEmail();
       if ((j.allAccess || null) !== (PRO.aa || null)) { PRO.aa = j.allAccess || null; savePro(); }
       if ('owner' in j && !!j.owner !== !!PRO.owner) { PRO.owner = !!j.owner; savePro(); }
       proFromServer(!!j.pro, j.request || null);

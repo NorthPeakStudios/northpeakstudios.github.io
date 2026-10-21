@@ -73,7 +73,7 @@
       catch (e2) { return e2.message === 'exists' ? { exists: true } : { skip: e2.message }; }
     }
     if (j && j.token) { try { localStorage.setItem('axon.synlink.v1', JSON.stringify({ tok: j.token, email: (j.user && j.user.email) || email, at: Date.now() })); } catch (e) {} } // "Make cards" is already linked too
-    return { ok: true, user: j.user || null, token: j.token || null, created: !!j.created };
+    return { ok: true, user: j.user || null, token: j.token || null, created: !!j.created, moves: j.moves || null };
   }
   /* which name this account's encryption key was made with: the email, or the old username for an account that added an email later */
   async function kdf(email) { try { var j = await api('/api/kdf', { body: { email: email } }); return j.kdf || email; } catch (e) { if (e.status === 404) return email; throw e; } }

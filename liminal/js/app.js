@@ -3,7 +3,7 @@ import { moodColors, mixHex, hexRgb, moodWord, quadrant } from './color.js';
 import { Engine } from './audio.js';
 import { analyze, compose } from './poet.js';
 import { drawScene, sceneFor, SCENES, poster } from './paint.js?v=12';
-import * as cloud from './cloud.js?v=15';
+import * as cloud from './cloud.js?v=16';
 import * as db from './db.js';
 
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
@@ -450,7 +450,7 @@ function renderAccount(quiet){
   $('#privTitle').textContent = cloud.signedIn() ? 'encrypted, synced to your account' : 'stays on your phone unless you sign in to sync';
   if (!cloud.signedIn()) rows.innerHTML = `<button class="row" id="sSignIn"><span>sign in to sync</span><small>${A.user ? 'signed out · ' + esc(A.user) : 'email + password'}</small></button>`;
   else rows.innerHTML = `<div class="row static"><span>${esc(A.user)}</span><small>${syncMsg || (A.synced ? 'synced ' + ago(A.synced) : 'not synced yet')}</small></div>
-    ${/@/.test(A.user || '') ? '' : '<button class="row" id="sAddEmail"><span>add your email</span><small>sign in with it from now on, here and in synapse + axon</small></button>'}
+    ${/@/.test(A.user || '') ? '<button class="row" id="sChEmail"><span>change email</span><small>your account, pro + moments move to it · synapse + axon follow</small></button>' : '<button class="row" id="sAddEmail"><span>add your email</span><small>sign in with it from now on, here and in synapse + axon</small></button>'}
     <button class="row" id="sSyncNow"><span>sync now</span><small>pulls + saves changes</small></button>
     <button class="row" id="sSignOut"><span>sign out</span><small>moments stay on this phone</small></button>
     <button class="row danger" id="sDelAcct"><span>delete account</span><small id="sDelAcctSub">removes the synced copy</small></button>`;
@@ -463,6 +463,7 @@ function bindAccount(){
   on('sSignIn', () => openAuth(cloud.acct.user ? 'login' : 'signup'));
   on('sSyncNow', () => doSync());
   on('sAddEmail', () => openAuth('email'));
+  on('sChEmail', () => openAuth('chemail'));
   on('sSignOut', async () => { await cloud.logout(); toast('signed out · your moments stay here'); renderAccount(); afterAccount(); });
   on('sDelAcct', async e => { const b = e.currentTarget; if (!b.dataset.armed) { b.dataset.armed = 1; $('#sDelAcctSub').textContent = cloud.acct && cloud.acct.pro && !cloud.acct.owner ? 'tap again: deletes the synced copy + account, and liminal pro with it' : 'tap again: deletes the synced copy + account'; return; }
     /* np-r2: the second tap asks for the password again; the server checks it before anything is deleted */
@@ -549,19 +550,19 @@ function openAuth(kind, forPro){
 }
 function closeAuth(){ $('#auth').classList.remove('open'); $('#auth').setAttribute('aria-hidden', 'true'); $('#aPass').value = ''; $('#aConf').value = ''; heldPw = ''; }
 function paintAuth(){
-  const up = authKind === 'signup', em = authKind === 'email', lg = authLegacy && authKind === 'login';
+  const up = authKind === 'signup', ch = authKind === 'chemail', em = authKind === 'email' || ch, lg = authLegacy && authKind === 'login';
   $('.auth-seg').hidden = em;
   $$('.auth-seg button').forEach(b => b.classList.toggle('on', b.dataset.k === authKind));
-  $('#authTitle').textContent = em ? 'add your email' : up ? (authForPro ? 'start your free trial' : 'create an account') : lg ? 'sign in with your username' : 'welcome back';
-  $('#authWhy').textContent = em ? 'liminal signs in with an email now. add yours and from then on you sign in with it and this same password, here and in synapse + axon.' : up ? 'sync your journal so it survives a new phone, and get 3 days of liminal pro free.' : lg ? 'for accounts made before liminal used emails. next you\'ll add your email once.' : 'sign in with your northpeak email (the same one as synapse or axon) and your journal comes back, along with pro if you have it.';
+  $('#authTitle').textContent = ch ? 'change email' : em ? 'add your email' : up ? (authForPro ? 'start your free trial' : 'create an account') : lg ? 'sign in with your username' : 'welcome back';
+  $('#authWhy').textContent = ch ? 'your account, pro + moments move to the new email. sign in with it and this same password from now on; the old email stops working. synapse + axon follow it.' : em ? 'liminal signs in with an email now. add yours and from then on you sign in with it and this same password, here and in synapse + axon.' : up ? 'sync your journal so it survives a new phone, and get 3 days of liminal pro free.' : lg ? 'for accounts made before liminal used emails. next you\'ll add your email once.' : 'sign in with your northpeak email (the same one as synapse or axon) and your journal comes back, along with pro if you have it.';
   $('#aConfWrap').hidden = !up; $('#aPass').autocomplete = up ? 'new-password' : 'current-password'; $('#aPass').placeholder = up ? '8 or more characters' : 'your password';
-  $('#aPassWrap').hidden = em && !!heldPw;
+  $('#aPassWrap').hidden = em && !ch && !!heldPw;
   const u = $('#aUser');
   $('#aUserLbl').textContent = lg ? 'username' : 'email';
   u.type = lg ? 'text' : 'email'; u.inputMode = lg ? 'text' : 'email'; u.name = lg ? 'username' : 'email'; u.maxLength = lg ? 32 : 254;
-  u.placeholder = lg ? 'your username' : 'you@example.com';
+  u.placeholder = lg ? 'your username' : ch ? 'new email' : 'you@example.com';
   const alt = $('#aLegacy'); alt.hidden = authKind !== 'login'; alt.textContent = lg ? 'use your email instead' : 'signed up with a username before?';
-  $('#authGo').textContent = em ? 'add email' : up ? (authForPro ? 'create account · start trial' : 'create account') : 'sign in';
+  $('#authGo').textContent = ch ? 'change email' : em ? 'add email' : up ? (authForPro ? 'create account · start trial' : 'create account') : 'sign in';
 }
 $$('.auth-seg button').forEach(b => b.onclick = () => { authKind = b.dataset.k; authLegacy = false; paintAuth(); $('#authErr').hidden = true; });
 $('#aLegacy').onclick = () => { authLegacy = !authLegacy; $('#aUser').value = ''; paintAuth(); $('#authErr').hidden = true; $('#aUser').focus(); };
@@ -569,15 +570,21 @@ $('#aClose').onclick = closeAuth;
 $('#auth').addEventListener('click', e => { if (e.target.id === 'auth') closeAuth(); });
 $('#authForm').addEventListener('submit', async e => {
   e.preventDefault(); const err = m => { $('#authErr').textContent = m; $('#authErr').hidden = !m; };
-  const up = authKind === 'signup', em = authKind === 'email', lg = authLegacy && authKind === 'login';
+  const up = authKind === 'signup', ch = authKind === 'chemail', em = authKind === 'email', lg = authLegacy && authKind === 'login';
   const raw = $('#aUser').value, pw = em && heldPw ? heldPw : $('#aPass').value;
   const id = lg ? cloud.normUser(raw) : cloud.normEmail(raw);
   if (lg && !cloud.validUser(id)) return err('usernames are 3–32 letters, numbers, dots, dashes or underscores.');
   if (!lg && !id) return err(raw.trim() ? 'that doesn\'t look like an email. check it, like you@gmail.com.' : 'type your email.');
   if (up ? pw.length < 8 : !pw) return err(up ? 'passwords need 8 or more characters.' : 'type your password.');
   if (up && pw !== $('#aConf').value) return err('the two passwords don\'t match.');
-  err(''); const b = $('#authGo'); b.disabled = true; b.textContent = em ? 'adding…' : up ? 'locking your journal…' : 'signing in…';
+  err(''); const b = $('#authGo'); b.disabled = true; b.textContent = ch ? 'changing…' : em ? 'adding…' : up ? 'locking your journal…' : 'signing in…';
   try {
+    if (ch) { // np-email-change v1
+      if (id === cloud.acct.user) { b.disabled = false; paintAuth(); return err('that\'s already your email.'); }
+      const r = await cloud.changeEmail(id, pw);
+      closeAuth(); toast('email changed to ' + r.email + (r.also === 'synapse+axon' ? ' · synapse + axon too' : r.also === 'synapse' ? ' · synapse too' : r.also === 'np_other_pw' ? ' · your synapse account has another password' : r.also ? ' · change it in synapse too' : ''));
+      renderAccount(); afterAccount(); b.disabled = false; paintAuth(); return;
+    }
     if (em) {
       const j = await cloud.addEmail(id, pw);
       closeAuth(); toast(j.northpeak && j.northpeak.exists ? 'email added · your synapse account for it has another password' : 'email added · sign in with it from now on');
@@ -594,7 +601,7 @@ $('#authForm').addEventListener('submit', async e => {
     if ($('#pro').classList.contains('open')) { if (made && authForPro && !cloud.acct.request) closePro(); else renderPro(); }
     if (lg && !/@/.test(cloud.acct.user || '')) { heldPw = pw; authKind = 'email'; authLegacy = false; paintAuth(); $('#aUser').value = ''; $('#auth').classList.add('open'); $('#auth').setAttribute('aria-hidden', 'false'); }
   } catch (x) {
-    err(x.offline ? 'you\'re offline. connect and try again.' : x.message === 'np_exists' ? 'this email already has a northpeak account (from synapse or axon) with another password. use that password, or sign in.' : x.message === 'taken' ? (em ? 'another liminal account already uses that email.' : 'there\'s already an account with this email. sign in instead.') : x.message === 'wrong' ? (em ? 'that password is wrong.' : lg ? 'that username and password don\'t match.' : 'that email and password don\'t match.') : x.message === 'bad_email' ? 'that doesn\'t look like an email.' : x.message === 'locked' ? 'too many tries. wait a few minutes.' : x.message === 'slow_down' ? 'too many tries from here. try later.' : 'that didn\'t work (' + x.message + ').');
+    err(x.offline ? 'you\'re offline. connect and try again.' : x.message === 'np_taken' ? 'that email already has a northpeak account (from synapse or axon). use a different one.' : x.message === 'email_locked' ? 'this account\'s email is locked (owner accounts keep theirs).' : x.message === 'np_exists' ? 'this email already has a northpeak account (from synapse or axon) with another password. use that password, or sign in.' : x.message === 'taken' ? (em || ch ? 'another liminal account already uses that email.' : 'there\'s already an account with this email. sign in instead.') : x.message === 'wrong' ? (em || ch ? 'that password is wrong.' : lg ? 'that username and password don\'t match.' : 'that email and password don\'t match.') : x.message === 'bad_email' ? 'that doesn\'t look like an email.' : x.message === 'locked' ? 'too many tries. wait a few minutes.' : x.message === 'slow_down' ? 'too many tries from here. try later.' : 'that didn\'t work (' + x.message + ').');
   }
   b.disabled = false; paintAuth();
 });

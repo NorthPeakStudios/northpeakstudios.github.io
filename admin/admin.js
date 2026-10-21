@@ -122,7 +122,7 @@ function renderReq(){
   '<td class="c-top">'+appTag(r)+stTag(r.status)+'<span class="sub">'+esc(fmtT(r.t))+'</span></td>'+
   '<td class="c-app">'+appTag(r)+'</td><td class="c-time sub">'+esc(fmtT(r.t))+'</td>'+
   '<td class="c-name">'+esc(r.name||'—')+'</td><td class="c-contact">'+contact(r)+'</td>'+
-  '<td class="c-user">'+(r.username?'@'+esc(r.username):'')+'</td><td class="c-price">'+price+'</td>'+
+  '<td class="c-user">'+(r.username?(/@/.test(r.username)?'':'@')+esc(r.username):'')+'</td><td class="c-price">'+price+'</td>'+
   '<td class="c-status">'+stTag(r.status)+'</td>'+
   '<td class="c-code">'+(r.code?(masked?'<span class="mono">code hidden for your role</span>':'<span class="code" data-copy="'+esc(r.code)+'">'+esc(r.code)+'</span>'):'')+'</td>'+
   '<td class="c-id mono">'+esc(r.id)+'</td>'+
@@ -272,7 +272,7 @@ function renderAccounts(){
  $('#acBox').innerHTML=list.length?list.map(acCard).join(''):'<div class="empty">No accounts match.</div>'}
 function acCard(a){
  var k=a.app+':'+a.uid, meta=[];
- if(a.username&&a.email&&a.username!==a.email)meta.push('@'+esc(a.username));
+ /* r5: the login is the email; an old username isn't shown next to it any more */
  meta.push('joined '+esc(fmtT(a.created)));
  if(a.via)meta.push(esc(a.via));
  if(a.recs)meta.push(a.recs+' synced item'+(a.recs===1?'':'s'));
