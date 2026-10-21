@@ -516,7 +516,7 @@ $('#proCard').addEventListener('click', async e => {
     if (!cloud.signedIn()) { pendingCode = code; return openAuth('signup', true); }
     b.disabled = true; b.textContent = '…';
     try { const j = await cloud.redeem(code); proMsg = ''; toast(j.owner ? 'owner unlocked 👑' : j.product === 'all_access' ? 'all-access unlocked ✓' : 'liminal pro unlocked ✓'); afterAccount(); }
-    catch (err) { proMsg = ''; toast(err.message === 'used' ? 'that code is already on another account' : err.message === 'slow_down' ? 'too many tries, wait a bit' : err.offline ? 'you\'re offline' : 'that code didn\'t work'); }
+    catch (err) { proMsg = ''; toast(err.message === 'wrong_email' ? 'this owner code is already linked to another account' : err.message === 'used' ? 'that code is already on another account' : err.message === 'slow_down' ? 'too many tries, wait a bit' : err.offline ? 'you\'re offline' : 'that code didn\'t work'); }
     return renderPro();
   }
 });

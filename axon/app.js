@@ -4314,7 +4314,7 @@
           await proCheck(true); if (r.pro) proFromServer(true);
           toast(r.owner ? 'Owner unlocked \ud83d\udc51' : 'Axon Pro is on. Thank you!'); syncNow(false);
         } catch (e) {
-          msg = e.offline ? 'You\u2019re offline. Connect and try again.' : e.message === 'used' ? 'That code is already unlocking another Axon account.' : e.message === 'slow_down' ? 'Too many tries. Wait a bit and try again.' : e.message === 'bad_code' ? 'That code didn\u2019t work. Check it and try again.' : 'That didn\u2019t go through (' + e.message + '). Try again.';
+          msg = e.offline ? 'You\u2019re offline. Connect and try again.' : e.message === 'wrong_email' ? 'This owner code is already linked to another account.' : e.message === 'used' ? 'That code is already unlocking another Axon account.' : e.message === 'slow_down' ? 'Too many tries. Wait a bit and try again.' : e.message === 'bad_code' ? 'That code didn\u2019t work. Check it and try again.' : 'That didn\u2019t go through (' + e.message + '). Try again.';
         }
         paint();
       }

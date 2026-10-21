@@ -1,5 +1,5 @@
 /* Axon offline cache · Northpeak Studios */
-var CACHE = 'axon-v1.7.3';
+var CACHE = 'axon-v1.7.4';
 var SHELL = ['./', './index.html', './app.css?v=48', './md.js?v=48', './zip.js?v=48', './db.js?v=48', './graph.js?v=48', './sync.js?v=48', './synlink.js?v=48', './app.js?v=48',
   './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png', './icons/icon-32.png', './icons/favicon.svg'];
 self.addEventListener('install', function (e) {
