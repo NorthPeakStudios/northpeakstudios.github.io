@@ -2,7 +2,8 @@ import { PROMPTS } from './prompts.js';
 import { moodColors, mixHex, hexRgb, moodWord, quadrant } from './color.js';
 import { Engine } from './audio.js';
 import { analyze, compose } from './poet.js';
-import { paint, layout } from './paint.js';
+import { drawScene, sceneFor, SCENES, poster } from './paint.js?v=11';
+import * as cloud from './cloud.js?v=11';
 import * as db from './db.js';
 
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
@@ -11,6 +12,7 @@ const CHIPS = ['foggy', 'tender', 'electric', 'hollow', 'warm', 'sharp', 'tangle
 const newSeed = () => (Math.random() * 4294967295) >>> 0;
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
 const engine = new Engine();
+const isPro = () => cloud.isPro();
 const S = { mode: 'words', live: { v: .62, e: .3, chips: [] }, field: { v: .62, e: .3 }, chips: [], seed: newSeed(), result: null, moments: [], view: 'painting', muralMonth: null, detail: null, muted: LS.get('muted', false), tab: 'feel' };
 
 /* ---------- aura ---------- */
@@ -61,7 +63,7 @@ const aura = (() => {
 /* ---------- sound ---------- */
 const ICON_ON = '<svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4.5 4.5 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11"/></svg>';
 const ICON_OFF = '<svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>';
-function paintSoundIcons(){ [$('#soundBtn'), $('#dSound')].forEach(b => { b.innerHTML = S.muted ? ICON_OFF : ICON_ON; b.setAttribute('aria-label', S.muted ? 'Sound off' : 'Sound on'); }); $('#sSoundT').classList.toggle('on', !S.muted); }
+function paintSoundIcons(){ [$('#soundBtn'), $('#dSound')].forEach(b => { b.innerHTML = (S.muted || !isPro()) ? ICON_OFF : ICON_ON; b.classList.toggle('locked', !isPro()); b.setAttribute('aria-label', S.muted ? 'Sound off' : 'Sound on'); }); $('#sSoundT').classList.toggle('on', !S.muted); }
 async function unlock(){
   await engine.unlock(); engine.setMuted(S.muted);
   $('#soundPill').classList.remove('on');
@@ -69,14 +71,14 @@ async function unlock(){
 }
 function syncSound(){
   if (!engine.ready) return;
-  const wantPlay = !S.muted && (S.detail || S.tab === 'feel');
+  const wantPlay = isPro() && !S.muted && (S.detail || S.tab === 'feel');
   if (wantPlay) engine.play(); else engine.stop();
 }
 function setMuted(m){ S.muted = m; LS.set('muted', m); engine.setMuted(m); paintSoundIcons(); syncSound(); }
 ['pointerdown', 'touchend', 'click', 'keydown'].forEach(ev => document.addEventListener(ev, () => { if (!engine.ready || engine.ctx.state !== 'running') unlock(); }, { passive: true }));
 document.addEventListener('visibilitychange', () => document.hidden ? engine.suspend() : engine.resume());
-$('#soundBtn').onclick = () => setMuted(!S.muted);
-$('#dSound').onclick = () => setMuted(!S.muted);
+$('#soundBtn').onclick = () => isPro() ? setMuted(!S.muted) : openPro('the soundscape');
+$('#dSound').onclick = () => isPro() ? setMuted(!S.muted) : openPro('the soundscape');
 paintSoundIcons();
 
 /* ---------- live mood (aura + sound follow it) ---------- */
@@ -87,8 +89,10 @@ function palette(a, chips = []){
   if (cw[1]) c[1] = mixHex([c[1], cw[1]]); else if (cw[0]) c[1] = mixHex([c[1], c[1], cw[0]]);
   return c;
 }
+const CALM = { v: .62, e: .3, colorWords: [] };
 function setLive(a, chips = [], seed = S.seed){
   S.live = { v: a.v, e: a.e, chips };
+  if (!isPro()) { aura.set(palette(CALM), 0.5, 0.42, .3); return; } // the generated palette + soundscape are liminal pro; free keeps a calm, neutral sky
   aura.set(palette(a, chips), 0.2 + a.v * 0.6, 0.2 + (1 - a.e) * 0.5, a.e);
   engine.setMood(S.live, seed);
 }
@@ -103,6 +107,7 @@ $('#text').addEventListener('input', e => {
   clearTimeout(liveT); liveT = setTimeout(() => {
     if (t.trim().length < 2) { $('#live').classList.remove('on'); return; }
     const a = analyze(t); setLive(a);
+    if (!isPro()) { $('#live').classList.remove('on'); return; } // reading the mood as you type is part of the poem writer (pro)
     $('#liveWord').textContent = a.crisis ? 'heavy' : moodWord(a.v, a.e); $('#live').classList.add('on');
     $('#askEm').textContent = a.matched ? moodWord(a.v, a.e) : 'feel';
   }, 220);
@@ -147,12 +152,13 @@ function buildResult(){
 }
 function renderPoem(lines){ $('#poem').innerHTML = lines.map((l, i) => `<span style="animation-delay:${0.15 + i * 0.55}s">${esc(l)}</span>`).join(''); }
 function translate(){
-  const r = buildResult(), seed = newSeed();
-  const poem = compose(r.a, seed), colors = palette(r.a, r.chips), word = r.a.crisis ? 'heavy' : moodWord(r.a.v, r.a.e);
+  const r = buildResult(), seed = newSeed(), pro = isPro();
+  const poem = pro ? compose(r.a, seed) : null, colors = palette(r.a, r.chips), word = r.a.crisis ? 'heavy' : moodWord(r.a.v, r.a.e);
   S.result = { ...r, seed, poem, colors, word, prompt: pickPrompt(quadrant(r.a.v, r.a.e)) };
   S.seed = seed; setLive(r.a, r.chips, seed);
-  $('#said').innerHTML = r.mode === 'words' ? `you said: <b>“${esc(r.text)}”</b>` : `no words — <b>${esc(word)}</b>${r.chips.length ? ', ' + esc(r.chips.join(', ')) : ''}`;
-  renderPoem(poem);
+  $('#said').innerHTML = r.mode === 'words' ? `you said: <b>“${esc(r.text)}”</b>` : (pro ? `no words — <b>${esc(word)}</b>` : 'no words tonight') + (r.chips.length ? ', ' + esc(r.chips.join(', ')) : '');
+  if (pro) renderPoem(poem); else $('#poem').innerHTML = '';
+  $('#poem').hidden = !pro; $('#poemLock').hidden = pro; $('.result-row').hidden = !pro; paintLockCta();
   $('#resWord').textContent = word; $('#wordDot').style.background = colors[0]; $('#wordDot').style.boxShadow = `0 0 10px ${colors[0]}`;
   $('#swatches').innerHTML = colors.map(c => `<i style="background:${c}"></i>`).join('');
   $('#care').hidden = !r.a.crisis;
@@ -161,17 +167,17 @@ function translate(){
 }
 $('#translate').onclick = () => { $('#text').blur(); translate(); };
 $('#translateField').onclick = translate;
-$('#rewrite').onclick = () => { const R = S.result; if (!R) return; R.seed = newSeed(); R.poem = compose(R.a, R.seed); S.seed = R.seed; engine.setMood(S.live, R.seed); renderPoem(R.poem); };
+$('#rewrite').onclick = () => { const R = S.result; if (!R || !isPro()) return; R.seed = newSeed(); R.poem = compose(R.a, R.seed); S.seed = R.seed; engine.setMood(S.live, R.seed); renderPoem(R.poem); };
 $('#another').onclick = () => { if (!S.result) return; S.result.prompt = pickPrompt(quadrant(S.result.a.v, S.result.a.e)); setPrompt(S.result.prompt); };
 $('#again').onclick = () => showStage(S.mode === 'words' ? '#stWords' : '#stField');
 $('#answer').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); });
 
 $('#keep').onclick = async () => {
   const R = S.result; if (!R) return;
-  const m = { id: uid(), t: Date.now(), tz: -new Date().getTimezoneOffset(), mode: R.mode, text: R.text, poem: R.poem, v: +R.a.v.toFixed(3), e: +R.a.e.toFixed(3), chips: R.chips, colors: R.colors, word: R.word, prompt: R.prompt, answer: $('#answer').value.trim(), seed: R.seed, care: !!R.a.crisis, v1: 1 };
+  const m = { id: uid(), t: Date.now(), tz: -new Date().getTimezoneOffset(), mode: R.mode, text: R.text, poem: R.poem || null, v: +R.a.v.toFixed(3), e: +R.a.e.toFixed(3), chips: R.chips, colors: R.colors, word: R.word, prompt: R.prompt, answer: $('#answer').value.trim(), seed: R.seed, care: !!R.a.crisis, v1: 1 };
   try { await db.put(m); } catch (err) { toast('couldn\'t save — storage is full or blocked'); return; }
-  S.moments.unshift(m);
-  flyToArchive(R.colors); toast('kept · ' + fmtTime(m.t));
+  S.moments.unshift(m); cloud.markDirty(m.id); syncSoon();
+  flyToArchive(isPro() ? R.colors : ['#cfc8e6', '#8f88b0', '#2a2640']); toast('kept · ' + fmtTime(m.t));
   setTimeout(() => { $('#text').value = ''; $('#translate').disabled = true; $('#live').classList.remove('on'); $('#askEm').textContent = 'feel'; S.chips = []; $$('.chip').forEach(c => c.classList.remove('on')); S.result = null; showStage(S.mode === 'words' ? '#stWords' : '#stField'); }, 900);
   renderArchive();
   navigator.storage?.persist?.();
@@ -207,50 +213,61 @@ const tileBg = m => `radial-gradient(circle at ${18 + m.v * 64}% ${18 + (1 - m.e
 
 $$('.seg button').forEach((b, i) => b.onclick = () => { S.view = b.dataset.view; $$('.seg button').forEach(x => x.classList.toggle('on', x === b)); $('.seg-pill').style.transform = `translateX(${i * 100}%)`; $$('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + S.view)); renderArchive(); });
 
+const PRO_VIEWS = { painting: ['your moments, painted', 'every feeling you keep becomes a little scene: sunrise over the hills, rain on the window, a lone streetlight, a storm at sea. laid out week by week.'],
+  mural: ['the mural', 'a calendar of colors, one square for every day you checked in.'], drift: ['your drift', 'watch your colors drift over the weeks: lighter, heavier, stiller, more restless.'] };
 function renderArchive(){
-  const n = S.moments.length;
-  $('#count').textContent = n ? `${n} moment${n === 1 ? '' : 's'} · private, stays on your phone` : 'private, stays on your phone';
+  const n = S.moments.length, where = cloud.signedIn() ? 'synced to ' + cloud.acct.user : 'stays on your phone';
+  $('#count').textContent = n ? `${n} moment${n === 1 ? '' : 's'} · ${where}` : where;
+  document.body.classList.toggle('is-pro', isPro());
   if (S.tab !== 'archive' && !S.detail) return;
+  if (PRO_VIEWS[S.view] && !isPro()) return renderLocked(S.view);
   ({ painting: renderPainting, moments: renderMoments, mural: renderMural, drift: renderDrift })[S.view]();
+}
+/* a locked pro view: a real preview of what it does (sample scenes behind frosted glass) and the way in */
+const SAMPLE = [[.82, .22, 'hills', 'serene'], [.3, .6, 'rain', 'wistful'], [.2, .2, 'streetlight', 'sunken'], [.86, .86, 'fireworks', 'soaring'], [.14, .88, 'storm', 'stormy'], [.6, .4, 'sea', 'tender']];
+function renderLocked(view){
+  const el = $('#v-' + view), x = PRO_VIEWS[view]; paintKey = '';
+  el.innerHTML = `<div class="lockview"><div class="locked-art">${SAMPLE.map((s, i) => `<canvas data-i="${i}" width="180" height="225"></canvas>`).join('')}</div>
+    <div class="locked-card"><div class="lk-ico">${LOCK}</div><h4>${x[0]}</h4><p>${x[1]}</p>
+    <button class="primary lk-go">${lockCta()}</button><p class="lk-fine">the journal stays free: typing, keeping moments, the list, export and delete.</p></div></div>`;
+  el.querySelectorAll('canvas').forEach(c => { const s = SAMPLE[+c.dataset.i]; drawScene(c, { v: s[0], e: s[1], seed: 900 + +c.dataset.i * 31, colors: moodColors(s[0], s[1]), scene: s[2] }); });
+  el.querySelector('.lk-go').onclick = () => openPro(x[0]);
 }
 const EMPTY = (h, p) => `<div class="empty"><div class="e-door"></div><h4>${h}</h4><p>${p}</p></div>`;
 
-let paintKey = '', spots = [];
-async function renderPainting(){
-  const el = $('#v-painting'), n = S.moments.length;
-  if (!n) { el.innerHTML = EMPTY('your painting is blank', 'every moment you keep bleeds its colors in. over weeks it becomes a picture of who you were.'); paintKey = ''; return; }
-  const key = S.moments.map(m => m.id).join(',');
-  if (!el.querySelector('#painting')) {
-    el.innerHTML = `<div class="painting-wrap"><canvas id="painting"></canvas></div>
-      <div class="painting-cap"><p>oldest at the edges, newest glowing in the middle. tap a color to see its poem.</p><button id="savePaint" class="pill btn"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>save image</button></div>`;
-    paintKey = '';
-    $('#painting').addEventListener('click', onPaintTap); $('#savePaint').onclick = savePainting;
-  }
-  if (key === paintKey) return; paintKey = key;
-  const cv = $('#painting'), w = cv.clientWidth || 358, dpr = Math.min(2, devicePixelRatio || 1);
-  cv.width = Math.round(w * dpr); cv.height = Math.round(w * 1.25 * dpr);
-  spots = layout(S.moments, cv.width, cv.height);
-  spots = await paint(cv, S.moments, { progressive: true });
-}
-function onPaintTap(ev){
-  const cv = ev.currentTarget, r = cv.getBoundingClientRect(), sx = cv.width / r.width;
-  const x = (ev.clientX - r.left) * sx, y = (ev.clientY - r.top) * sx;
-  let best = null, bd = 1e9;
-  for (let i = spots.length - 1; i >= 0; i--) { const s = spots[i], d = Math.hypot(s.x - x, s.y - y) / s.s; if (d < bd) { bd = d; best = s; } }
-  if (!best || bd > 1.6) return;
-  const ring = document.createElement('span'); ring.className = 'tap-ring'; ring.style.left = (best.x / sx) + 'px'; ring.style.top = (best.y / sx) + 'px'; cv.parentNode.appendChild(ring); setTimeout(() => ring.remove(), 700);
-  const list = S.moments; setTimeout(() => openDetail(list, list.indexOf(best.m)), 220);
+let paintKey = '', tileObs = null;
+const weekStart = t => { const d = new Date(t); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - d.getDay()); return +d; };
+function renderPainting(){
+  const el = $('#v-painting'), ms = S.moments;
+  if (!ms.length) { el.innerHTML = EMPTY('your gallery is empty', 'every moment you keep becomes a little painted scene. over the weeks your gallery fills with who you were.'); paintKey = ''; return; }
+  const key = ms.map(m => m.id).join(','); if (key === paintKey && el.querySelector('.gallery')) return; paintKey = key;
+  const groups = []; ms.forEach(m => { const k = weekStart(m.t); if (!groups.length || groups[groups.length - 1].k !== k) groups.push({ k, items: [] }); groups[groups.length - 1].items.push(m); });
+  const now = weekStart(Date.now()), f = t => new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' }).toLowerCase();
+  const wl = k => k === now ? 'this week' : k === now - 7 * 864e5 ? 'last week' : `${f(k)} – ${f(k + 6 * 864e5)}`;
+  const dl = t => dayKey(t) === dayKey(Date.now()) ? 'today ' + fmtTime(t) : new Date(t).toLocaleDateString([], { weekday: 'short' }).toLowerCase() + ' ' + fmtTime(t);
+  const weeks = groups.length;
+  el.innerHTML = `<div class="gal-head"><p>${ms.length} moment${ms.length === 1 ? '' : 's'}, ${weeks} week${weeks === 1 ? '' : 's'}. each feeling, painted as the scene it felt like. tap one to open it.</p><button id="savePaint" class="pill btn"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>save image</button></div>` +
+    groups.map(g => { const mix2 = g.items.map(m => m.colors[0]); return `<section class="gal-week"><h5 class="gal-wl"><span>${wl(g.k)}</span><i style="background:linear-gradient(90deg,${mix2.length > 1 ? mix2.join(',') : mix2[0] + ',' + mix2[0]})"></i><b>${g.items.length}</b></h5><div class="gallery">${g.items.map(m => {
+      const sc = sceneFor(m); return `<button class="scene" data-id="${m.id}" aria-label="${esc(m.word)}, ${esc(SCENES[sc])}"><canvas width="340" height="420" data-id="${m.id}"></canvas><span class="sc-cap"><b>${esc(m.word)}</b><small>${dl(m.t)}</small></span></button>`; }).join('')}</div></section>`; }).join('');
+  $('#savePaint').onclick = savePainting;
+  el.querySelectorAll('.scene').forEach(b => b.onclick = () => openDetail(ms, ms.findIndex(m => m.id === b.dataset.id)));
+  if (tileObs) tileObs.disconnect();
+  const draw = c => { if (c.dataset.done) return; c.dataset.done = 1; const m = ms.find(x => x.id === c.dataset.id); if (m) drawScene(c, m); };
+  const cvs = [...el.querySelectorAll('.scene canvas')];
+  if ('IntersectionObserver' in window) { tileObs = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { draw(e.target); tileObs.unobserve(e.target); } }), { rootMargin: '400px 0px' }); cvs.forEach(c => tileObs.observe(c)); }
+  else cvs.forEach(draw);
+  cvs.slice(0, 6).forEach(draw);
 }
 async function savePainting(){
   try { await document.fonts.load('italic 40px "Instrument Serif"'); } catch {}
   const c = document.createElement('canvas'); c.width = 1080; c.height = 1350;
   const ms = S.moments, first = new Date(ms[ms.length - 1].t), last = new Date(ms[0].t);
   const f = d => d.toLocaleDateString([], { month: 'short', day: 'numeric' }).toLowerCase();
-  await paint(c, ms, { caption: ['liminal', `${ms.length} moment${ms.length === 1 ? '' : 's'} · ${f(first)}${ms.length > 1 ? ' – ' + f(last) : ''}`] });
+  await poster(c, ms, ['liminal', `${ms.length} moment${ms.length === 1 ? '' : 's'} · ${f(first)}${ms.length > 1 ? ' – ' + f(last) : ''}`]);
   const blob = await new Promise(r => c.toBlob(r, 'image/png'));
-  const file = new File([blob], 'liminal-painting.png', { type: 'image/png' });
-  if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: 'my liminal painting' }); return; } catch (e) { if (e.name === 'AbortError') return; } }
-  download(blob, 'liminal-painting.png'); toast('saved');
+  const file = new File([blob], 'liminal-gallery.png', { type: 'image/png' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: 'my liminal gallery' }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  download(blob, 'liminal-gallery.png'); toast('saved');
 }
 function download(blob, name){ const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000); }
 
@@ -264,6 +281,7 @@ function renderMoments(){
   const tl = t => dayKey(t) === dayKey(Date.now()) ? fmtTime(t) : new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' }).toLowerCase();
   el.innerHTML = groups.map(g => `<h5 class="day-h">${gl(g.t)}</h5><div class="mosaic">${g.items.map((m, i) => {
     const big = i === 0 && g.items.length >= 3;
+    if (!isPro()) return `<button class="tile plain${big ? ' big' : ''}" data-id="${m.id}"><span class="tt">${tl(m.t)}</span><span class="tx">${esc(m.text || (m.chips && m.chips.length ? m.chips.join(', ') : 'no words'))}</span>${m.answer ? `<span class="ta">${esc(m.answer)}</span>` : ''}</button>`;
     return `<button class="tile${big ? ' big' : ''}" data-id="${m.id}" style="background:${tileBg(m)}"><span class="tt">${tl(m.t)}</span>${big && m.poem ? `<span class="tl">${esc(m.poem[0])}</span>` : ''}<span class="tw">${esc(m.word)}</span></button>`; }).join('')}</div>`).join('');
   el.querySelectorAll('.tile').forEach(t => t.onclick = () => openDetail(ms, ms.findIndex(m => m.id === t.dataset.id)));
 }
@@ -335,20 +353,25 @@ function openDetail(list, idx){
   if (idx < 0) return; S.detail = { list, idx }; drawDetail();
   $('#detail').classList.add('open'); document.body.classList.add('detail-open'); $('#detail').setAttribute('aria-hidden', 'false'); syncSound();
 }
+function poemFor(m){
+  if (m.poem) return m.poem; if (!isPro()) return null;
+  const a = m.mode === 'words' && m.text ? analyze(m.text) : { v: m.v, e: m.e, anchor: (m.chips || [])[0] || null, theme: null, colorWords: [], crisis: !!m.care, matched: 1 };
+  a.v = m.v; a.e = m.e; return compose(a, m.seed >>> 0);
+}
 function drawDetail(){
-  const { list, idx } = S.detail, m = list[idx], d = new Date(m.t);
-  aura.set(m.colors, 0.2 + m.v * 0.6, 0.2 + (1 - m.e) * 0.5, m.e);
-  engine.setMood({ v: m.v, e: m.e, chips: m.chips || [] }, m.seed);
+  const { list, idx } = S.detail, m = list[idx], d = new Date(m.t), pro = isPro(), poem = poemFor(m);
+  if (pro) { aura.set(m.colors, 0.2 + m.v * 0.6, 0.2 + (1 - m.e) * 0.5, m.e); engine.setMood({ v: m.v, e: m.e, chips: m.chips || [] }, m.seed); }
   $('#dIndex').textContent = list.length > 1 ? `${idx + 1} of ${list.length}` : '';
   $('#dBody').innerHTML = `<p class="d-date">${d.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }).toLowerCase()} · ${fmtTime(m.t)}</p>
-    <h2 class="d-word">${esc(m.word)}</h2>
-    ${m.poem ? `<div class="d-poem">${m.poem.map(l => `<span>${esc(l)}</span>`).join('')}</div>` : ''}
+    ${pro ? `<div class="d-scene"><canvas id="dScene" width="680" height="440"></canvas><span>${esc(SCENES[sceneFor(m)])}</span></div><h2 class="d-word">${esc(m.word)}</h2>` : ''}
+    ${poem ? `<div class="d-poem">${poem.map(l => `<span>${esc(l)}</span>`).join('')}</div>` : `<button class="poem-lock d-lock"><span class="pl-lines"><i></i><i></i><i></i></span><span class="pl-k">${LOCK}this moment's poem &amp; painting are waiting</span><span class="pl-cta">${lockCta()}</span></button>`}
     ${m.text ? `<p class="d-said">${esc(m.text)}</p>` : ''}
     ${m.care ? `<div class="care"><p>if it's still heavy, you can call or text <b>988</b> anytime.</p><div class="care-links"><a href="tel:988">call 988</a><a href="sms:988">text 988</a></div></div>` : ''}
     <p class="d-q">the question</p><p class="d-prompt">${esc(m.prompt)}</p>
     ${m.answer ? `<p class="d-answer">${esc(m.answer)}</p>` : '<p class="d-answer" style="color:var(--ink3)">left unanswered</p>'}
     ${m.chips && m.chips.length ? `<div class="d-chips">${m.chips.map(c => `<span>${esc(c)}</span>`).join('')}</div>` : ''}
-    <p class="d-coord">${Math.round(m.v * 100)}% light · ${Math.round(m.e * 100)}% restless</p>`;
+    ${pro ? `<p class="d-coord">${Math.round(m.v * 100)}% light · ${Math.round(m.e * 100)}% restless</p>` : ''}`;
+  if (pro) drawScene($('#dScene'), m); else $('#dBody .d-lock').onclick = () => openPro('this moment\'s poem');
   $('#dPrev').style.visibility = idx > 0 ? 'visible' : 'hidden'; $('#dNext').style.visibility = idx < list.length - 1 ? 'visible' : 'hidden';
   $('#dDelete').textContent = 'delete'; $('#dDelete').dataset.armed = '';
   $('#dBody').scrollTop = 0;
@@ -359,7 +382,7 @@ $('#dPrev').onclick = () => { S.detail.idx--; drawDetail(); };
 $('#dNext').onclick = () => { S.detail.idx++; drawDetail(); };
 $('#dDelete').onclick = async e => {
   const b = e.currentTarget; if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'tap again to delete'; return; }
-  const m = S.detail.list[S.detail.idx]; await db.remove(m.id);
+  const m = S.detail.list[S.detail.idx]; await db.remove(m.id); cloud.markGone(m.id); syncSoon();
   S.moments = S.moments.filter(x => x.id !== m.id); S.detail.list = S.detail.list.filter(x => x.id !== m.id);
   toast('deleted'); if (!S.detail.list.length) closeDetail(); else { S.detail.idx = Math.min(S.detail.idx, S.detail.list.length - 1); drawDetail(); }
   renderArchive();
@@ -369,7 +392,7 @@ $('#detail').addEventListener('touchend', e => { if (sy != null && e.changedTouc
 
 /* ---------- settings ---------- */
 const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
-$('#settingsBtn').onclick = () => { $('#installTip').hidden = !!standalone; $('#settings').classList.add('open'); $('#settings').setAttribute('aria-hidden', 'false'); };
+$('#settingsBtn').onclick = () => { $('#installTip').hidden = !!standalone; renderAccount(); $('#settings').classList.add('open'); $('#settings').setAttribute('aria-hidden', 'false'); cloud.refresh().then(j => j && renderAccount()); };
 const closeSettings = () => { $('#settings').classList.remove('open'); $('#settings').setAttribute('aria-hidden', 'true'); $('#sDeleteSub').textContent = 'can\'t be undone'; delete $('#sDelete').dataset.armed; };
 $('#sClose').onclick = closeSettings;
 $('#settings').addEventListener('click', e => { if (e.target.id === 'settings') closeSettings(); });
@@ -386,16 +409,168 @@ $('#importFile').onchange = async e => {
   try {
     const j = JSON.parse(await f.text()), list = (Array.isArray(j) ? j : j.moments || []).filter(m => m && m.id && m.t && Array.isArray(m.colors) && typeof m.v === 'number' && typeof m.e === 'number');
     const have = new Set(S.moments.map(m => m.id)), fresh = list.filter(m => !have.has(m.id));
-    await db.putMany(fresh); S.moments = await db.all(); paintKey = ''; renderArchive();
+    await db.putMany(fresh); fresh.forEach(m => cloud.markDirty(m.id)); syncSoon(); S.moments = await db.all(); paintKey = ''; renderArchive();
     toast(fresh.length ? `imported ${fresh.length} moment${fresh.length === 1 ? '' : 's'}` : 'nothing new to import');
   } catch { toast('that file isn\'t a liminal archive'); }
   e.target.value = '';
 };
 $('#sDelete').onclick = async e => {
   const b = e.currentTarget; if (!S.moments.length) return toast('nothing to delete');
-  if (!b.dataset.armed) { b.dataset.armed = '1'; $('#sDeleteSub').textContent = `tap again to delete all ${S.moments.length}`; return; }
-  await db.clear(); S.moments = []; paintKey = ''; renderArchive(); closeSettings(); toast('archive deleted');
+  if (!b.dataset.armed) { b.dataset.armed = '1'; $('#sDeleteSub').textContent = `tap again to delete all ${S.moments.length}${cloud.signedIn() ? ' (here + synced)' : ''}`; return; }
+  cloud.markGone(S.moments.map(m => m.id)); await db.clear(); S.moments = []; paintKey = ''; renderArchive(); closeSettings(); syncSoon(); toast(cloud.signedIn() ? 'archive deleted here and in your account' : 'archive deleted');
 };
+
+
+/* ---------- account, sync & liminal pro ---------- */
+const LOCK = '<svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg>';
+const CHECK = '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const trialUsed = () => cloud.signedIn() && cloud.acct.trialEnd > 0 && cloud.trialLeft() <= 0;
+const lockCta = () => !cloud.signedIn() ? 'try liminal pro free for 3 days' : trialUsed() ? 'unlock liminal pro · $35' : 'see liminal pro';
+function paintLockCta(){ const c = $('#poemLockCta'); if (c) c.textContent = lockCta(); }
+$('#poemLock').onclick = () => openPro('the poem writer');
+const daysLeft = () => { const ms = cloud.trialLeft(); const h = Math.ceil(ms / 3600e3); return h > 36 ? Math.ceil(ms / 864e5) + ' days' : h + ' hour' + (h === 1 ? '' : 's'); };
+const ago = t => { const s = (Date.now() - t) / 1000; return s < 60 ? 'just now' : s < 3600 ? Math.floor(s / 60) + ' min ago' : s < 86400 ? Math.floor(s / 3600) + ' h ago' : new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' }).toLowerCase(); };
+
+let syncT = null, syncMsg = '';
+function syncSoon(ms = 600){ if (!cloud.signedIn()) return; clearTimeout(syncT); syncT = setTimeout(doSync, ms); }
+async function doSync(){
+  if (!cloud.signedIn()) return;
+  try { syncMsg = 'syncing…'; renderAccount(true); const r = await cloud.sync(db); syncMsg = '';
+    if (r && r.changed) { S.moments = await db.all(); paintKey = ''; renderArchive(); }
+  } catch (e) { syncMsg = e.offline ? 'offline, will sync later' : 'sync paused (' + e.message + ')'; }
+  renderAccount(true);
+}
+
+function renderAccount(quiet){
+  const A = cloud.acct, rows = $('#acctRows'), pr = $('#proRows'); if (!rows) return;
+  $('#privTitle').textContent = cloud.signedIn() ? 'encrypted, synced to your account' : 'stays on your phone unless you sign in to sync';
+  if (!cloud.signedIn()) rows.innerHTML = `<button class="row" id="sSignIn"><span>sign in to sync</span><small>${A.user ? 'signed out · ' + esc(A.user) : 'username + password'}</small></button>`;
+  else rows.innerHTML = `<div class="row static"><span>${esc(A.user)}</span><small>${syncMsg || (A.synced ? 'synced ' + ago(A.synced) : 'not synced yet')}</small></div>
+    <button class="row" id="sSyncNow"><span>sync now</span><small>pulls + saves changes</small></button>
+    <button class="row" id="sSignOut"><span>sign out</span><small>moments stay on this phone</small></button>
+    <button class="row danger" id="sDelAcct"><span>delete account</span><small id="sDelAcctSub">removes the synced copy</small></button>`;
+  const ps = A.pro ? 'on' + (A.allAccess ? ' · all-access' : '') : cloud.onTrial() ? 'free trial · ' + daysLeft() + ' left' : trialUsed() ? 'trial ended' : 'free';
+  pr.innerHTML = `<button class="row" id="sPro"><span>liminal pro</span><small class="${isPro() ? 'pro-on' : ''}">${ps}</small></button>`;
+  if (quiet) return bindAccount(); bindAccount();
+}
+function bindAccount(){
+  const on = (id, fn) => { const b = document.getElementById(id); if (b) b.onclick = fn; };
+  on('sSignIn', () => openAuth(cloud.acct.user ? 'login' : 'signup'));
+  on('sSyncNow', () => doSync());
+  on('sSignOut', async () => { await cloud.logout(); toast('signed out · your moments stay here'); renderAccount(); afterAccount(); });
+  on('sDelAcct', async e => { const b = e.currentTarget; if (!b.dataset.armed) { b.dataset.armed = 1; $('#sDelAcctSub').textContent = 'tap again: deletes the synced copy + account'; return; }
+    try { await cloud.deleteAccount(); toast('account deleted · this phone keeps its moments'); } catch (err) { toast(err.offline ? 'you\'re offline' : 'couldn\'t delete (' + err.message + ')'); } renderAccount(); afterAccount(); });
+  on('sPro', () => openPro());
+}
+
+/* the upgrade sheet: same deal as Synapse and Axon. 3-day free trial with an account, then $35 once (or the $100 Northpeak All-Access), Apple Cash, no subscription */
+const PRO_LIST = [['the poem writer', 'every feeling, written back to you as a little poem'], ['your colors', 'a palette for each moment, and the sky that follows your mood'], ['the soundscape', 'a soft ambient sound that matches how it feels'],
+  ['the painted gallery', 'each moment as a scene, organized week by week'], ['mural & drift', 'your month as a calendar of color, and how you\'re drifting'], ['every pro feature added later', '']];
+let proWhat = '', proPlan = 'liminal_pro', proMsg = '', proMode = '';
+function openPro(what){ proWhat = what || ''; proMsg = ''; proMode = ''; renderPro(); $('#pro').classList.add('open'); $('#pro').setAttribute('aria-hidden', 'false'); cloud.refresh(true).then(j => { if (j && $('#pro').classList.contains('open')) renderPro(); }); }
+function closePro(){ $('#pro').classList.remove('open'); $('#pro').setAttribute('aria-hidden', 'true'); }
+$('#pro').addEventListener('click', e => { if (e.target.id === 'pro') closePro(); });
+function renderPro(){
+  const A = cloud.acct, R = A.request, el = $('#proCard'), waiting = R && R.status === 'new' && proMode !== 'edit';
+  let h = `<div class="grabber"></div><div class="sheet-head"><h3>liminal <em>pro</em></h3><button class="icon-btn" data-p="close" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="phero"><div class="pprice">$35</div><div class="pone">one time · yours for good · no subscription</div>${proWhat && !isPro() ? `<p class="pwhy"><b>${esc(proWhat)}</b> is part of liminal pro.</p>` : ''}</div>`;
+  if (A.pro) h += `<div class="pbox pon"><b>${CHECK}liminal pro is on</b><p>it's on your account <b>${esc(A.user)}</b>${A.allAccess ? ' through northpeak all-access' : ''}, on every phone you sign in on. thank you.</p></div>`;
+  else {
+    if (cloud.onTrial()) h += `<div class="pbox ptrial"><b>free trial · ${daysLeft()} left</b><p>everything in pro is on. keep it after the trial with a one-time $35.</p></div>`;
+    else if (!cloud.signedIn()) h += `<div class="pbox ptrial"><b>try it free for 3 days</b><p>make an account (just a username and password) and every pro feature turns on for 3 days. no card, nothing to cancel.</p><button class="primary" data-p="trial">start my free trial</button></div>`;
+    if (waiting) h += `<div class="pbox psent"><b>${CHECK}request sent</b><p>watch Messages for an <b>Apple Cash request for ${R.plan === 'all_access' ? '$100' : '$35'}</b> from Northpeak Studios${R.phone ? ' at <b>' + esc(R.phone) + '</b>' : ''}. once it's paid, pro turns on by itself for <b>${esc(A.user)}</b>.</p><div class="pbtns"><button class="pmain" data-p="check">check now</button><button data-p="edit">change details</button></div>${proMsg ? `<p class="perr">${esc(proMsg)}</p>` : ''}</div>`;
+    else h += `<div class="pbox"><b>get pro</b><p>no card needed. pick a plan, send your name and phone number, and Northpeak Studios sends you an <b>Apple Cash request</b> in Messages. once it's paid, pro turns on by itself.</p>
+      <div class="plans"><label class="plan${proPlan === 'liminal_pro' ? ' on' : ''}"><input type="radio" name="plan" value="liminal_pro"${proPlan === 'liminal_pro' ? ' checked' : ''}><span><b>liminal pro</b><small>this app, for good</small></span><em>$35</em></label>
+      <label class="plan${proPlan === 'all_access' ? ' on' : ''}"><input type="radio" name="plan" value="all_access"${proPlan === 'all_access' ? ' checked' : ''}><span><b>northpeak all-access</b><small>every northpeak app: synapse, axon, liminal + future ones</small></span><em>$100</em></label></div>
+      <input name="pname" placeholder="your name" autocomplete="name" enterkeyhint="next" maxlength="80" value="${esc((R && R.name) || '')}">
+      <input name="pphone" type="tel" placeholder="phone number for Apple Cash" autocomplete="tel" inputmode="tel" enterkeyhint="go" maxlength="40" value="${esc((R && R.phone) || '')}">
+      <p class="pnote">${cloud.signedIn() ? `pro goes on your account <b>${esc(A.user)}</b>.` : 'next you\'ll pick a username and password. pro goes on that account so it follows you to a new phone.'} $35 per app, or $100 for all of them. Apple Cash only.</p>
+      ${proMsg ? `<p class="perr">${esc(proMsg)}</p>` : ''}<div class="pbtns"><button class="pmain" data-p="send">${cloud.signedIn() ? 'send request' : 'continue'}</button></div></div>`;
+    h += `<details class="pcode"${proMode === 'code' ? ' open' : ''}><summary>have a code?</summary><p>a liminal code (LIM-…) or a northpeak all-access code (SYN-…).</p><div class="pcrow"><input name="pcode" placeholder="LIM-XXXX-XXXX" autocapitalize="characters" autocorrect="off" spellcheck="false" maxlength="20"><button data-p="redeem">unlock</button></div></details>`;
+  }
+  h += `<ul class="plist">${PRO_LIST.map(x => `<li>${CHECK}<span><b>${esc(x[0])}</b>${x[1] ? esc(x[1]) : ''}</span></li>`).join('')}</ul>
+    <div class="care pcare"><p>always free, for everyone: the journal (typing a feeling, keeping a moment, your list of moments, export and delete), sync, and the <b>988</b> card if things feel heavy.</p></div>`;
+  el.innerHTML = h;
+  el.querySelectorAll('input[name=plan]').forEach(r => r.onchange = () => { proPlan = r.value; el.querySelectorAll('.plan').forEach(p => p.classList.toggle('on', p.contains(r))); });
+}
+$('#proCard').addEventListener('click', async e => {
+  const b = e.target.closest('[data-p]'); if (!b) return; const p = b.dataset.p, el = $('#proCard');
+  if (p === 'close') return closePro();
+  if (p === 'trial') return openAuth('signup', true);
+  if (p === 'edit') { proMode = 'edit'; proMsg = ''; return renderPro(); }
+  if (p === 'check') { b.disabled = true; b.textContent = 'checking…'; await cloud.refresh(true); proMsg = isPro() ? '' : 'not paid yet. it turns on by itself once it is.'; return renderPro(); }
+  if (p === 'send') {
+    const name = (el.querySelector('[name=pname]').value || '').trim().replace(/\s+/g, ' '), phone = (el.querySelector('[name=pphone]').value || '').trim();
+    cloud.acct.request = Object.assign({}, cloud.acct.request || {}, { name, phone });
+    if (name.length < 2) { proMsg = 'type your name.'; return renderPro(); }
+    if (phone.replace(/\D/g, '').length < 7 || !/^[+\d\s().-]+$/.test(phone)) { proMsg = 'type a phone number that can get Apple Cash.'; return renderPro(); }
+    if (!cloud.signedIn()) { pendingRequest = { plan: proPlan, name, phone }; return openAuth('signup', true); }
+    b.disabled = true; b.textContent = 'sending…';
+    try { await cloud.requestPro(proPlan, name, phone); proMode = ''; proMsg = ''; }
+    catch (err) { proMsg = err.offline ? 'you\'re offline. connect and try again.' : err.message === 'slow_down' ? 'too many requests from here. try again later.' : err.message === 'bad_phone' ? 'that phone number doesn\'t look right.' : 'that didn\'t go through (' + err.message + ').'; }
+    return renderPro();
+  }
+  if (p === 'redeem') {
+    const code = (el.querySelector('[name=pcode]').value || '').trim(); proMode = 'code';
+    if (!code) return;
+    if (!cloud.signedIn()) { pendingCode = code; return openAuth('signup', true); }
+    b.disabled = true; b.textContent = '…';
+    try { const j = await cloud.redeem(code); proMsg = ''; toast(j.product === 'all_access' ? 'all-access unlocked ✓' : 'liminal pro unlocked ✓'); afterAccount(); }
+    catch (err) { proMsg = ''; toast(err.message === 'used' ? 'that code is already on another account' : err.message === 'slow_down' ? 'too many tries, wait a bit' : err.offline ? 'you\'re offline' : 'that code didn\'t work'); }
+    return renderPro();
+  }
+});
+let pendingRequest = null, pendingCode = null;
+
+/* sign in / sign up */
+let authKind = 'signup', authForPro = false;
+function openAuth(kind, forPro){
+  authKind = kind; authForPro = !!forPro; paintAuth(); $('#authErr').hidden = true;
+  $('#auth').classList.add('open'); $('#auth').setAttribute('aria-hidden', 'false');
+  if (kind === 'login' && cloud.acct.user) $('#aUser').value = cloud.acct.user;
+}
+function closeAuth(){ $('#auth').classList.remove('open'); $('#auth').setAttribute('aria-hidden', 'true'); $('#aPass').value = ''; $('#aConf').value = ''; }
+function paintAuth(){
+  const up = authKind === 'signup';
+  $$('.auth-seg button').forEach(b => b.classList.toggle('on', b.dataset.k === authKind));
+  $('#authTitle').textContent = up ? (authForPro ? 'start your free trial' : 'create an account') : 'welcome back';
+  $('#authWhy').textContent = up ? 'sync your journal so it survives a new phone, and get 3 days of liminal pro free.' : 'sign in and your journal comes back, along with pro if you have it.';
+  $('#aConfWrap').hidden = !up; $('#aPass').autocomplete = up ? 'new-password' : 'current-password'; $('#aPass').placeholder = up ? '8 or more characters' : 'your password';
+  $('#aUser').placeholder = up ? 'pick a username' : 'your username';
+  $('#authGo').textContent = up ? (authForPro ? 'create account · start trial' : 'create account') : 'sign in';
+}
+$$('.auth-seg button').forEach(b => b.onclick = () => { authKind = b.dataset.k; paintAuth(); $('#authErr').hidden = true; });
+$('#aClose').onclick = closeAuth;
+$('#auth').addEventListener('click', e => { if (e.target.id === 'auth') closeAuth(); });
+$('#authForm').addEventListener('submit', async e => {
+  e.preventDefault(); const err = m => { $('#authErr').textContent = m; $('#authErr').hidden = !m; };
+  const u = cloud.normUser($('#aUser').value), pw = $('#aPass').value, up = authKind === 'signup';
+  if (!cloud.validUser(u)) return err('usernames are 3–32 letters, numbers, dots, dashes or underscores.');
+  if (pw.length < 8) return err('passwords need 8 or more characters.');
+  if (up && pw !== $('#aConf').value) return err('the two passwords don\'t match.');
+  err(''); const b = $('#authGo'); b.disabled = true; b.textContent = up ? 'locking your journal…' : 'signing in…';
+  try {
+    await cloud.auth(authKind, u, pw);
+    closeAuth(); toast(up ? 'account made · pro trial on for 3 days' : 'signed in as ' + u);
+    await doSync(); afterAccount();
+    if (pendingRequest) { const pq = pendingRequest; pendingRequest = null; try { await cloud.requestPro(pq.plan, pq.name, pq.phone); } catch {} }
+    if (pendingCode) { const pc = pendingCode; pendingCode = null; try { await cloud.redeem(pc); toast('unlocked ✓'); } catch { toast('that code didn\'t work'); } }
+    if ($('#pro').classList.contains('open')) { if (up && authForPro && !cloud.acct.request) closePro(); else renderPro(); }
+  } catch (x) {
+    err(x.offline ? 'you\'re offline. connect and try again.' : x.message === 'taken' ? 'that username is taken. try another.' : x.message === 'wrong' ? 'that username and password don\'t match.' : x.message === 'locked' ? 'too many tries. wait a few minutes.' : x.message === 'slow_down' ? 'too many new accounts from here. try later.' : 'that didn\'t work (' + x.message + ').');
+  }
+  b.disabled = false; paintAuth();
+});
+function afterAccount(){
+  paintSoundIcons(); paintLockCta(); renderAccount(true);
+  const pro = isPro(); $$('.tl-label').forEach(l => l.textContent = pro ? 'turn it into a poem' : 'write it down');
+  $('#privline span').textContent = cloud.signedIn() ? 'encrypted on your phone, synced to ' + cloud.acct.user : 'stays on your phone unless you sign in to sync';
+  if (!pro && PRO_VIEWS[S.view] === undefined) {} 
+  setLive(S.live, S.live.chips); paintKey = ''; renderArchive(); syncSound();
+  if (S.result) { $('#poem').hidden = !pro; $('#poemLock').hidden = pro; $('.result-row').hidden = !pro; if (pro && !S.result.poem) { S.result.poem = compose(S.result.a, S.result.seed); renderPoem(S.result.poem); } }
+  if (S.detail) drawDetail();
+}
+cloud.onAccountChange(kind => { if (kind === 'signed_out') toast('signed out on this phone · sign in again to sync'); afterAccount(); });
 
 /* ---------- misc ---------- */
 let toastT; function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2000); }
@@ -403,11 +578,16 @@ function tick(){ $('#clock').textContent = fmtTime(Date.now()); } tick(); setInt
 
 async function boot(){
   try { S.moments = await db.all(); } catch { toast('storage is unavailable in this browser mode'); }
-  renderArchive(); setLive({ v: .62, e: .3, colorWords: [] });
+  S.view = isPro() ? 'painting' : 'moments'; const si = ['painting', 'moments', 'mural', 'drift'].indexOf(S.view);
+  $$('.seg button').forEach((x, i) => x.classList.toggle('on', i === si)); $('.seg-pill').style.transform = `translateX(${si * 100}%)`; $$('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + S.view));
+  afterAccount(); setLive({ v: .62, e: .3, colorWords: [] });
+  if (cloud.signedIn()) { cloud.refresh(true).then(() => afterAccount()); syncSoon(200); }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && cloud.signedIn()) { cloud.refresh().then(() => afterAccount()); syncSoon(300); } });
+  setInterval(() => { if (!document.hidden && cloud.signedIn()) syncSoon(0); }, 90000);
   if (!LS.get('seen', false)) { $('#intro').hidden = false; }
-  else setTimeout(() => { if (!engine.ready && !S.muted) $('#soundPill').classList.add('on'); }, 1400);
+  else setTimeout(() => { if (isPro() && !engine.ready && !S.muted) $('#soundPill').classList.add('on'); }, 1400);
   $('#enter').onclick = async () => { LS.set('seen', true); $('#intro').classList.add('out'); setTimeout(() => $('#intro').hidden = true, 900); await unlock(); };
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 boot();
-window.__liminal = { db, S, renderArchive, engine };
+window.__liminal = { db, S, renderArchive, engine, cloud, afterAccount };

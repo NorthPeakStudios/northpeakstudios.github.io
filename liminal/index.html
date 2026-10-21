@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Liminal — capture a feeling without explaining it</title>
-<meta name="description" content="Type how you feel. Liminal answers with a poem, color, sound and a quiet question, and keeps a private visual archive of who you were in each moment. Private, stays on your phone.">
+<meta name="description" content="Type how you feel. Liminal answers with a poem, color, sound and a quiet question, and keeps a private visual archive of who you were in each moment. Private: stays on your phone unless you sign in to sync.">
 <meta name="theme-color" content="#07060b">
 <meta name="color-scheme" content="dark">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -21,7 +21,7 @@
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preload" href="fonts/instrument-serif-italic.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="app.css?v=11">
 </head>
 <body>
 <canvas id="aura" aria-hidden="true"></canvas>
@@ -46,9 +46,9 @@
         <textarea id="text" maxlength="400" rows="4" enterkeyhint="done" autocapitalize="off" placeholder="type it however it comes out…" aria-label="How does it feel?"></textarea>
         <div class="write-meta"><span id="live" class="live"><i></i><b id="liveWord"></b></span><span id="count2"></span></div>
       </div>
-      <button id="translate" class="primary" disabled><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>turn it into a poem</button>
+      <button id="translate" class="primary" disabled><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg><span class="tl-label">turn it into a poem</span></button>
       <button id="toField" class="switch">no words tonight? <u>drag instead</u></button>
-      <p class="privline"><svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg>your words never leave your phone</p>
+      <p class="privline" id="privline"><svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg><span>stays on your phone unless you sign in to sync</span></p>
     </div>
 
     <!-- field (fallback) -->
@@ -64,7 +64,7 @@
       <div id="fieldWord" class="field-word"></div>
       <div class="chips-label">textures, if any</div>
       <div id="chips" class="chips"></div>
-      <button id="translateField" class="primary"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>turn it into a poem</button>
+      <button id="translateField" class="primary"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg><span class="tl-label">turn it into a poem</span></button>
       <button id="toWords" class="switch">found some words? <u>type instead</u></button>
     </div>
 
@@ -72,6 +72,7 @@
     <div id="stResult" class="stage" hidden>
       <p id="said" class="said"></p>
       <div id="poem" class="poem" aria-live="polite"></div>
+      <button id="poemLock" class="poem-lock" hidden><span class="pl-lines"><i></i><i></i><i></i></span><span class="pl-k"><svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg>your poem, colors &amp; sound are waiting</span><span class="pl-cta" id="poemLockCta">try liminal pro free for 3 days</span></button>
       <div class="result-row">
         <span class="pill"><i id="wordDot"></i><span id="resWord"></span></span>
         <button id="rewrite" class="pill btn"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 13.7-5.6M20 12a8 8 0 0 1-13.7 5.6M17 3v4h-4M7 21v-4h4"/></svg>rewrite</button>
@@ -99,15 +100,15 @@
       <header class="top archive-top">
         <div>
           <h2 class="title">your archive</h2>
-          <p id="count" class="sub">private, stays on your phone</p>
+          <p id="count" class="sub">stays on your phone</p>
         </div>
         <button id="settingsBtn" class="icon-btn" aria-label="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
       </header>
       <div class="seg" role="tablist">
-        <button data-view="painting" class="on" role="tab">painting</button>
+        <button data-view="painting" class="on" role="tab">painting<i class="seg-lock"><svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg></i></button>
         <button data-view="moments" role="tab">moments</button>
-        <button data-view="mural" role="tab">mural</button>
-        <button data-view="drift" role="tab">drift</button>
+        <button data-view="mural" role="tab">mural<i class="seg-lock"><svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg></i></button>
+        <button data-view="drift" role="tab">drift<i class="seg-lock"><svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg></i></button>
         <span class="seg-pill"></span>
       </div>
       <div id="views">
@@ -148,9 +149,11 @@
     <div class="sheet-head"><h3>settings</h3><button id="sClose" class="icon-btn" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     <div class="privacy">
       <svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg>
-      <div><b>private, stays on your phone</b><p>your words never leave your phone. the poem is written right here on the device, and every moment lives only in this phone's storage. no account, no servers, no tracking.</p></div>
+      <div><b id="privTitle">stays on your phone unless you sign in to sync</b><p id="privBody">poems are written right here on the device. your moments live in this phone's storage. if you sign in, they're encrypted on this phone with your password before they sync, so nobody else (us included) can read them. no tracking.</p></div>
     </div>
-    <div class="rows">
+    <div class="rows" id="acctRows"></div>
+    <div class="rows" id="proRows" style="margin-top:10px"></div>
+    <div class="rows" style="margin-top:10px">
       <button class="row" id="sSound"><span>sound</span><span class="toggle" id="sSoundT"></span></button>
       <button class="row" id="sExport"><span>export archive</span><small>save a .json copy</small></button>
       <label class="row" for="importFile"><span>import archive</span><small>from a .json copy</small></label>
@@ -159,7 +162,30 @@
     </div>
     <p id="installTip" class="install-tip">add liminal to your home screen: tap <b>share</b>, then <b>add to home screen</b>. it opens full-screen, works offline, and your archive stays put.</p>
     <p class="tip-sound">no sound? flip the ringer switch on or turn up the volume.</p>
-    <p class="foot small">liminal 1.0 · <a href="https://northpeakstudios.github.io/" target="_blank" rel="noopener">by Northpeak Studios</a></p>
+    <p class="foot small">liminal 1.1 · <a href="https://northpeakstudios.github.io/" target="_blank" rel="noopener">by Northpeak Studios</a></p>
+  </div>
+</div>
+
+<!-- liminal pro -->
+<div id="pro" class="sheet settings pro-sheet" aria-hidden="true">
+  <div class="sheet-card" id="proCard"></div>
+</div>
+
+<!-- sign in / sign up -->
+<div id="auth" class="sheet settings auth-sheet" aria-hidden="true">
+  <div class="sheet-card">
+    <div class="grabber"></div>
+    <div class="sheet-head"><h3 id="authTitle">sign in to sync</h3><button id="aClose" class="icon-btn" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <p class="auth-why" id="authWhy">keep your journal safe if you switch phones, and start your 3-day free trial of liminal pro.</p>
+    <div class="auth-seg" role="tablist"><button data-k="signup" class="on" role="tab">create account</button><button data-k="login" role="tab">sign in</button></div>
+    <form id="authForm" autocomplete="on" novalidate>
+      <label class="fld"><span>username</span><input name="username" id="aUser" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="32" placeholder="pick a username" enterkeyhint="next"></label>
+      <label class="fld"><span>password</span><input name="password" id="aPass" type="password" autocomplete="new-password" maxlength="200" placeholder="8 or more characters" enterkeyhint="next"></label>
+      <label class="fld" id="aConfWrap"><span>password again</span><input name="confirm" id="aConf" type="password" autocomplete="new-password" maxlength="200" placeholder="same as above" enterkeyhint="go"></label>
+      <p class="auth-err" id="authErr" hidden></p>
+      <button class="primary" id="authGo" type="submit">create account</button>
+    </form>
+    <p class="auth-fine" id="authFine">no email needed. your password locks your journal on this phone before it syncs, so it can't be reset. keep it somewhere safe.</p>
   </div>
 </div>
 
@@ -178,11 +204,11 @@
       <li><span>iii</span>keep it. watch your painting grow</li>
     </ol>
     <button id="enter" class="keep"><span>enter</span></button>
-    <p class="priv"><svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg>private, stays on your phone</p>
+    <p class="priv"><svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg>private · stays on your phone unless you sync</p>
     <p class="foot small"><a href="https://northpeakstudios.github.io/" target="_blank" rel="noopener">by Northpeak Studios</a></p>
   </div>
 </div>
 
-<script type="module" src="js/app.js"></script>
+<script type="module" src="js/app.js?v=11"></script>
 </body>
 </html>

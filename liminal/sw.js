@@ -1,6 +1,6 @@
-// liminal service worker — offline app shell. no network calls of its own.
-const V = 'liminal-v4';
-const SHELL = ['./', 'index.html', 'app.css', 'manifest.webmanifest', 'js/app.js', 'js/audio.js', 'js/color.js', 'js/db.js', 'js/paint.js', 'js/poet.js', 'js/prompts.js',
+// liminal service worker — offline app shell. no network calls of its own (sync goes straight to the network; it never touches this cache).
+const V = 'liminal-v11';
+const SHELL = ['./', 'index.html', 'app.css?v=11', 'manifest.webmanifest', 'js/app.js?v=11', 'js/audio.js', 'js/cloud.js?v=11', 'js/color.js', 'js/db.js', 'js/paint.js?v=11', 'js/poet.js', 'js/prompts.js',
   'fonts/instrument-serif-normal.woff2', 'fonts/instrument-serif-italic.woff2', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon.svg', 'icons/favicon-32.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('liminal-') && k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
