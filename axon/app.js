@@ -3965,7 +3965,7 @@
       if (!ok) return;
       /* np-r2: deleting asks for the password again, checked by the server (a signed-in phone alone isn't enough) */
       for (var msg = ''; ;) {
-        var pw = await dialog({ title: 'Type your password', message: 'To delete the cloud copy, confirm it\u2019s you.', input: 'password', placeholder: 'Your password', ok: 'Delete', danger: true, error: msg, validate: function (v) { return v ? null : 'Type your password.'; } });
+        var pw = await dialog({ title: 'Type your password', message: (PRO.need ? 'To delete your account' : 'To delete the cloud copy') + ', confirm it\u2019s you.', input: 'password', placeholder: 'Your password', ok: 'Delete', danger: true, error: msg, validate: function (v) { return v ? null : 'Type your password.'; } });
         if (!pw) return;
         try {
           toast('Checking your password\u2026');

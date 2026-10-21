@@ -89,7 +89,13 @@ function rows(){
 function stats(R){
  var real=R.filter(function(r){return r.status!=='test'});var paid=real.filter(function(r){return r.status==='paid'});
  $('#sTot').textContent=real.length;$('#sPaid').textContent=paid.length;$('#sMoney').textContent=money(paid.reduce(function(s,r){return s+(r.amount||0)},0));
- $('#sPend').textContent=real.filter(function(r){return r.status==='new'}).length;}
+ var pend=real.filter(function(r){return r.status==='new'}).length;$('#sPend').textContent=pend;
+ /* np-r2: pending count on the browser tab and the home-screen icon, so a new buyer shows without opening the page */
+ document.title=(pend?'('+pend+') ':'')+'Northpeak Admin';
+ try{if(navigator.setAppBadge){if(pend)navigator.setAppBadge(pend).catch(function(){});else navigator.clearAppBadge().catch(function(){})}}catch(e){}}
+/* np-r2: tap a stat to jump to those requests */
+(function(){var go=function(f){return function(){if(!CAN('view_requests'))return;filt=f;switchView('req');renderReq();}};
+ [['sTot','all'],['sPaid','paid'],['sMoney','paid'],['sPend','new']].forEach(function(x){var el=document.getElementById(x[0]);if(el&&el.parentNode){el.parentNode.style.cursor='pointer';el.parentNode.setAttribute('role','button');el.parentNode.addEventListener('click',go(x[1]));}})})();
 var FILTERS=[['all','All'],['new','Pending'],['paid','Paid'],['syn','Synapse'],['axon','Axon'],['liminal','Liminal'],['aa','All-Access'],['hide','Hide tests']];
 function chips(R){var c=function(k){return R.filter(function(r){return match(r,k)}).length};
  $('#chips').innerHTML=FILTERS.map(function(f){var on=f[0]==='hide'?hideTest:filt===f[0];return '<button class="chip'+(on?' on':'')+'" data-f="'+f[0]+'">'+f[1]+(f[0]==='hide'?'':' '+c(f[0]))+'</button>'}).join('')}
