@@ -460,7 +460,7 @@ function bindAccount(){
   on('sSyncNow', () => doSync());
   on('sAddEmail', () => openAuth('email'));
   on('sSignOut', async () => { await cloud.logout(); toast('signed out · your moments stay here'); renderAccount(); afterAccount(); });
-  on('sDelAcct', async e => { const b = e.currentTarget; if (!b.dataset.armed) { b.dataset.armed = 1; $('#sDelAcctSub').textContent = 'tap again: deletes the synced copy + account'; return; }
+  on('sDelAcct', async e => { const b = e.currentTarget; if (!b.dataset.armed) { b.dataset.armed = 1; $('#sDelAcctSub').textContent = cloud.acct && cloud.acct.pro && !cloud.acct.owner ? 'tap again: deletes the synced copy + account, and liminal pro with it' : 'tap again: deletes the synced copy + account'; return; }
     try { await cloud.deleteAccount(); toast('account deleted · this phone keeps its moments'); } catch (err) { toast(err.offline ? 'you\'re offline' : 'couldn\'t delete (' + err.message + ')'); } renderAccount(); afterAccount(); });
   on('sPro', () => openPro());
 }

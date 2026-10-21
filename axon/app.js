@@ -3960,7 +3960,7 @@
       if (t) AXS.api('/api/logout', { token: t, method: 'POST' }).catch(function () {});
     },
     sydelete: async function () {
-      var ok = await dialog({ title: 'Delete the cloud copy?', message: 'Removes your sync account and every encrypted note stored in the cloud, for all devices. The notes on this device are not touched.', ok: 'Delete cloud copy', danger: true });
+      var ok = await dialog({ title: 'Delete the cloud copy?', message: 'Removes your sync account and every encrypted note stored in the cloud, for all devices. The notes on this device are not touched.' + (isPro() && PRO.acct && !PRO.owner ? ' Axon Pro is tied to this account, so it goes too; you\u2019d have to buy it again.' : ''), ok: 'Delete cloud copy', danger: true });
       if (!ok) return;
       try { await AXS.api('/api/delete-account', { token: sy.token, method: 'POST' }); syForget(); renderSettings(); toast('Cloud copy deleted. Your notes on this device are still here.'); }
       catch (e) { toast(e.offline ? 'You\u2019re offline. Try again when connected.' : 'Couldn\u2019t delete it (' + e.message + ')'); }
