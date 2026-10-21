@@ -95,9 +95,10 @@ export async function auth(kind, id, pass, opt = {}){
       }
     }
   }
-  const prev = acct.user, user = j.user || id;
+  const prev = acct.user, prevKey = acct.key, user = j.user || id;
   Object.assign(acct, { user, kdf: j.kdf || kdf, token: j.token, key: b64(d.raw), seq: 0, synced: 0 }); keyObj = null; take(j); save();
-  if (prev !== user && !(j.name && prev === j.name)) { LS.set('sync', { base: {}, dirty: [], gone: [] }); }
+  /* a new password means a new key (e.g. reset on the admin page, which clears the cloud copy it can't read): send every moment again */
+  if ((prev !== user && !(j.name && prev === j.name)) || (prevKey && prevKey !== acct.key)) { LS.set('sync', { base: {}, dirty: [], gone: [] }); }
   onChange(kind); j.northpeak = n; return j;
 }
 /* an old username account adds its email once; from then on it signs in with the email (its key stays the same) */

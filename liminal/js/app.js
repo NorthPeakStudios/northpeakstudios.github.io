@@ -3,7 +3,7 @@ import { moodColors, mixHex, hexRgb, moodWord, quadrant } from './color.js';
 import { Engine } from './audio.js';
 import { analyze, compose } from './poet.js';
 import { drawScene, sceneFor, SCENES, poster } from './paint.js?v=12';
-import * as cloud from './cloud.js?v=13';
+import * as cloud from './cloud.js?v=14';
 import * as db from './db.js';
 
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
