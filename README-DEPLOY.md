@@ -60,3 +60,12 @@ Cloudflare dashboard > Workers & Pages > Create > Pages > "Upload assets", name 
 - When the Google Play listing is live, replace the "Coming soon to Google Play" badge in index.html and synapse/index.html with a link to the listing. If you use Google's official "Get it on Google Play" badge image, download it from Google's badge page (play.google.com/intl/en_us/badges/) and follow their rules.
 - Add a new app: copy the Synapse card in index.html and the synapse folder, then edit the text.
 - All links are relative, so the site works in any folder. The only exception is 404.html, which uses links starting with "/" because it is shown at any address; that is correct on GitHub Pages user sites, Cloudflare Pages and custom domains.
+
+## Auto-update (every app has it — add it to new apps too)
+
+Installed home-screen apps update themselves; nobody has to swipe-close or reinstall. The shared script is `assets/np-update.js`.
+
+1. Copy `assets/np-update.js` into the app's folder and load it in the page: `<script src="np-update.js?v=1" data-sw="sw.js" defer></script>` (use `data-sw=""` for a page with no service worker).
+2. In the app's `sw.js`: call `self.skipWaiting()` at the end of install, `self.clients.claim()` in activate, answer `{type:'SKIP_WAITING'}` messages with `self.skipWaiting()`, fetch the page network-first (`cache: 'no-cache'`), install files with `cache: 'reload'`, list `np-update.js?v=1` in the cached files, and skip requests that carry `?npu=` (`if (url.searchParams.has('npu')) return;`).
+3. Optional: `window.npUpdate = { safe: () => !midEdit, toast: (msg, onTap) => ... }` so it never reloads in the middle of something the page knows about.
+4. Every release: bump the cache name in `sw.js` (and `?v=` on changed files). Open apps pick the release up on their next return to the foreground, reloading only when nothing is being typed; otherwise they show "update ready · tap to refresh".
