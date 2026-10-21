@@ -107,7 +107,7 @@ select.sm{padding-right:28px}.tabs button{font-size:13px;padding:9px 8px}
 #whoName{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 select{-webkit-appearance:none;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--mu) 50%),linear-gradient(135deg,var(--mu) 50%,transparent 50%);background-position:calc(100% - 17px) 50%,calc(100% - 12px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:30px}
 [hidden]{display:none!important}
-</style></head><body><div class="wrap">
+.apick{display:grid;grid-template-columns:1fr 1fr;gap:8px}.apick .ap{display:flex;flex-direction:column;align-items:flex-start;gap:5px;padding:10px 11px;text-align:left;line-height:1.2;border-radius:12px}.apick .ap .sub{font-weight:500}.apick .ap.on{border-color:var(--tx);box-shadow:inset 0 0 0 1px var(--tx);background:var(--card)}#mOut{margin-top:12px;border:1px solid var(--line);border-radius:12px;padding:12px;background:#0f1219}#mOut .big{font:700 20px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.5px;color:var(--tx);word-break:break-all;margin:6px 0 10px}#mOut .row button{flex:1}</style></head><body><div class="wrap">
 <div id="boot" class="auth" style="text-align:center"><div class="logo">N</div><span class="spin"></span></div>
 <form id="login" class="auth" hidden autocomplete="on"><div class="logo">N</div><h2>Northpeak Admin</h2><p>Sign in to continue</p>
  <label class="f"><span>Username</span><input id="lu" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required></label>
@@ -150,8 +150,8 @@ select{-webkit-appearance:none;appearance:none;background-image:linear-gradient(
 </section>
 <section id="v-more" hidden>
  <div class="panel" id="appsPanel"><h2>Apps</h2><div id="appsBox"></div></div>
- <div class="panel" id="mintPanel"><h2>🔑 Make a code</h2><div class="row"><select class="sm" id="mProd"><option value="synapse_lifetime">Synapse Lifetime</option><option value="all_access">All-Access</option></select><input class="sm" id="mNote" placeholder="note (who it's for)" style="flex:1;min-width:120px"><button class="pri" id="mGo">Make code</button></div><div class="hint" style="margin-top:6px">A single-use unlock code, not tied to a request.</div></div>
- <div class="panel" id="codesPanel"><h2>Synapse codes</h2><div class="sheetwrap" id="codesBox"></div></div>
+ <div class="panel" id="mintPanel"><!-- np-mint-any v1 --><h2>🔑 Make a code</h2><div class="hint" style="margin-bottom:8px">Pick the app, then make a single-use unlock code (not tied to a request).</div><div class="apick" id="mApp"><button type="button" class="ap on" data-mapp="synapse"><span class="tag t-syn">Synapse</span><span class="sub">Synapse Lifetime</span></button><button type="button" class="ap" data-mapp="axon"><span class="tag t-axon">Axon</span><span class="sub">Axon Pro</span></button><button type="button" class="ap" data-mapp="liminal"><span class="tag t-lim">Liminal</span><span class="sub">Liminal Pro</span></button><button type="button" class="ap" data-mapp="all"><span class="tag t-aa">All-Access</span><span class="sub">works on all 3 · $100</span></button></div><div class="row" style="margin-top:10px"><input class="sm" id="mNote" placeholder="note (who it's for)" style="flex:1;min-width:120px"><button class="pri" id="mGo">Make Synapse code</button></div><div id="mOut" hidden></div></div>
+ <div class="panel" id="codesPanel"><h2>Codes <span class="sub" id="codesN"></span></h2><div class="sheetwrap" id="codesBox"></div></div>
 </section>
 <section id="v-users" hidden>
  <div class="panel"><h2>➕ Add a user</h2>
@@ -242,9 +242,11 @@ function startApp(){
  switchView(view);load();}
 function switchView(v){view=v;document.querySelectorAll('#tabs button').forEach(function(b){b.classList.toggle('on',b.dataset.v===v)});['req','sheet','more','users','logs'].forEach(function(x){$('#v-'+x).hidden=x!==v});
  if(v==='users')loadUsers();if(v==='logs')loadLogs()}
+var MAPP={synapse:{app:'syn',body:{product:'synapse_lifetime'},name:'Synapse Lifetime',works:'Synapse'},axon:{app:'axon',body:{},name:'Axon Pro',works:'Axon'},liminal:{app:'liminal',body:{},name:'Liminal Pro',works:'Liminal'},all:{app:'syn',body:{product:'all_access'},name:'All-Access',works:'Synapse, Axon and Liminal'}},MSEL='synapse';
+function CODES_OK(){return CAN('mint_codes')||CAN('revoke_codes')}
 function loadAll(){
- var jobs=[CAN('view_requests')?appApi('syn','list'):Promise.resolve(null),CAN('view_requests')?appApi('axon','list'):Promise.resolve(null),CAN('view_sheet')?api('/api/sheet'):Promise.resolve(null),CAN('view_requests')?api('/api/notes'):Promise.resolve(null),CAN('view_requests')?appApi('liminal','list'):Promise.resolve(null)];
- return Promise.all(jobs).then(function(v){NOTES={};((v[3]&&v[3].notes)||[]).forEach(function(n){NOTES[n.k]=n});return{ok:true,at:Date.now(),syn:v[0]||{},axon:v[1]||{},liminal:v[4]||{},sheet:v[2]&&v[2].sheet}})}
+ var jobs=[CAN('view_requests')?appApi('syn','list'):Promise.resolve(null),CAN('view_requests')?appApi('axon','list'):Promise.resolve(null),CAN('view_sheet')?api('/api/sheet'):Promise.resolve(null),CAN('view_requests')?api('/api/notes'):Promise.resolve(null),CAN('view_requests')?appApi('liminal','list'):Promise.resolve(null),CODES_OK()?appApi('axon','codes'):Promise.resolve(null),CODES_OK()?appApi('liminal','codes'):Promise.resolve(null)];
+ return Promise.all(jobs).then(function(v){NOTES={};((v[3]&&v[3].notes)||[]).forEach(function(n){NOTES[n.k]=n});return{ok:true,at:Date.now(),syn:v[0]||{},axon:v[1]||{},liminal:v[4]||{},axc:v[5]||{},lic:v[6]||{},sheet:v[2]&&v[2].sheet}})}
 function rows(){
  var out=[];
  var s=(D.syn&&D.syn.requests)||[], a=(D.axon&&D.axon.requests)||[], li=(D.liminal&&D.liminal.requests)||[];
@@ -308,10 +310,13 @@ function renderMore(){
   '<div class="row" style="justify-content:space-between"><div><span class="tag t-axon">Axon</span> '+(a.ok?'<span class="sub">'+(a.accounts||0)+' accounts · '+(a.pro_accounts||0)+' with Pro</span>':'')+'</div></div>'+
   '<div class="row" style="justify-content:space-between;margin-top:8px"><div><span class="tag t-lim">Liminal</span> '+(li.ok?'<span class="sub">'+(li.accounts||0)+' accounts · '+(li.pro_accounts||0)+' with Pro</span>':'')+'</div></div>'+
   '<div class="row" style="margin-top:12px"><a class="btn" href="https://odin-cards.sites.tab.bot/" target="_blank" rel="noopener">Open Synapse ↗</a><a class="btn" href="https://northpeakstudios.github.io/axon/" target="_blank" rel="noopener">Open Axon ↗</a><a class="btn" href="https://northpeakstudios.github.io/liminal/" target="_blank" rel="noopener">Open Liminal ↗</a></div>';
- var C=(s.codes||[]);
- $('#codesBox').innerHTML=tableHTML(['Code','Plan','Made','Status',''],C.map(function(c){var st=c.revoked?'<span class="tag s-dismissed">revoked</span>':(c.used||c.redeemed)?'<span class="tag s-paid">used</span>':'<span class="tag s-new">unused</span>';
-  var b=CAN('revoke_codes')?(c.revoked?'':'<button data-c="revoke">Revoke</button>')+'<button class="dang" data-c="code-delete">Delete</button>':'';
-  return ['<span class="code" data-copy="'+esc(c.code)+'">'+esc(c.code)+'</span>'+(c.note?'<div class="sub">'+esc(c.note)+'</div>':''),esc(c.product),esc(fmtT(c.created)),st,'<div class="acts" data-code="'+esc(c.code)+'">'+b+'</div>']}));}
+ var C=[];(s.codes||[]).forEach(function(c){C.push({app:'syn',aa:c.product==='all_access',code:c.code,note:c.note,created:c.created,revoked:c.revoked,used:c.used||c.redeemed,by:c.by})});
+ [['axon',D.axc],['liminal',D.lic]].forEach(function(p){((p[1]&&p[1].codes)||[]).forEach(function(c){C.push({app:p[0],code:c.code,note:c.note,created:c.created,used:c.used,by:c.by})})});
+ C.sort(function(x,y){return (y.created||0)-(x.created||0)});$('#codesN').textContent=C.length?'· '+C.length:'';
+ var tg=function(c){return c.aa?'<span class="tag t-aa">All-Access</span>':c.app==='syn'?'<span class="tag t-syn">Synapse</span>':c.app==='axon'?'<span class="tag t-axon">Axon</span>':'<span class="tag t-lim">Liminal</span>'};
+ $('#codesBox').innerHTML=tableHTML(['Code','App','Made','Status',''],C.map(function(c){var st=c.revoked?'<span class="tag s-dismissed">revoked</span>':c.used?'<span class="tag s-paid">used</span>'+(c.by?'<div class="sub">'+esc(c.by)+'</div>':''):'<span class="tag s-new">unused</span>';
+  var b='';if(CAN('revoke_codes')){if(c.app==='syn')b=(c.revoked?'':'<button data-c="revoke">Revoke</button>')+'<button class="dang" data-c="code-delete">Delete</button>';else b='<button class="dang" data-c="code-delete">Revoke</button>'}
+  return ['<span class="code" data-copy="'+esc(c.code)+'">'+esc(c.code)+'</span>'+(c.note?'<div class="sub">'+esc(c.note)+'</div>':''),tg(c),esc(fmtT(c.created)),st,'<div class="acts" data-code="'+esc(c.code)+'" data-capp="'+c.app+'">'+b+'</div>']}));}
 function render(){if(!D)return;if(CAN('view_requests'))renderReq();renderSheet();renderMore();
  var e=[];if(CAN('view_requests')){if(!(D.syn&&D.syn.ok))e.push('synapse');if(!(D.axon&&D.axon.ok))e.push('axon');if(!(D.liminal&&D.liminal.ok))e.push('liminal')}
  $('#upd').textContent='updated '+new Date(D.at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/Los_Angeles'})+(e.length?' · ⚠ '+e.join(' + ')+' not loading':'')}
@@ -364,7 +369,10 @@ document.addEventListener('click',function(e){
  if(t.id==='logout'){api('/api/logout',{}).then(function(){ME=null;D=null;RT={};setTok(null);show('login');toast('Logged out')});return}
  if(t.id==='meChpw'){show('chpw');$('#chCancel').hidden=false;$('#chpwp').textContent='Change your password.';return}
  if(t.id==='openT'){act('syn','open',{open:!(D.syn&&D.syn.open)},'Synapse buying '+((D.syn&&D.syn.open)?'closed':'opened'));return}
- if(t.id==='mGo'){var pr=$('#mProd').value;if(!confirm('Make a new '+(pr==='all_access'?'All-Access':'Synapse Lifetime')+' code?'))return;t.disabled=true;act('syn','mint',{product:pr,note:$('#mNote').value.trim()},'Code made').then(function(j){t.disabled=false;if(j&&j.ok){$('#mNote').value='';navigator.clipboard&&navigator.clipboard.writeText(j.code).catch(function(){})}});return}
+ if(t.dataset.mapp){MSEL=t.dataset.mapp;document.querySelectorAll('#mApp .ap').forEach(function(x){x.classList.toggle('on',x===t)});$('#mGo').textContent='Make '+(MSEL==='all'?'All-Access':MAPP[MSEL].works)+' code';$('#mOut').hidden=true;return}
+ if(t.id==='mGo'){var M=MAPP[MSEL];if(!confirm('Make a new '+M.name+' code?\nWorks on: '+M.works))return;t.disabled=true;var bd={};for(var k in M.body)bd[k]=M.body[k];bd.note=$('#mNote').value.trim();
+  act(M.app,'mint',bd,M.name+' code made').then(function(j){t.disabled=false;if(j&&j.ok&&j.code){$('#mNote').value='';navigator.clipboard&&navigator.clipboard.writeText(j.code).catch(function(){});
+   var o=$('#mOut');o.hidden=false;o.innerHTML='<div class="sub">'+esc(M.name)+' code · works on '+esc(M.works)+'</div><div class="big">'+esc(j.code)+'</div><div class="row"><button class="pri" data-copy="'+esc(j.code)+'">Copy code</button></div><div class="hint" style="margin-top:8px">Single use. They sign in to '+esc(MSEL==='all'?'any of the 3 apps':M.works)+', open Pro and tap “Have a code”.</div>'}}).catch(function(){t.disabled=false});return}
  if(t.id==='nGo'){var nu=$('#nu').value.trim(),np=$('#np').value;if(!nu||np.length<8){toast('Username + temp password (8+) needed');return}
   uop({op:'create',username:nu,password:np,role:$('#nr').value},'@'+nu.toLowerCase()+' added').then(function(j){if(j.ok){$('#nu').value=$('#np').value=''}});return}
  if(t.id==='rGo'){var caps=[].slice.call(document.querySelectorAll('#rcaps input:checked')).map(function(i){return i.value});var rn=$('#rn').value.trim();
@@ -380,7 +388,7 @@ document.addEventListener('click',function(e){
  if(t.id==='lgMore'){loadLogs(false,true);return}
  if(t.dataset.v){switchView(t.dataset.v);return}
  if(t.dataset.f){if(t.dataset.f==='hide')hideTest=!hideTest;else filt=t.dataset.f;renderReq();return}
- if(t.dataset.c){var code=t.parentNode.dataset.code;if(t.dataset.c==='code-delete'&&!confirm('Delete code '+code+' for good?'))return;if(t.dataset.c==='revoke'&&!confirm('Revoke '+code+'? It stops unlocking Pro.'))return;t.disabled=true;act('syn',t.dataset.c,{code:code},t.dataset.c==='revoke'?'Revoked':'Code deleted');return}
+ if(t.dataset.c){var code=t.parentNode.dataset.code;if(t.dataset.c==='code-delete'&&(t.parentNode.dataset.capp||'syn')==='syn'&&!confirm('Delete code '+code+' for good?'))return;if(t.dataset.c==='revoke'&&!confirm('Revoke '+code+'? It stops unlocking Pro.'))return;var capp=t.parentNode.dataset.capp||'syn';if(capp!=='syn'&&!confirm('Revoke '+code+'? It stops working, and Pro it unlocked turns off.'))return;t.disabled=true;act(capp,t.dataset.c,{code:code},capp!=='syn'||t.dataset.c==='revoke'?'Revoked':'Code deleted');return}
  if(t.dataset.a){var box=t.parentNode,app=box.dataset.app,id=box.dataset.id,a=t.dataset.a;
   var r=rows().filter(function(x){return x.app===app&&x.id===id})[0]||{};
   var who=(r.name||'this request')+' — '+(r.price||'');
