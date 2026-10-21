@@ -123,7 +123,7 @@ function renderReq(){
   '<td class="c-note">'+(r.note?'<div class="note">📝 '+esc(r.note.txt)+' <span class="sub">— @'+esc(r.note.u)+'</span></div>':'')+'</td>'+
   '<td class="c-acts">'+acts(r)+'</td></tr>'}).join('');
  $('#reqEmpty').hidden=V.length>0;}
-function tableHTML(head,body){return '<table><thead><tr>'+head.map(function(h){return '<th>'+esc(h)+'</th>'}).join('')+'</tr></thead><tbody>'+(body.length?body.map(function(r){return '<tr>'+r.map(function(c){return '<td>'+c+'</td>'}).join('')+'</tr>'}).join(''):'<tr><td colspan="'+head.length+'" class="sub">nothing yet</td></tr>')+'</tbody></table>'}
+function tableHTML(head,body){return '<table><thead><tr>'+head.map(function(h){return '<th>'+esc(h)+'</th>'}).join('')+'</tr></thead><tbody>'+(body.length?body.map(function(r){return '<tr>'+r.map(function(c,i){return '<td data-l="'+esc(head[i]||'')+'">'+c+'</td>'}).join('')+'</tr>'}).join(''):'<tr><td colspan="'+head.length+'" class="sub">nothing yet</td></tr>')+'</tbody></table>'}
 function renderSheet(){
  var s=D.sheet;
  if(s&&s.values&&s.values.length){var h=s.values[0],b=s.values.slice(1).reverse();$('#sheetBox').innerHTML=tableHTML(h,b.map(function(r){return h.map(function(_,i){return esc(r[i]||'')})}));$('#sheetAt').textContent='synced '+fmtT(s.at)+' · '+b.length+' row'+(b.length===1?'':'s');}
