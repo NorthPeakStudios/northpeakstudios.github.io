@@ -1,6 +1,7 @@
 // liminal · scenes. every kept moment becomes a small painted scene that depicts how it felt:
 // sunrise over hills, a calm sea, a lone streetlight in fog, rain on a window, a storm at sea, a night sky,
-// a misty forest, fireworks over the city, wind through a field. the moment's own colors tint the scene.
+// a misty forest, fireworks over the city, wind through a field, snowy peaks, a still lake, city lights, a lamp by
+// the window, an empty road, the northern lights, dunes, a lighthouse, above the clouds, a garden. 20 in all. the moment's own colors tint the scene.
 import { hexRgb } from './color.js';
 
 const mulberry32 = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -11,34 +12,50 @@ const BLACK = [6, 5, 12], WHITE = [255, 250, 244], WARM = [255, 214, 150], NIGHT
 
 export const SCENES = {
   hills: 'sunrise over the hills', sea: 'a calm sea', streetlight: 'a lone streetlight', rain: 'rain on the window',
-  storm: 'a storm at sea', night: 'a night sky', forest: 'a misty forest', fireworks: 'fireworks over the city', field: 'wind through the field', snow: 'snow falling'
+  storm: 'a storm at sea', night: 'a night sky', forest: 'a misty forest', fireworks: 'fireworks over the city', field: 'wind through the field', snow: 'snow falling',
+  mountains: 'snowy peaks at dawn', lake: 'the moon on a still lake', city: 'city lights at night', room: 'a lamp by the window', road: 'an empty road at night',
+  aurora: 'the northern lights', dunes: 'desert dunes at dusk', lighthouse: 'a lighthouse in the fog', clouds: 'above the clouds', garden: 'a garden in bloom'
 };
 const KEYS = [
-  [/\b(rain|raining|rainy|drizzle|puddle|umbrella)\b/, 'rain'],
-  [/\b(storm|stormy|thunder|lightning|hurricane|chaos|explode|exploding|furious|rage|screaming)\b/, 'storm'],
-  [/\b(ocean|sea|beach|waves?|shore|lake|swim|swimming|tide)\b/, 'sea'],
-  [/\b(snow|snowing|winter|freezing|frozen|ice|cold)\b/, 'snow'],
+  [/\b(angry|mad|furious|pissed|rage|raging|annoyed|annoying|hate|storm|stormy|thunder|lightning|hurricane|chaos|explode|exploding|screaming|yelling|fight|fighting)\b/, 'storm'],
+  [/\b(rain|raining|rainy|drizzle|puddle|umbrella|cry|crying|cried|tears)\b/, 'rain'],
+  [/\b(lonely|alone|empty|nobody|no one|left out|ignored|isolated)\b/, 'road'],
+  [/\b(tired|exhausted|sleepy|drained|after school|homework)\b/, 'room'],
+  [/\b(excited|exciting|yay|amazing|best day|new start|fresh|sunrise|sunny|sun|morning|summer|golden)\b/, 'hills'],
+  [/\b(aurora|magic|magical|wonder|awe|amazed|dream|dreamy|dreaming|surreal|unreal)\b/, 'aurora'],
+  [/\b(lost|confused|unsure|uncertain|searching|guide|anxious|anxiety|nervous|worried|worry|stressed|stress|pressure|scared)\b/, 'lighthouse'],
+  [/\b(sad|down|blue|gr[ae]y|heavy|gloomy|hurt|upset)\b/, 'rain'],
+  [/\b(miss|missing|memories|remember|nostalgic|wish)\b/, 'lake'],
+  [/\b(city|downtown|traffic|busy|lights|crowd|crowded|mall|subway|overwhelmed|overwhelming)\b/, 'city'],
+  [/\b(lake|pond|still|quiet|peaceful|peace|calm|serene)\b/, 'lake'],
+  [/\b(ocean|sea|beach|waves?|shore|swim|swimming|tide)\b/, 'sea'],
+  [/\b(snow|snowing|winter|freezing|frozen|ice|cold|numb)\b/, 'snow'],
+  [/\b(mountains?|climb|climbing|peak|ski|skiing|proud|strong|strength|accomplished|achieved)\b/, 'mountains'],
+  [/\b(clouds?|flying|fly|plane|floating|float|weightless|light|relieved|relief)\b/, 'clouds'],
+  [/\b(flowers?|garden|spring|bloom|blooming|grow|growing|grateful|thankful|love|loved|crush|cute|sweet)\b/, 'garden'],
+  [/\b(desert|hot|heat|thirsty|dry|burnt out|burned out|burnout|bored|boring)\b/, 'dunes'],
   [/\b(stars?|moon|night|midnight|3am|2am|1am|4am|insomnia|space|galaxy|sky)\b/, 'night'],
-  [/\b(forest|trees?|woods|hike|hiking|fog|foggy|mist|misty)\b/, 'forest'],
-  [/\b(concert|party|music|festival|celebrate|celebrating|birthday|won|win|winning|hype|lit)\b/, 'fireworks'],
-  [/\b(sun|sunny|sunrise|sunset|morning|summer|warm|golden|hopeful|hope)\b/, 'hills'],
-  [/\b(wind|windy|breeze|free|freedom|running|run|bike|field|flowers?)\b/, 'field'],
-  [/\b(alone|lonely|empty|nobody|streetlight|street|walk|walking|dark)\b/, 'streetlight'],
-  [/\b(tea|coffee|cozy|blanket|bed|home|room|window|inside)\b/, 'rain'],
+  [/\b(forest|trees?|woods|hike|hiking|fog|foggy|mist|misty|nature)\b/, 'forest'],
+  [/\b(concert|party|music|festival|celebrate|celebrating|birthday|won|win|winning|hype|lit|fireworks)\b/, 'fireworks'],
+  [/\b(wind|windy|breeze|free|freedom|running|run|bike|biking|field)\b/, 'field'],
+  [/\b(streetlight|street|walk|walking|dark)\b/, 'streetlight'],
+  [/\b(road|drive|driving|car|bus|trip|travel)\b/, 'road'],
+  [/\b(laugh|laughed|laughing|funny|happy|joy|fun|great|good)\b/, 'garden'],
+  [/\b(school|class|studying|study|bed|cozy|blanket|tea|coffee|home|room|window|inside|lamp)\b/, 'room'],
 ];
-const CHIP = { foggy: 'forest', electric: 'fireworks', warm: 'hills', distant: 'night', hollow: 'streetlight', weightless: 'field', glowing: 'fireworks', raw: 'storm', tangled: 'storm', tender: 'sea', open: 'hills', sharp: 'snow' };
+const CHIP = { foggy: 'forest', electric: 'city', warm: 'hills', distant: 'lake', hollow: 'road', weightless: 'clouds', glowing: 'fireworks', raw: 'storm', tangled: 'lighthouse', tender: 'garden', open: 'mountains', sharp: 'snow' };
 
 export function sceneFor(m){
   if (m.scene && SCENES[m.scene]) return m.scene;
   const t = (m.text || '').toLowerCase();
   if (t) for (const [re, s] of KEYS) if (re.test(t)) return s;
   for (const c of (m.chips || [])) if (CHIP[c]) return CHIP[c];
-  const v = m.v, e = m.e, r = mulberry32((m.seed || 7) ^ 0x9e37)();
-  if (Math.hypot(v - .5, e - .45) < .1) return r < .5 ? 'forest' : 'night';
-  if (v >= .5 && e < .5) return e < .3 ? (r < .6 ? 'hills' : 'sea') : (r < .5 ? 'sea' : 'hills');
-  if (v >= .5) return e > .68 ? 'fireworks' : (r < .6 ? 'field' : 'hills');
-  if (e < .5) return e < .3 ? (r < .55 ? 'streetlight' : 'snow') : (r < .5 ? 'rain' : 'streetlight');
-  return e > .68 ? 'storm' : (r < .6 ? 'rain' : 'storm');
+  const v = m.v, e = m.e, r = mulberry32((m.seed || 7) ^ 0x9e37)(), pick = a => a[Math.floor(r * a.length) % a.length];
+  if (Math.hypot(v - .5, e - .45) < .1) return pick(['forest', 'night', 'lake', 'mountains']);
+  if (v >= .5 && e < .5) return pick(e < .3 ? ['lake', 'sea', 'clouds', 'hills'] : ['hills', 'garden', 'sea', 'clouds']);
+  if (v >= .5) return pick(e > .68 ? ['fireworks', 'city', 'aurora'] : ['field', 'hills', 'mountains', 'garden']);
+  if (e < .5) return pick(e < .3 ? ['streetlight', 'snow', 'road', 'room'] : ['rain', 'room', 'lighthouse', 'dunes']);
+  return pick(e > .68 ? ['storm', 'storm', 'city'] : ['rain', 'storm', 'lighthouse']);
 }
 
 /* the moment's palette, made scene-safe: glow (light source), second (accent), deep (shadow) */
@@ -204,6 +221,145 @@ const DRAW = {
     if (m.e > .55) { const kx = w * (.6 + rnd() * .25), ky = h * (.15 + rnd() * .1), ks = w * .04; ctx.fillStyle = rgb(mix(p.s, WARM, .3)); ctx.beginPath(); ctx.moveTo(kx, ky - ks); ctx.lineTo(kx + ks * .7, ky); ctx.lineTo(kx, ky + ks * 1.2); ctx.lineTo(kx - ks * .7, ky); ctx.closePath(); ctx.fill();
       ctx.strokeStyle = 'rgba(40,30,30,.45)'; ctx.lineWidth = w / 500; ctx.beginPath(); ctx.moveTo(kx, ky + ks * 1.2); ctx.bezierCurveTo(kx - w * .1, ky + h * .2, kx - w * .2, ky + h * .25, kx - w * .35, h * .9); ctx.stroke(); }
     birds(ctx, w, h, rnd, 3, 'rgba(40,30,50,.45)');
+  },
+  mountains(ctx, w, h, p, rnd, m){
+    const sunC = mix(p.g, WARM, .5), horizon = h * (.5 + rnd() * .06);
+    sky(ctx, w, h, [[0, rgb(mix(p.d, NIGHT, .45))], [.35, rgb(mix(p.s, NIGHT, .25))], [.55, rgb(mix(p.s, sunC, .5))], [1, rgb(p.dark)]]);
+    stars(ctx, w, h, 25, rnd, .25, .5);
+    const sx = w * (.25 + rnd() * .5); glow(ctx, sx, horizon - h * .06, w * .7, sunC, .5);
+    for (let L = 0; L < 3; L++) { const t = L / 2, base = horizon + h * (.06 + t * .14), peakH = h * (.32 - t * .1), n = 2 + L + Math.floor(rnd() * 2), col = mix(mix(p.s, NIGHT, .35 + t * .25), p.ink, .2 + t * .6), snow = mix(mix(sunC, WHITE, .55), col, t * .55);
+      const pts = [[0, base]]; for (let i = 0; i <= n; i++) { const x = (i + .2 + rnd() * .6) / (n + 1) * w * 1.1 - w * .05; pts.push([x - w * (.12 + rnd() * .06), base - peakH * (.25 + rnd() * .2)]); pts.push([x, base - peakH * (.65 + rnd() * .35)]); } pts.push([w, base - peakH * .3], [w, h], [0, h]);
+      ctx.fillStyle = rgb(col); ctx.beginPath(); pts.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])); ctx.closePath(); ctx.fill();
+      if (L < 2) for (let i = 2; i < pts.length - 3; i += 2) { const [px, py] = pts[i], [lx, ly] = pts[i - 1], [rx, ry] = pts[i + 1] || [px + w * .1, py + peakH * .5], k = .22 + rnd() * .1;
+        ctx.fillStyle = rgb(snow, .9 - L * .25); ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + (rx - px) * k, py + (ry - py) * k); ctx.lineTo(px + (rx - px) * k * .5, py + (ry - py) * k * 1.25); ctx.lineTo(px, py + (ry - py) * k * .9); ctx.lineTo(px + (lx - px) * k * .6, py + (ly - py) * k * 1.15); ctx.lineTo(px + (lx - px) * k, py + (ly - py) * k); ctx.closePath(); ctx.fill(); }
+      fog(ctx, w, h, base, h * .035, mix(sunC, WHITE, .45), .22); }
+    const tc = rgb(mix(p.ink, BLACK, .3)); for (let i = 0; i < 16; i++) { const x = rnd() * w; pine(ctx, x, h * (.9 + rnd() * .1), h * (.08 + rnd() * .1), tc); }
+  },
+  lake(ctx, w, h, p, rnd, m){
+    const horizon = h * (.52 + rnd() * .05), moonC = mix(p.g, WHITE, .6), skyTop = mix(p.d, NIGHT, .45), skyLow = mix(p.s, NIGHT, .3);
+    sky(ctx, w, horizon, [[0, rgb(skyTop)], [1, rgb(skyLow)]]); stars(ctx, w, horizon, 90, rnd, .9);
+    const mx = w * (.3 + rnd() * .4), my = horizon * (.28 + rnd() * .2), mr = w * .055; glow(ctx, mx, my, w * .45, moonC, .35); disk(ctx, mx, my, mr, moonC);
+    const tc = mix(p.ink, BLACK, .35); ctx.fillStyle = rgb(tc); ctx.fillRect(0, horizon - h * .01, w, h * .012);
+    for (let i = 0; i < 60; i++) { const x = (i / 60) * w + rnd() * 6, ht = h * (.03 + rnd() * .06); pine(ctx, x, horizon + 1, ht, rgb(tc)); }
+    const gr = ctx.createLinearGradient(0, horizon, 0, h); gr.addColorStop(0, rgb(mix(skyLow, tc, .3))); gr.addColorStop(1, rgb(mix(skyTop, BLACK, .4))); ctx.fillStyle = gr; ctx.fillRect(0, horizon, w, h - horizon);
+    ctx.save(); ctx.globalAlpha = .35; for (let i = 0; i < 60; i++) { const x = (i / 60) * w + rnd() * 6, ht = h * (.03 + rnd() * .06); ctx.save(); ctx.translate(0, horizon * 2 + 2); ctx.scale(1, -1); pine(ctx, x, horizon + 1, ht, rgb(tc)); ctx.restore(); } ctx.restore();
+    const ry = horizon + (horizon - my);
+    for (let i = 0; i < 38; i++) { const t = rnd(), y = horizon + h * .02 + t * (h - horizon) * .85, len = w * (.015 + rnd() * .05) * (1 + t), x = mx + (rnd() - .5) * w * .12 * (1 + t);
+      ctx.fillStyle = rgb(moonC, .55 * (1 - t * .6)); ctx.fillRect(x - len / 2, y, len, Math.max(1, h * .003)); }
+    glow(ctx, mx, Math.min(h * .95, ry), w * .1, moonC, .25);
+    ctx.fillStyle = rgb(mix(tc, BLACK, .4)); const dx = w * (rnd() < .5 ? .08 : .62); ctx.fillRect(dx, h * .86, w * .3, h * .014); for (let k = 0; k < 4; k++) ctx.fillRect(dx + w * .3 * k / 3.2, h * .86, w * .012, h * .07);
+  },
+  city(ctx, w, h, p, rnd, m){
+    const glowC = mix(p.g, WARM, .45);
+    sky(ctx, w, h, [[0, rgb(mix(p.d, NIGHT, .5))], [.55, rgb(mix(p.s, NIGHT, .35))], [.82, rgb(mix(p.s, glowC, .4))], [1, rgb(mix(glowC, p.s, .3))]]);
+    stars(ctx, w, h, 40, rnd, .4, .6);
+    const mx = w * (.15 + rnd() * .7), my = h * (.12 + rnd() * .1); glow(ctx, mx, my, w * .3, mix(p.g, WHITE, .6), .3); disk(ctx, mx, my, w * .04, mix(p.g, WHITE, .7));
+    for (let L = 0; L < 3; L++) { const t = L / 2, base = h, col = mix(mix(p.s, NIGHT, .55), p.ink, .3 + t * .6); let x = -rnd() * w * .05;
+      while (x < w) { const bw = w * (.06 + rnd() * .1) * (1 + t * .3), bh = h * (.18 + rnd() * .3 - t * .08) + (L === 0 ? h * .12 : 0), top = base - bh - h * (.0 + (2 - L) * .04);
+        ctx.fillStyle = rgb(col); ctx.fillRect(x, top, bw, base - top); if (rnd() < .3) ctx.fillRect(x + bw * .4, top - h * .03, bw * .08, h * .03);
+        if (L > 0) { const cw = Math.max(2, w / 120), gap = cw * 2.1; for (let yy = top + gap; yy < base - gap; yy += gap) for (let xx = x + gap * .6; xx < x + bw - cw; xx += gap) if (rnd() < (L === 2 ? .28 : .16)) { ctx.fillStyle = rgb(mix(glowC, WHITE, rnd() * .4), .55 + rnd() * .4); ctx.fillRect(xx, yy, cw, cw * 1.2); } }
+        x += bw + w * .004; }
+      fog(ctx, w, h, h * (.82 + t * .1), h * .05, glowC, .12); }
+  },
+  room(ctx, w, h, p, rnd, m){
+    const wall = mix(p.d, BLACK, .45), lampC = mix(p.g, WARM, .7), rainy = m.v < .55 || rnd() < .4;
+    ctx.fillStyle = rgb(wall); ctx.fillRect(0, 0, w, h);
+    const lampL = rnd() < .5, ww = w * (.5 + rnd() * .14), wx = lampL ? w - ww - w * (.08 + rnd() * .06) : w * (.08 + rnd() * .06), wy = h * (.08 + rnd() * .06), wh = h * (.46 + rnd() * .1), outTop = rainy ? mix(p.s, NIGHT, .5) : mix(p.s, NIGHT, .3), outLow = rainy ? mix(p.s, p.g, .25) : mix(p.g, WARM, .55);
+    const og = ctx.createLinearGradient(0, wy, 0, wy + wh); og.addColorStop(0, rgb(outTop)); og.addColorStop(1, rgb(outLow)); ctx.fillStyle = og; ctx.fillRect(wx, wy, ww, wh);
+    ctx.save(); ctx.beginPath(); ctx.rect(wx, wy, ww, wh); ctx.clip();
+    ridge(ctx, w, h, wy + wh * .82, wh * .08, rnd, rgb(mix(outTop, BLACK, .5)));
+    for (let i = 0; i < 8; i++) glow(ctx, wx + rnd() * ww, wy + wh * (.7 + rnd() * .2), w * .02, lampC, .5);
+    if (rainy) { ctx.strokeStyle = rgb(mix(outLow, WHITE, .5), .35); ctx.lineWidth = Math.max(1, w / 400); for (let i = 0; i < 70; i++) { const x = wx + rnd() * ww, y = wy + rnd() * wh, l = h * (.02 + rnd() * .04); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - l * .15, y + l); ctx.stroke(); }
+      for (let i = 0; i < 40; i++) { const x = wx + rnd() * ww, y = wy + rnd() * wh, r = w * (.002 + rnd() * .005); ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); } }
+    else { stars(ctx, w, h, 20, rnd, .5, .6); const mx = wx + ww * (.2 + rnd() * .6), my = wy + wh * (.15 + rnd() * .2); glow(ctx, mx, my, w * .12, mix(p.g, WHITE, .6), .4); disk(ctx, mx, my, w * .03, mix(p.g, WHITE, .7)); }
+    ctx.restore();
+    const fr = Math.max(4, w * .022), fc = rgb(mix(wall, BLACK, .5)); ctx.fillStyle = fc; ctx.fillRect(wx - fr, wy - fr, ww + fr * 2, fr); ctx.fillRect(wx - fr, wy + wh, ww + fr * 2, fr * 1.6); ctx.fillRect(wx - fr, wy, fr, wh); ctx.fillRect(wx + ww, wy, fr, wh); ctx.fillRect(wx + ww / 2 - fr / 2, wy, fr, wh); ctx.fillRect(wx, wy + wh / 2 - fr / 2, ww, fr);
+    const lx = lampL ? w * .14 : w * .86, ly = h * .5; glow(ctx, lx, ly, w * .7, lampC, .5);
+    ctx.fillStyle = rgb(mix(lampC, WHITE, .3)); ctx.beginPath(); ctx.moveTo(lx - w * .07, ly + h * .04); ctx.lineTo(lx + w * .07, ly + h * .04); ctx.lineTo(lx + w * .045, ly - h * .04); ctx.lineTo(lx - w * .045, ly - h * .04); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = fc; ctx.fillRect(lx - w * .006, ly + h * .04, w * .012, h * .2);
+    const sill = wy + wh + fr * 1.6; ctx.fillStyle = rgb(mix(wall, lampC, .12)); ctx.fillRect(0, h * .78, w, h * .22);
+    const px = wx + ww * (.12 + rnd() * .15); ctx.fillStyle = rgb(mix(p.s, BLACK, .6)); ctx.fillRect(px - w * .03, sill - h * .05, w * .06, h * .05);
+    ctx.strokeStyle = rgb(mix(p.s, BLACK, .45)); ctx.lineWidth = Math.max(2, w / 110); ctx.lineCap = 'round'; for (let k = 0; k < 6; k++) { const a = -1.57 + (k - 2.5) * .35; ctx.beginPath(); ctx.moveTo(px, sill - h * .05); ctx.quadraticCurveTo(px + Math.cos(a) * w * .05, sill - h * .1, px + Math.cos(a) * w * .09, sill - h * .05 - Math.abs(Math.sin(a)) * h * .1); ctx.stroke(); }
+    const mx2 = wx + ww * (.6 + rnd() * .2); ctx.fillStyle = rgb(mix(lampC, wall, .55)); ctx.fillRect(mx2, sill - h * .035, w * .04, h * .035); ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 1; for (let k = 0; k < 2; k++) { ctx.beginPath(); ctx.moveTo(mx2 + w * (.012 + k * .014), sill - h * .045); ctx.bezierCurveTo(mx2 + w * (.0 + k * .014), sill - h * .07, mx2 + w * (.03 + k * .014), sill - h * .08, mx2 + w * (.015 + k * .014), sill - h * .1); ctx.stroke(); }
+  },
+  road(ctx, w, h, p, rnd, m){
+    const horizon = h * (.46 + rnd() * .05), lampC = mix(p.g, WARM, .6), vx = w * (.42 + rnd() * .16);
+    sky(ctx, w, horizon, [[0, rgb(mix(p.d, NIGHT, .55))], [1, rgb(mix(p.s, NIGHT, .3))]]); stars(ctx, w, horizon, 70, rnd, .85);
+    ridge(ctx, w, h, horizon, h * .03, rnd, rgb(mix(p.s, NIGHT, .6)), .4);
+    ctx.fillStyle = rgb(mix(p.ink, BLACK, .2)); ctx.fillRect(0, horizon, w, h - horizon);
+    ctx.fillStyle = rgb(mix(p.ink, p.s, .15)); ctx.beginPath(); ctx.moveTo(vx - w * .01, horizon); ctx.lineTo(vx + w * .01, horizon); ctx.lineTo(w * 1.05, h); ctx.lineTo(-w * .25, h); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = rgb(mix(lampC, WHITE, .4), .7); for (let i = 0; i < 9; i++) { const t0 = Math.pow(i / 9, 1.8), t1 = Math.pow((i + .45) / 9, 1.8), y0 = horizon + t0 * (h - horizon), y1 = horizon + t1 * (h - horizon), x0 = vx + (w * .4 - vx) * t0, x1 = vx + (w * .4 - vx) * t1, wd0 = w * .003 + t0 * w * .012, wd1 = w * .003 + t1 * w * .012;
+      ctx.beginPath(); ctx.moveTo(x0 - wd0, y0); ctx.lineTo(x0 + wd0, y0); ctx.lineTo(x1 + wd1, y1); ctx.lineTo(x1 - wd1, y1); ctx.closePath(); ctx.fill(); }
+    const side = rnd() < .5 ? 1 : -1, n = 4;
+    for (let i = n - 1; i >= 0; i--) { const t = Math.pow((i + .6) / n, 1.6), by = horizon + t * (h - horizon) * .95, bx = vx + side * (w * .04 + t * w * .36), ph = h * (.04 + t * .42), top = by - ph;
+      if (i === n - 1 || rnd() < .85) { ctx.fillStyle = rgb(mix(p.ink, BLACK, .4)); ctx.fillRect(bx - Math.max(1, t * w * .006), top, Math.max(1.5, t * w * .012), ph); ctx.fillRect(bx - side * t * w * .06, top, side * t * w * .06 || 1, Math.max(1, t * w * .008));
+        const hx = bx - side * t * w * .06; glow(ctx, hx, top + t * h * .01, w * (.08 + t * .35), lampC, .7); disk(ctx, hx, top + t * h * .012, Math.max(1, t * w * .012), mix(lampC, WHITE, .7));
+        ctx.save(); ctx.translate(hx, by); ctx.scale(1, .25); glow(ctx, 0, 0, w * (.04 + t * .3), lampC, .35); ctx.restore(); } }
+    fog(ctx, w, h, horizon, h * .03, mix(p.s, WHITE, .2), .2);
+  },
+  aurora(ctx, w, h, p, rnd, m){
+    const horizon = h * .66, c1 = mix([90, 255, 170], p.s, .2), c2 = mix([180, 120, 255], p.g, .25);
+    sky(ctx, w, h, [[0, rgb(mix(p.d, NIGHT, .7))], [.6, rgb(mix(p.d, NIGHT, .35))], [1, rgb(mix(p.s, NIGHT, .5))]]); stars(ctx, w, h, 110, rnd, .7);
+    ctx.save(); ctx.globalCompositeOperation = 'screen';
+    for (let band = 0; band < 3; band++) { const base = h * (.22 + band * .1 + rnd() * .06), amp = h * (.05 + rnd() * .06), f = 1 + rnd() * 1.6, ph = rnd() * 6, col = band % 2 ? c2 : c1, ht = h * (.16 + rnd() * .14);
+      for (let x = 0; x <= w; x += Math.max(1, w / 170)) { const u = x / w, y = base + Math.sin(u * f * 6.28 + ph) * amp + Math.sin(u * 13 + ph * 2) * amp * .2, a = 1.7 * (.05 + .12 * Math.pow(Math.sin(u * 9 + ph) * .5 + .5, 2)) * (1 - band * .25) * (.55 + .45 * Math.sin(x * .7 + band));
+        const gr = ctx.createLinearGradient(0, y - ht, 0, y); gr.addColorStop(0, rgb(col, 0)); gr.addColorStop(.75, rgb(col, a)); gr.addColorStop(.97, rgb(mix(col, WHITE, .3), a * 1.2)); gr.addColorStop(1, rgb(col, 0)); ctx.fillStyle = gr; ctx.fillRect(x, y - ht, Math.max(1.5, w / 150), ht); } }
+    ctx.restore();
+    const snowC = mix(mix(p.s, WHITE, .35), NIGHT, .35); ridge(ctx, w, h, horizon, h * .1, rnd, rgb(mix(p.ink, NIGHT, .3)), 1.2);
+    const gg = ctx.createLinearGradient(0, horizon, 0, h); gg.addColorStop(0, rgb(snowC)); gg.addColorStop(1, rgb(mix(snowC, NIGHT, .5))); ctx.fillStyle = gg; ctx.fillRect(0, horizon + h * .06, w, h);
+    ctx.save(); ctx.globalAlpha = .25; ctx.globalCompositeOperation = 'screen'; glow(ctx, w * .5, horizon + h * .15, w * .6, c1, .5); ctx.restore();
+    const tc = rgb(mix(p.ink, BLACK, .4)); for (let i = 0; i < 7; i++) pine(ctx, w * (rnd() < .5 ? rnd() * .3 : .7 + rnd() * .3), h * (.8 + rnd() * .15), h * (.08 + rnd() * .12), tc);
+  },
+  dunes(ctx, w, h, p, rnd, m){
+    const sunC = mix(p.g, WARM, .75), horizon = h * (.5 + rnd() * .05);
+    sky(ctx, w, h, [[0, rgb(mix(p.s, NIGHT, .45))], [.4, rgb(mix(p.s, sunC, .5))], [.55, rgb(mix(sunC, WHITE, .3))], [1, rgb(mix(sunC, p.d, .5))]]);
+    const sx = w * (.25 + rnd() * .5), sy = horizon - h * .04; glow(ctx, sx, sy, w * .6, sunC, .6); disk(ctx, sx, sy, w * .1, mix(sunC, WHITE, .5));
+    for (let L = 0; L < 4; L++) { const t = L / 3, base = horizon + h * (.02 + t * .3), amp = h * (.06 + t * .03), ph = rnd() * 6, f = .6 + rnd() * .8, lit = mix(mix(sunC, p.s, .25 + t * .2), p.d, .1 + t * .45), shade = mix(lit, p.ink, .45);
+      const ys = []; for (let x = 0; x <= w; x += w / 80) ys.push([x, base - amp * (Math.sin(x / w * f * 6.28 + ph) * .5 + .5)]);
+      const dg = ctx.createLinearGradient(0, base - amp, 0, base + h * .14); dg.addColorStop(0, rgb(mix(lit, WHITE, .12))); dg.addColorStop(1, rgb(shade)); ctx.fillStyle = dg; ctx.beginPath(); ctx.moveTo(0, h); ys.forEach(q => ctx.lineTo(q[0], q[1])); ctx.lineTo(w, h); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = rgb(mix(sunC, WHITE, .5), .35); ctx.lineWidth = Math.max(1, w / 300); ctx.beginPath(); ys.forEach((q, k) => k ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])); ctx.stroke(); }
+    if (rnd() < .6) { const cx = w * (.15 + rnd() * .7), cy = h * .9, ch = h * .1; ctx.fillStyle = rgb(mix(p.ink, BLACK, .3)); ctx.fillRect(cx - w * .012, cy - ch, w * .024, ch); ctx.fillRect(cx - w * .045, cy - ch * .6, w * .015, ch * .3); ctx.fillRect(cx - w * .045, cy - ch * .6, w * .045, w * .014); ctx.fillRect(cx + w * .03, cy - ch * .75, w * .015, ch * .35); ctx.fillRect(cx, cy - ch * .45, w * .045, w * .014); }
+  },
+  lighthouse(ctx, w, h, p, rnd, m){
+    const horizon = h * .62, beamC = mix(p.g, WARM, .55), side = rnd() < .5 ? 1 : -1, lx = w * (.5 + side * .22), top = h * .22;
+    sky(ctx, w, horizon, [[0, rgb(mix(p.d, NIGHT, .5))], [1, rgb(mix(p.s, NIGHT, .35))]]); stars(ctx, w, horizon, 30, rnd, .6, .5);
+    ctx.save(); ctx.globalCompositeOperation = 'screen'; const ang = side > 0 ? Math.PI + (rnd() - .5) * .3 : (rnd() - .5) * .3, len = w * 1.3;
+    const bg = ctx.createRadialGradient(lx, top, 0, lx, top, len); bg.addColorStop(0, rgb(beamC, .55)); bg.addColorStop(1, rgb(beamC, 0)); ctx.fillStyle = bg;
+    ctx.beginPath(); ctx.moveTo(lx, top); ctx.lineTo(lx + Math.cos(ang - .12) * len, top + Math.sin(ang - .12) * len); ctx.lineTo(lx + Math.cos(ang + .12) * len, top + Math.sin(ang + .12) * len); ctx.closePath(); ctx.fill(); ctx.restore();
+    glow(ctx, lx, top, w * .25, beamC, .6);
+    const gr = ctx.createLinearGradient(0, horizon, 0, h); gr.addColorStop(0, rgb(mix(p.s, p.d, .5))); gr.addColorStop(1, rgb(p.ink)); ctx.fillStyle = gr; ctx.fillRect(0, horizon, w, h - horizon);
+    ctx.strokeStyle = rgb(mix(p.s, WHITE, .2), .15); ctx.lineWidth = Math.max(1, w / 300); for (let i = 0; i < 16; i++) { const y = horizon + Math.pow((i + 1) / 17, 1.4) * (h - horizon), x = rnd() * w; ctx.beginPath(); ctx.moveTo(x - w * .1, y); ctx.quadraticCurveTo(x, y - h * .006, x + w * .1, y); ctx.stroke(); }
+    const rock = rgb(mix(p.ink, BLACK, .35)); ctx.fillStyle = rock; ctx.beginPath(); ctx.moveTo(lx - side * w * .45, h); ctx.lineTo(lx - side * w * .2, horizon + h * .02); ctx.lineTo(lx - side * w * .05, horizon - h * .02); ctx.lineTo(lx + side * w * .1, horizon - h * .01); ctx.lineTo(lx + side * w * .2, horizon + h * .05); ctx.lineTo(lx + side * w * .35, h); ctx.closePath(); ctx.fill();
+    const bw0 = w * .055, bw1 = w * .035, base = horizon - h * .015, tc = mix(WHITE, p.d, .3), sc = mix(p.g, [200, 60, 70], .5);
+    for (let k = 0; k < 4; k++) { const y0 = top + h * .03 + (base - top - h * .03) * k / 4, y1 = top + h * .03 + (base - top - h * .03) * (k + 1) / 4, a0 = bw1 + (bw0 - bw1) * k / 4, a1 = bw1 + (bw0 - bw1) * (k + 1) / 4;
+      ctx.fillStyle = rgb(k % 2 ? sc : tc); ctx.beginPath(); ctx.moveTo(lx - a0, y0); ctx.lineTo(lx + a0, y0); ctx.lineTo(lx + a1, y1); ctx.lineTo(lx - a1, y1); ctx.closePath(); ctx.fill(); }
+    ctx.fillStyle = rgb(mix(BLACK, p.d, .3)); ctx.fillRect(lx - bw1 * 1.25, top + h * .022, bw1 * 2.5, h * .012); disk(ctx, lx, top, bw1 * .9, mix(beamC, WHITE, .7));
+    ctx.fillStyle = rgb(mix(BLACK, p.d, .3)); ctx.beginPath(); ctx.moveTo(lx - bw1 * 1.1, top - h * .012); ctx.lineTo(lx + bw1 * 1.1, top - h * .012); ctx.lineTo(lx, top - h * .045); ctx.closePath(); ctx.fill();
+    fog(ctx, w, h, horizon + h * .02, h * .06, mix(p.s, WHITE, .35), .25); fog(ctx, w, h, h * .4, h * .1, mix(p.s, WHITE, .3), .1);
+  },
+  clouds(ctx, w, h, p, rnd, m){
+    const sunC = mix(p.g, WARM, .5);
+    sky(ctx, w, h, [[0, rgb(mix(p.s, NIGHT, .35))], [.45, rgb(mix(p.s, sunC, .35))], [.62, rgb(mix(sunC, WHITE, .4))], [1, rgb(mix(p.s, WHITE, .3))]]);
+    const sx = w * (.3 + rnd() * .4), sy = h * (.38 + rnd() * .08); glow(ctx, sx, sy, w * .8, sunC, .55); disk(ctx, sx, sy, w * .07, mix(sunC, WHITE, .6));
+    birds(ctx, w, h, rnd, 2 + Math.floor(rnd() * 3), rgb(mix(p.d, BLACK, .3), .6));
+    for (let L = 0; L < 4; L++) { const t = L / 3, y = h * (.5 + t * .15), lit = mix(mix(sunC, WHITE, .55), p.s, .1 + t * .35), sh = mix(lit, p.d, .3);
+      for (let i = 0; i < 14; i++) { const x = (i / 13) * w * 1.2 - w * .1 + (rnd() - .5) * w * .08, r = w * (.07 + rnd() * .07) * (1 + t * .4), yy = y + (rnd() - .5) * h * .03;
+        const g2 = ctx.createRadialGradient(x - r * .3, yy - r * .4, r * .1, x, yy, r); g2.addColorStop(0, rgb(mix(lit, WHITE, .3))); g2.addColorStop(1, rgb(sh)); ctx.fillStyle = g2; ctx.beginPath(); ctx.arc(x, yy, r, 0, 7); ctx.fill(); }
+      const bg2 = ctx.createLinearGradient(0, y, 0, h); bg2.addColorStop(0, rgb(sh)); bg2.addColorStop(1, rgb(mix(sh, p.d, .35))); ctx.fillStyle = bg2; ctx.fillRect(0, y + h * .02, w, h); }
+    fog(ctx, w, h, h * .52, h * .05, mix(sunC, WHITE, .6), .3);
+  },
+  garden(ctx, w, h, p, rnd, m){
+    const sunC = mix(p.g, WARM, .45), horizon = h * .55, f1 = mix(p.g, [255, 140, 170], .45), f2 = mix(p.s, [255, 230, 140], .45), f3 = mix(p.g, WHITE, .5);
+    sky(ctx, w, h, [[0, rgb(mix(p.s, WHITE, .1))], [.5, rgb(mix(sunC, WHITE, .45))], [1, rgb(mix(p.s, p.d, .4))]]);
+    glow(ctx, w * (.7 + rnd() * .2), h * .15, w * .7, sunC, .6);
+    for (let i = 0; i < 12; i++) glow(ctx, rnd() * w, h * (.1 + rnd() * .4), w * (.02 + rnd() * .04), mix(sunC, WHITE, .6), .35);
+    ridge(ctx, w, h, horizon, h * .04, rnd, rgb(mix(p.s, p.d, .35)), .5); ridge(ctx, w, h, horizon + h * .08, h * .03, rnd, rgb(mix(p.s, p.d, .55)), .5);
+    const gr = ctx.createLinearGradient(0, horizon + h * .1, 0, h); gr.addColorStop(0, rgb(mix(p.s, p.d, .5))); gr.addColorStop(1, rgb(p.ink)); ctx.fillStyle = gr; ctx.fillRect(0, horizon + h * .1, w, h);
+    for (let i = 0; i < 70; i++) { const t = Math.pow(rnd(), .7), x = rnd() * w, base = horizon + h * .12 + t * (h - horizon) * .95, sz = w * (.01 + t * .045), stem = sz * (2 + rnd() * 2.5), col = [f1, f2, f3][Math.floor(rnd() * 3)];
+      ctx.strokeStyle = rgb(mix(p.s, p.ink, .5)); ctx.lineWidth = Math.max(1, sz * .18); ctx.beginPath(); ctx.moveTo(x, base); ctx.quadraticCurveTo(x + (rnd() - .5) * sz, base - stem * .5, x, base - stem); ctx.stroke();
+      const n = 5; for (let k = 0; k < n; k++) { const a = k / n * 6.28 + rnd(); ctx.fillStyle = rgb(mix(col, p.d, (1 - t) * .25)); ctx.beginPath(); ctx.ellipse(x + Math.cos(a) * sz * .5, base - stem + Math.sin(a) * sz * .5, sz * .45, sz * .3, a, 0, 7); ctx.fill(); }
+      disk(ctx, x, base - stem, sz * .25, mix(f2, WARM, .5)); }
+    for (let i = 0; i < 40; i++) { const x = rnd() * w, b = h, l = h * (.04 + rnd() * .08); ctx.strokeStyle = rgb(mix(p.s, p.ink, .65)); ctx.lineWidth = Math.max(1, w / 250); ctx.beginPath(); ctx.moveTo(x, b); ctx.quadraticCurveTo(x + (rnd() - .5) * w * .03, b - l * .6, x + (rnd() - .5) * w * .05, b - l); ctx.stroke(); }
   },
 };
 

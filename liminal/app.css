@@ -323,3 +323,7 @@ body.is-pro .seg-lock{display:none}
 .auth-err{margin:12px 2px 0;font-size:14px;color:#ffb3c1}
 #authForm .primary{width:100%;margin-top:18px}
 .auth-fine{font-size:12.5px;color:var(--ink3);line-height:1.45;margin:14px 2px 0}
+
+/* the upgrade + sign-in sheets read as solid panels (Odin: less translucent) */
+.pro-sheet,.auth-sheet{background:rgba(3,2,6,.72)}
+.pro-sheet .sheet-card,.auth-sheet .sheet-card{background:#16131f;-webkit-backdrop-filter:none;backdrop-filter:none}

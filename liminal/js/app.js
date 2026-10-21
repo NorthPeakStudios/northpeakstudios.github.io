@@ -2,8 +2,8 @@ import { PROMPTS } from './prompts.js';
 import { moodColors, mixHex, hexRgb, moodWord, quadrant } from './color.js';
 import { Engine } from './audio.js';
 import { analyze, compose } from './poet.js';
-import { drawScene, sceneFor, SCENES, poster } from './paint.js?v=11';
-import * as cloud from './cloud.js?v=11';
+import { drawScene, sceneFor, SCENES, poster } from './paint.js?v=12';
+import * as cloud from './cloud.js?v=12';
 import * as db from './db.js';
 
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
