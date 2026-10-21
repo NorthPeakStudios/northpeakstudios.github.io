@@ -4388,7 +4388,7 @@
       });
       async function redeem() { // an All-Access code: Synapse signs a yes, this account's Pro turns on
         code = ($('[name=pcode]', el).value || '').trim().toUpperCase();
-        if (code.replace(/[^0-9A-Z]/g, '').replace(/^(SYN|AXN|OWNER)/, '').length !== 8) { msg = 'Type the whole code, like AXN-AB12-CD34 or SYN-AB12-CD34.'; paint(); return; }
+        if (code.replace(/[^0-9A-Z]/g, '').replace(/^(SYN|AXN|OWNER|BOT)/, '').length !== 8) { msg = 'Type the whole code, like AXN-AB12-CD34 or SYN-AB12-CD34.'; paint(); return; }
         msg = '';
         if (!syOn()) { var ok = await syAuth('signup', { forPro: true }); if (!ok) { paint(); return; } }
         var bt = $('[data-p=redeem]', el); if (bt) { bt.disabled = true; bt.textContent = 'Checking\u2026'; }
