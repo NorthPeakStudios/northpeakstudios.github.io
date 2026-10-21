@@ -21,7 +21,8 @@
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preload" href="fonts/instrument-serif-italic.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="app.css?v=12">
+<script>try{if(navigator.standalone||matchMedia("(display-mode: standalone)").matches)document.documentElement.classList.add("pwa")}catch(e){}</script>
+<link rel="stylesheet" href="app.css?v=13">
 </head>
 <body>
 <canvas id="aura" aria-hidden="true"></canvas>
@@ -209,6 +210,14 @@
   </div>
 </div>
 
+<script>
+/* Some iOS home-screen launches lay the page out one status bar shorter than the screen (innerHeight = screen.height - ~59): the page cannot
+   draw into that bottom strip and the home indicator sits there. Detect it (yes/no only) so CSS drops the home-indicator padding under the tab bar. */
+(function(){var on=false;function check(){var s=on;try{var sa=navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
+if(sa&&window.screen&&innerHeight>=innerWidth){var vv=window.visualViewport,kb=vv&&innerHeight-vv.height>80,d=Math.max(screen.height,screen.width)-innerHeight;if(!kb&&d<=140)s=d>=30;}else s=false;}catch(e){s=false}
+if(s!==on){on=s;document.documentElement.classList.toggle('vp-short',s);}}
+check();addEventListener('resize',check);addEventListener('orientationchange',function(){setTimeout(check,300)});})();
+</script>
 <script type="module" src="js/app.js?v=12"></script>
 </body>
 </html>
