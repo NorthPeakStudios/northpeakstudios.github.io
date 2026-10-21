@@ -342,3 +342,6 @@ body.is-pro .seg-lock{display:none}
 
 /* np-r2 copy poem */
 .d-copy{display:inline-flex;align-items:center;gap:6px;margin:-8px 0 20px;font-size:13px;color:var(--ink2);padding:8px 12px;border-radius:14px;border:1px solid var(--line)}.d-copy:active{background:rgba(255,255,255,.08)}
+
+/* np-r2: the hidden attribute always wins (a class with display:block was showing the Pro lock card under a Pro user's poem) */
+[hidden]{display:none!important}
