@@ -661,6 +661,7 @@
     if (p[0] === 'discover') return { v: 'discover', id: decodeURIComponent(p[1] || '') };
     if (p[0] === 'guide') return { v: 'guide' };
     if (p[0] === 'quiz') return { v: 'quiz', scope: decodeURIComponent(p.slice(1).join('/') || 'all') };
+    if (p[0] === 'x') return { v: 'x', x: p[1] || '', arg: decodeURIComponent(p.slice(2).join('/')) };
     return { v: 'vault' };
   }
   function setTab(t) { document.querySelectorAll('.tb').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === t); }); }
@@ -680,7 +681,7 @@
     var r = route();
     tidyDaily(r.v === 'note' ? r.id : null);
     viewEl.className = '';
-    var tab = { vault: 'notes', folder: 'notes', note: 'notes', graph: 'graph', search: 'notes', settings: 'settings', recall: 'notes', review: 'notes', trash: 'notes', guide: 'settings', discover: 'discover', quiz: 'notes' }[r.v];
+    var tab = { vault: 'notes', folder: 'notes', note: 'notes', graph: 'graph', search: 'notes', settings: 'settings', recall: 'notes', review: 'notes', trash: 'notes', guide: 'settings', discover: 'discover', quiz: 'notes', x: 'notes' }[r.v];
     setTab(tab);
     setFab(/^(vault|folder|note|search)$/.test(r.v));
     if (PRO_VIEWS[r.v] && !isPro()) { renderLocked(r.v); viewEl.scrollTop = 0; return; }
@@ -698,6 +699,8 @@
     else if (r.v === 'discover') renderDiscover(r.id);
     else if (r.v === 'quiz') { renderQuiz(r.scope); return; }
     else if (r.v === 'guide') renderGuide();
+    else if (r.v === 'x') xRender(r);
+    try { xDecorate(); } catch (e) {}
     viewEl.scrollTop = scrollMem[currentHash] || 0;
   }
 
@@ -743,7 +746,7 @@
     }
     var pins = pinnedNotes(), rs = recallStats();
     var h = '<div class="pullhint" id="pullhint">Release to jump to a note</div><div class="page"><div class="eyebrow">Vault · ' + notes.size + ' note' + (notes.size === 1 ? '' : 's') + '</div><h1 class="h1">Notes</h1>' +
-      '<button class="searchbox" data-act="qs" style="width:100%;text-align:left">' + I.search + '<span style="flex:1;font-size:17px">Jump to a note or command</span></button>' + folderTabs('') + backupRow() +
+      '<button class="searchbox" data-act="qs" style="width:100%;text-align:left">' + I.search + '<span style="flex:1;font-size:17px">Jump to a note or command</span></button>' + folderTabs('') + backupRow() + xStrip() +
       '<div class="rows" style="margin-top:14px">' + (isPro() ? todayRow() : '') +
       (function () { var tc = allTasks(); if (!tc.length) return ''; var op = tc.filter(function (t) { return !t.done; }).length; return '<button class="row today" data-act="gotasks">' + I.check.replace('<svg', '<svg class="fi"') + '<span class="nm">Tasks</span><span class="ct">' + (op ? '<i class="duen">' + op + ' open</i>' : 'all done') + '</span><span class="chev">' + I.chev + '</span></button>'; })() +
       (rs.total ? '<button class="row today" data-act="gorecall">' + I.recall.replace('<svg', '<svg class="fi"') + '<span class="nm">Recall</span><span class="ct">' + (rs.due ? '<i class="duen">' + rs.due + ' due</i>' : 'all caught up') + '</span><span class="chev">' + I.chev + '</span></button>' : '') + '</div>' +
@@ -799,7 +802,7 @@
     var n = notes.get(id);
     if (!n) { toast('That note no longer exists'); go('#/', true); return; }
     opts = opts || {};
-    ui.lastNote = n.id; saveMeta();
+    ui.lastNote = n.id; saveMeta(); try { xSeen(n.id); } catch (e) {}
     var hasFront = !!MD.front(n.body), tags = hasFront ? [] : MD.tags(n.body), bl = backlinks(n), out = outNotes(n), nc = MD.recall(n.body).length, qn = qzPairs(n).length, wc = words(n.body), um = unlinkedMentions(n);
     var backTo = n.folder ? '#/f/' + encodeURIComponent(n.folder) : '#/';
     var h = '<div class="page"><div class="nav stick"><button class="back" data-act="back" data-to="' + backTo + '">' + I.back + '<span>' + esc(n.folder ? folderName(n.folder) : 'Notes') + '</span></button><div class="acts">' +
@@ -2266,7 +2269,10 @@
     var a = preset || await sheet({ title: n.title, left: true, actions: [{ label: n.pinned ? 'Unpin' : 'Pin to top', value: 'pin', icon: I.pin }, { label: 'Find in note', value: 'find', icon: I.search }, { label: 'Make Synapse cards\u2026', value: 'syn', icon: I.recall }, { label: 'Share\u2026', value: 'share', icon: I.ext }, { label: 'Copy as Markdown', value: 'copy', icon: I.copy }, { label: proTag('History\u2026'), value: 'hist', icon: I.restore }, { label: proTag(copyOrigin(n) ? 'Merge into \u201c' + copyOrigin(n).title + '\u201d\u2026' : 'Merge a note into this\u2026'), value: 'merge', icon: I.copy }, { label: 'Rename', value: 'rename', icon: I.edit }, { label: 'Move to folder', value: 'move', icon: I.folder.replace(' class="fi"', '') }, { label: 'Duplicate', value: 'dup', icon: I.copy }]
       .concat(inTemplates(n) ? [] : [{ label: proTag('Save as template'), value: 'tmpl', icon: I.tmpl }])
       .concat(nc ? [{ label: proTag('Review ' + nc + ' card' + (nc === 1 ? '' : 's') + ' now'), value: 'review', icon: I.recall }, { label: proTag('Export ' + nc + ' card' + (nc === 1 ? '' : 's') + ' (CSV for Synapse)'), value: 'cards', icon: I.copy }] : [])
-      .concat([{ label: proTag('Local graph'), value: 'lg', icon: I.graph }, { label: 'Move to Trash', value: 'delete', danger: true, icon: I.trash }]) });
+      .concat([{ label: proTag('Local graph'), value: 'lg', icon: I.graph }, { label: proTag('Color label\u2026'), value: 'xcolor', icon: '<i class="xdot" style="background:' + ((xColor(n) || [0, 'var(--dim)'])[1]) + '"></i>' }, { label: n.folder === ARCHIVE ? 'Unarchive' : 'Archive', value: 'xarch', icon: I.folder.replace(' class="fi"', '') }].concat(XNMENU.map(function (f) { return f(n); }).filter(Boolean)), [{ label: 'Move to Trash', value: 'delete', danger: true, icon: I.trash }]) });
+    if (a === 'xcolor') { xPickColor(n); return; }
+    if (a === 'xarch') { xArchive(n); if (route().v === 'note') renderNote(n.id); else render(); return; }
+    if (XNMFN[a]) { XNMFN[a](n); return; }
     var PM = { hist: 'History', merge: 'Merge', tmpl: 'Templates', review: 'Recall', cards: 'Flashcard export', lg: 'Graph' };
     if (PM[a] && !proOk(PM[a])) return;
     if (a === 'cards') { exportCards(n); return; }
@@ -3335,8 +3341,10 @@
       { label: n.pinned ? 'Unpin' : 'Pin to top', value: 'pin', icon: I.pin }, { label: 'Rename', value: 'rename', icon: I.edit },
       { label: 'Move to folder', value: 'move', icon: I.folder.replace(' class="fi"', '') }, { label: 'Duplicate', value: 'dup', icon: I.copy }]
       .concat(nc ? [{ label: 'Review ' + nc + ' card' + (nc === 1 ? '' : 's'), value: 'review', icon: I.recall }] : [])
-      .concat([{ label: 'Move to Trash', value: 'delete', danger: true, icon: I.trash }]), left: true });
+      .concat([{ label: n.folder === ARCHIVE ? 'Unarchive' : 'Archive', value: 'xarch', icon: I.folder.replace(' class="fi"', '') }, { label: proTag('Color label\u2026'), value: 'xcolor', icon: '<i class="xdot" style="background:' + ((xColor(n) || [0, 'var(--dim)'])[1]) + '"></i>' }, { label: 'Move to Trash', value: 'delete', danger: true, icon: I.trash }]), left: true });
     if (!a) return;
+    if (a === 'xarch') { xArchive(n); render(); return; }
+    if (a === 'xcolor') { xPickColor(n); return; }
     if (a === 'pin') { togglePin(n); render(); }
     else if (a === 'dup') { await duplicateNote(n); render(); }
     else if (a === 'review') go('#/review/' + encodeURIComponent(n.id));
@@ -4896,6 +4904,135 @@
   SLASH.push(['sym', 'Symbol', 'arrow greek delta micro degree plus minus approx science math', '\u03a9', 'sym']);
   if (pomoState()) setTimeout(pomoRun, 400);
 
+
+  /* ================= Oct 21 features (batch 2: organizing) ================= */
+  var ARCHIVE = 'Archive', XCOLORS = [['red', '#ff5a52'], ['orange', '#ff9f43'], ['yellow', '#f5c542'], ['green', '#34d399'], ['blue', '#38bdf8'], ['purple', '#a78bfa']];
+  var XV = {};
+  function xLS(k, d) { try { var v = localStorage.getItem('axon.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
+  function xLSset(k, v) { try { localStorage.setItem('axon.' + k, JSON.stringify(v)); } catch (e) {} }
+  function xPage(title, eyebrow, body) { return '<div class="page"><div class="nav stick"><button class="back" data-act="back" data-to="#/">' + I.back + '<span>Notes</span></button><div class="acts"></div></div><div class="eyebrow">' + esc(eyebrow || 'Tools') + '</div><h1 class="h1">' + esc(title) + '</h1>' + body + '</div>'; }
+  function xRow(n, right) { return '<button class="row" data-act="open" data-id="' + n.id + '">' + I.doc + '<span class="nm">' + esc(n.title) + '</span><span class="ct">' + (right || '') + '</span><span class="chev">' + I.chev + '</span></button>'; }
+  function xEmpty(b, p) { return '<div class="empty"><b>' + esc(b) + '</b>' + esc(p || '') + '</div>'; }
+  function xRender(r) { var f = XV[r.x]; if (!f) { go('#/', true); return; } viewEl.innerHTML = f(r.arg); }
+  function xColor(n) { var c = fmGet(n, 'color').toLowerCase(); return XCOLORS.filter(function (x) { return x[0] === c; })[0] || null; }
+  /* vault strip: one row of tools */
+  function xStrip() {
+    var inbox = byTitle('Inbox'), arch = notesIn(ARCHIVE).length;
+    var items = [['inbox', 'Inbox' + (inbox ? '' : ''), 'xinbox'], ['recent', 'Recent', 'x:recent'], ['tags', 'Tags', 'x:tags'], ['colors', 'Colors', 'x:colors']].concat(XSTRIP).concat([['orph', 'Orphans', 'x:orphans'], ['broken', 'Broken links', 'x:broken'], ['arch', 'Archive' + (arch ? ' \u00b7 ' + arch : ''), 'x:archive'], ['sel', 'Select', 'x:select']]);
+    return '<div class="xstrip">' + items.map(function (it) { return '<button class="chip" data-act="xgo" data-to="' + it[2] + '">' + esc(it[1]) + '</button>'; }).join('') + '</div>';
+  }
+  var XSTRIP = [];
+  act.xgo = function (el) { var t = el.dataset.to; if (t === 'xinbox') return xCapture(); go('#/x/' + t.slice(2)); };
+  /* 11 · archive */
+  function xArchive(n) {
+    if (n.folder === ARCHIVE || n.folder.indexOf(ARCHIVE + '/') === 0) { var from = xLS('archFrom', {})[n.id] || ''; moveNote(n, from); toast('Back in ' + (from ? folderName(from) : 'Notes')); }
+    else { var m = xLS('archFrom', {}); m[n.id] = n.folder || ''; xLSset('archFrom', m); moveNote(n, ARCHIVE); toast('Archived', { label: 'Undo', fn: function () { moveNote(n, m[n.id] || ''); render(); } }); }
+  }
+  XV.archive = function () { var list = notesIn(ARCHIVE).sort(function (a, b) { return b.updated - a.updated; }); return xPage('Archive', 'Done, but kept', '<p class="xp">Archived notes leave your main list but keep their links, cards and search. Press and hold, or use \u22ef on a note, to bring one back.</p><div class="rows">' + (list.length ? list.map(function (n) { return xRow(n, ago(n.updated)); }).join('') : xEmpty('Nothing archived', 'Use \u22ef > Archive on a finished note.')) + '</div>'); };
+  /* 12 · color labels (pro) */
+  async function xPickColor(n) {
+    if (!proOk('Color labels')) return;
+    var cur = xColor(n), a = await sheet({ title: 'Color label', message: n.title, actions: XCOLORS.map(function (c) { return { label: (cur && cur[0] === c[0] ? '\u2713 ' : '') + c[0].charAt(0).toUpperCase() + c[0].slice(1), value: c[0], icon: '<i class="xdot" style="background:' + c[1] + '"></i>' }; }).concat(cur ? [{ label: 'No color', value: '-' }] : []) });
+    if (!a) return;
+    fmSet(n, 'color', a === '-' ? '' : a); xSaveBody(n); toast(a === '-' ? 'Color removed' : 'Labeled ' + a); render();
+  }
+  XV.colors = function (c) {
+    if (c) { var cc = XCOLORS.filter(function (x) { return x[0] === c; })[0]; var list = Array.from(notes.values()).filter(function (n) { var k = xColor(n); return k && k[0] === c; }).sort(sorter);
+      return xPage(c.charAt(0).toUpperCase() + c.slice(1), 'Color label', '<div class="rows">' + (list.length ? list.map(function (n) { return xRow(n, '<i class="xdot" style="background:' + cc[1] + '"></i>'); }).join('') : xEmpty('No notes with this color')) + '</div>'); }
+    var cnt = {}; notes.forEach(function (n) { var k = xColor(n); if (k) cnt[k[0]] = (cnt[k[0]] || 0) + 1; });
+    return xPage('Colors', 'Labels' + (isPro() ? '' : ' \u00b7 Pro'), '<p class="xp">Give a note a color from its \u22ef menu. It shows as a dot in your lists.</p><div class="rows">' + XCOLORS.map(function (c) { return '<button class="row" data-act="xgo" data-to="x:colors/' + c[0] + '"><i class="xdot fi" style="background:' + c[1] + '"></i><span class="nm">' + c[0].charAt(0).toUpperCase() + c[0].slice(1) + '</span><span class="ct">' + (cnt[c[0]] || 0) + '</span><span class="chev">' + I.chev + '</span></button>'; }).join('') + '</div>');
+  };
+  /* 13 · 14 · 15 · tag manager, rename, remove */
+  function xTagEdit(body, old, nu) {
+    var o = escRe(old), f = MD.front(body), lines = body.replace(/\r\n?/g, '\n').split('\n'), start = 0;
+    if (f) { var inTags = false;
+      for (var i = 1; i < f.end; i++) { var l = lines[i];
+        if (/^tags?\s*:/i.test(l)) { inTags = true; var key = l.match(/^tags?\s*:/i)[0], val = l.slice(key.length);
+          var parts = val.replace(/^\s*\[|\]\s*$/g, '').split(',').map(function (x) { return x.trim(); }).filter(Boolean), had = /\[/.test(val);
+          parts = parts.map(function (x) { return x.replace(/^["'#]+|["']+$/g, '').toLowerCase() === old ? (nu ? nu : null) : x; }).filter(function (x) { return x !== null; });
+          lines[i] = key + ' ' + (parts.length || had ? (had ? '[' + parts.join(', ') + ']' : parts.join(', ')) : ''); continue; }
+        if (inTags && /^\s*-\s+/.test(l)) { var it = l.replace(/^\s*-\s+/, '').replace(/^["'#]+|["']+$/g, '').toLowerCase(); if (it === old) lines[i] = nu ? l.replace(/(-\s+["'#]*)[^"']+/, '$1' + nu) : '\u0000'; continue; }
+        inTags = false;
+      }
+      start = f.end + 1;
+    }
+    var inCode = false, re = new RegExp('(^|[\\s(\\[,;])#' + o + '(?=$|[^\\w\\-\\/])', 'gi');
+    for (var j = start; j < lines.length; j++) {
+      if (/^\s*```/.test(lines[j])) { inCode = !inCode; continue; }
+      if (inCode || /^#{1,6}\s/.test(lines[j])) continue;
+      lines[j] = lines[j].replace(re, function (m, pre) { return nu ? pre + '#' + nu : pre; });
+    }
+    return lines.filter(function (l) { return l !== '\u0000'; }).join('\n');
+  }
+  function xTagApply(old, nu) { var c = 0; notes.forEach(function (n) { if (MD.tags(n.body).indexOf(old) < 0) return; var b = xTagEdit(n.body, old, nu); if (b !== n.body) { snapshot(n, n.body); n.body = b; touch(n); c++; } }); rebuildIdx(); return c; }
+  XV.tags = function () {
+    var tc = tagCounts(), tags = Object.keys(tc).sort(function (a, b) { return tc[b] - tc[a] || a.localeCompare(b); });
+    return xPage('Tags', tags.length + ' tag' + (tags.length === 1 ? '' : 's'), '<p class="xp">Tap a tag to see its notes. \u22ef renames or removes it in every note' + (isPro() ? '' : ' (Pro)') + '.</p><div class="rows">' + (tags.length ? tags.map(function (t) { return '<div class="row xtagrow"><button class="row" style="border:0;flex:1;min-width:0" data-act="stag" data-tag="' + esc(t) + '"><span class="xhash fi">#</span><span class="nm">' + esc(t) + '</span><span class="ct">' + tc[t] + '</span></button><button class="chev" aria-label="Tag options" data-act="xtagmenu" data-tag="' + esc(t) + '">' + I.more + '</button></div>'; }).join('') : xEmpty('No tags yet', 'Write #tag in a note, or tags: in its properties.')) + '</div>');
+  };
+  act.xtagmenu = async function (el) {
+    var t = el.dataset.tag, a = await sheet({ title: '#' + t, actions: [{ label: 'Show notes', value: 's' }, { label: proTag('Rename everywhere\u2026'), value: 'r' }, { label: proTag('Remove from every note'), value: 'd', danger: true }] });
+    if (a === 's') return go('#/search/' + encodeURIComponent('#' + t));
+    if (a === 'r') { if (!proOk('Tag manager')) return; var v = await dialog({ title: 'Rename #' + t, message: 'Every note with #' + t + ' gets the new name.', input: true, value: t, ok: 'Rename', validate: function (v) { v = v.replace(/^#/, ''); return /^[A-Za-z][\w\-\/]*$/.test(v) ? null : 'Letters, numbers, - and / (start with a letter).'; } }); if (!v) return; v = v.replace(/^#/, '').toLowerCase(); if (v === t) return; var c = xTagApply(t, v); toast('Renamed in ' + c + ' note' + (c === 1 ? '' : 's')); render(); }
+    if (a === 'd') { if (!proOk('Tag manager')) return; var ok = await dialog({ title: 'Remove #' + t + '?', message: 'Takes the tag off every note. The notes stay; History keeps the old text.', ok: 'Remove', danger: true }); if (!ok) return; var c2 = xTagApply(t, ''); toast('Removed from ' + c2 + ' note' + (c2 === 1 ? '' : 's')); render(); }
+  };
+  /* 16 · select mode (pro) */
+  var xSel = {};
+  XV.select = function () {
+    var list = Array.from(notes.values()).sort(sorter), n = Object.keys(xSel).filter(function (k) { return xSel[k] && notes.has(k); }).length;
+    return xPage('Select notes', n ? n + ' selected' : 'Tap notes to pick them', '<div class="rows xselrows">' + list.map(function (o) { return '<button class="row" data-act="xseltog" data-id="' + o.id + '"><span class="xcb fi' + (xSel[o.id] ? ' on' : '') + '"></span><span class="nm">' + esc(o.title) + '</span><span class="ct">' + esc(o.folder ? folderName(o.folder) : '') + '</span></button>'; }).join('') + '</div>' +
+      '<div class="xselbar"' + (n ? '' : ' hidden') + '><button data-act="xselgo" data-a="move">Move</button><button data-act="xselgo" data-a="pin">Pin</button><button data-act="xselgo" data-a="arch">Archive</button><button data-act="xselgo" data-a="trash" class="danger">Trash</button></div>');
+  };
+  act.xseltog = function (el) { if (!proOk('Select mode')) return; xSel[el.dataset.id] = !xSel[el.dataset.id]; var st = viewEl.scrollTop; render(); viewEl.scrollTop = st; };
+  act.xselgo = async function (el) {
+    var ids = Object.keys(xSel).filter(function (k) { return xSel[k] && notes.has(k); }), list = ids.map(function (k) { return notes.get(k); }), a = el.dataset.a;
+    if (!list.length || !proOk('Select mode')) return;
+    if (a === 'move') { var f = await sheet({ title: 'Move ' + list.length + ' notes', left: true, actions: [{ label: '/  Vault (no folder)', value: '\u0000' }].concat(Array.from(folders).sort().map(function (f) { return { label: f.split('/').join(' / '), value: f }; })) }); if (f === null || f === undefined) return; list.forEach(function (n) { moveNote(n, f === '\u0000' ? '' : f); }); toast('Moved ' + list.length + ' notes'); }
+    if (a === 'pin') { var allP = list.every(function (n) { return n.pinned; }); list.forEach(function (n) { n.pinned = !allP; putNote(n); }); toast((allP ? 'Unpinned ' : 'Pinned ') + list.length); }
+    if (a === 'arch') { var m = xLS('archFrom', {}); list.forEach(function (n) { if (n.folder !== ARCHIVE) { m[n.id] = n.folder || ''; moveNote(n, ARCHIVE); } }); xLSset('archFrom', m); toast('Archived ' + list.length); }
+    if (a === 'trash') { var ok = await dialog({ title: 'Move ' + list.length + ' notes to Trash?', message: 'They wait in Trash ' + TRASH_DAYS + ' days.', ok: 'Move to Trash', danger: true }); if (!ok) return; list.forEach(function (n) { trashNote(n); }); toast(list.length + ' notes moved to Trash'); }
+    xSel = {}; rebuildIdx(); render();
+  };
+  /* 17 · orphans */
+  XV.orphans = function () {
+    var list = Array.from(notes.values()).filter(function (n) { return !isDaily(n) && !inTemplates(n) && n.folder !== ARCHIVE && !backlinks(n).length && !outNotes(n).length; }).sort(sorter);
+    return xPage('Orphan notes', list.length + ' with no links', '<p class="xp">Nothing links to these and they link to nothing. Open one and add a [[link]] so it shows up in your graph.</p><div class="rows">' + (list.length ? list.map(function (n) { return xRow(n, ago(n.updated)); }).join('') : xEmpty('No orphans', 'Every note is connected.')) + '</div>');
+  };
+  /* 18 · broken links */
+  XV.broken = function () {
+    var miss = {}; notes.forEach(function (n) { unresolvedOf(n).forEach(function (t) { (miss[t] = miss[t] || []).push(n); }); });
+    var keys = Object.keys(miss).sort(function (a, b) { return miss[b].length - miss[a].length || a.localeCompare(b); });
+    return xPage('Broken links', keys.length + ' missing note' + (keys.length === 1 ? '' : 's'), '<p class="xp">These [[links]] point to notes that don\u2019t exist yet. Create one, or open the note that links to it.</p>' + (keys.length ? keys.map(function (t) { return '<div class="xbroke"><div class="xbh"><b>[[' + esc(t) + ']]</b><button class="pill" data-act="xmk" data-t="' + esc(t) + '">Create</button></div>' + miss[t].map(function (n) { return '<button class="xbl" data-act="open" data-id="' + n.id + '">in ' + esc(n.title) + '</button>'; }).join('') + '</div>'; }).join('') : xEmpty('No broken links', 'Every [[link]] goes somewhere.')));
+  };
+  act.xmk = function (el) { var t = el.dataset.t; if (byTitle(t)) return go('#/n/' + byTitle(t).id); var err = checkTitle(t); if (err) return toast(err); var n = createNote({ title: t }); go('#/n/' + n.id); toast('Created \u201c' + t + '\u201d'); };
+  /* 19 · inbox capture */
+  async function xCapture() {
+    var v = await dialog({ title: 'Capture to Inbox', message: 'One line, saved to your Inbox note. Sort it later.', input: true, placeholder: 'An idea, a task, a link\u2026', ok: 'Save', validate: function (v) { return v ? null : 'Type something.'; } });
+    if (!v) return;
+    var n = byTitle('Inbox'), d = new Date(), stamp = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    if (!n) n = createNote({ title: 'Inbox', body: '' });
+    n.body = n.body.replace(/\s+$/, '') + (n.body.trim() ? '\n' : '') + '- ' + v + ' \u00b7 ' + stamp; touch(n); rebuildIdx();
+    toast('Saved to Inbox', { label: 'Open', fn: function () { go('#/n/' + n.id); } });
+  }
+  /* 20 · recently viewed */
+  function xSeen(id) { var r = xLS('recent', []).filter(function (x) { return x !== id; }); r.unshift(id); xLSset('recent', r.slice(0, 15)); }
+  XV.recent = function () { var list = xLS('recent', []).map(function (id) { return notes.get(id); }).filter(Boolean); return xPage('Recently viewed', 'Last ' + list.length, '<div class="rows">' + (list.length ? list.map(function (n) { return xRow(n, ''); }).join('') : xEmpty('Nothing opened yet')) + '</div>'); };
+  /* list decorations: color dots on any row that opens a note */
+  function xDecorate() {
+    viewEl.querySelectorAll('[data-act=open][data-id]').forEach(function (b) {
+      var n = notes.get(b.dataset.id); if (!n || b.querySelector('.xdot')) return;
+      var c = xColor(n), nm = b.querySelector('.nm') || b.querySelector('.t b') || b.querySelector('b');
+      if (c && nm) nm.insertAdjacentHTML('afterbegin', '<i class="xdot" style="background:' + c[1] + '"></i>');
+      XDECOR.forEach(function (f) { f(n, b, nm); });
+    });
+  }
+  var XDECOR = [];
+  COMMANDS.push(['Capture to Inbox', 'quick add idea inbox capture', function () { xCapture(); }], ['Recently viewed', 'history recent opened last', function () { go('#/x/recent'); }],
+    ['Tag manager', 'tags rename remove merge', function () { go('#/x/tags'); }], ['Color labels', 'color label red green blue', function () { go('#/x/colors'); }],
+    ['Orphan notes', 'unlinked lonely no links', function () { go('#/x/orphans'); }], ['Broken links', 'unresolved missing links ghost', function () { go('#/x/broken'); }],
+    ['Archive', 'archived done hidden', function () { go('#/x/archive'); }], ['Select notes', 'bulk multi select move many', function () { go('#/x/select'); }],
+    ['Archive this note', 'archive done hide', function () { var r = route(); if (r.v === 'note' && notes.get(r.id)) { xArchive(notes.get(r.id)); render(); } else toast('Open a note first'); }]);
+
+  var XNMENU = [], XNMFN = {};
   window.__axon = { notes: notes, folders: folders, trash: trash, rc: rc, recallStats: recallStats, byTitle: byTitle, backlinks: backlinks, renameNote: renameNote, exportFiles: function () { return notes; }, Zip: Zip, importFiles: importFiles };
   boot();
 })();

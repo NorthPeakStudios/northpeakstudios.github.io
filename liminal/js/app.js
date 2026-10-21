@@ -153,8 +153,8 @@ function buildResult(){
 function renderPoem(lines){ $('#poem').innerHTML = lines.map((l, i) => `<span style="animation-delay:${0.15 + i * 0.55}s">${esc(l)}</span>`).join(''); }
 function translate(){
   const r = buildResult(), seed = newSeed(), pro = isPro();
-  const poem = pro ? compose(r.a, seed) : null, colors = palette(r.a, r.chips), word = r.a.crisis ? 'heavy' : moodWord(r.a.v, r.a.e);
-  S.result = { ...r, seed, poem, colors, word, prompt: pickPrompt(quadrant(r.a.v, r.a.e)) };
+  const poem = pro ? xCompose(r.a, seed) : null, colors = palette(r.a, r.chips), word = r.a.crisis ? 'heavy' : moodWord(r.a.v, r.a.e);
+  S.result = { ...r, seed, poem, colors, word, prompt: xPick(quadrant(r.a.v, r.a.e)) };
   S.seed = seed; setLive(r.a, r.chips, seed);
   $('#said').innerHTML = r.mode === 'words' ? `you said: <b>“${esc(r.text)}”</b>` : (pro ? `no words — <b>${esc(word)}</b>` : 'no words tonight') + (r.chips.length ? ', ' + esc(r.chips.join(', ')) : '');
   if (pro) renderPoem(poem); else $('#poem').innerHTML = '';
@@ -162,19 +162,19 @@ function translate(){
   $('#resWord').textContent = word; $('#wordDot').style.background = colors[0]; $('#wordDot').style.boxShadow = `0 0 10px ${colors[0]}`;
   $('#swatches').innerHTML = colors.map(c => `<i style="background:${c}"></i>`).join('');
   $('#care').hidden = !r.a.crisis;
-  $('#prompt').textContent = S.result.prompt; $('#answer').value = '';
+  $('#prompt').textContent = S.result.prompt; $('#answer').value = ''; if ($('#xGood')) $('#xGood').value = '';
   showStage('#stResult');
 }
 $('#translate').onclick = () => { $('#text').blur(); translate(); };
 $('#translateField').onclick = translate;
-$('#rewrite').onclick = () => { const R = S.result; if (!R || !isPro()) return; R.seed = newSeed(); R.poem = compose(R.a, R.seed); S.seed = R.seed; engine.setMood(S.live, R.seed); renderPoem(R.poem); };
-$('#another').onclick = () => { if (!S.result) return; S.result.prompt = pickPrompt(quadrant(S.result.a.v, S.result.a.e)); setPrompt(S.result.prompt); };
+$('#rewrite').onclick = () => { const R = S.result; if (!R || !isPro()) return; R.seed = newSeed(); R.poem = xCompose(R.a, R.seed); S.seed = R.seed; engine.setMood(S.live, R.seed); renderPoem(R.poem); };
+$('#another').onclick = () => { if (!S.result) return; S.result.prompt = xPick(quadrant(S.result.a.v, S.result.a.e)); setPrompt(S.result.prompt); };
 $('#again').onclick = () => showStage(S.mode === 'words' ? '#stWords' : '#stField');
 $('#answer').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); });
 
 $('#keep').onclick = async () => {
   const R = S.result; if (!R) return;
-  const m = { id: uid(), t: Date.now(), tz: -new Date().getTimezoneOffset(), mode: R.mode, text: R.text, poem: R.poem || null, v: +R.a.v.toFixed(3), e: +R.a.e.toFixed(3), chips: R.chips, colors: R.colors, word: R.word, prompt: R.prompt, answer: $('#answer').value.trim(), seed: R.seed, care: !!R.a.crisis, v1: 1 };
+  const m = { id: uid(), t: Date.now(), tz: -new Date().getTimezoneOffset(), mode: R.mode, text: R.text, poem: R.poem || null, v: +R.a.v.toFixed(3), e: +R.a.e.toFixed(3), chips: R.chips, colors: R.colors, word: R.word, prompt: R.prompt, answer: $('#answer').value.trim(), good: ($('#xGood') ? $('#xGood').value.trim() : '') || undefined, seed: R.seed, care: !!R.a.crisis, v1: 1 };
   try { await db.put(m); } catch (err) { toast('couldn\'t save — storage is full or blocked'); return; }
   S.moments.unshift(m); cloud.markDirty(m.id); syncSoon();
   flyToArchive(isPro() ? R.colors : ['#cfc8e6', '#8f88b0', '#2a2640']); toast('kept · ' + fmtTime(m.t));
@@ -614,7 +614,7 @@ function afterAccount(){
   $('#privline span').textContent = cloud.signedIn() ? 'encrypted on your phone, synced to ' + cloud.acct.user : 'stays on your phone unless you sign in to sync';
   if (!pro && PRO_VIEWS[S.view] === undefined) {} 
   setLive(S.live, S.live.chips); paintKey = ''; renderArchive(); syncSound();
-  if (S.result) { $('#poem').hidden = !pro; $('#poemLock').hidden = pro; $('.result-row').hidden = !pro; if (pro && !S.result.poem) { S.result.poem = compose(S.result.a, S.result.seed); renderPoem(S.result.poem); } }
+  if (S.result) { $('#poem').hidden = !pro; $('#poemLock').hidden = pro; $('.result-row').hidden = !pro; if (pro && !S.result.poem) { S.result.poem = xCompose(S.result.a, S.result.seed); renderPoem(S.result.poem); } }
   if (S.detail) drawDetail();
 }
 cloud.onAccountChange(kind => { if (kind === 'signed_out') toast('signed out on this phone · sign in again to sync'); afterAccount(); });
@@ -748,5 +748,126 @@ function xInsights(){
 }
 const XINS = [];
 setTimeout(xOnThisDay, 300);
+
+
+/* ================= Oct 21 features (batch 2) ================= */
+const XHELP = `<div class="xhelp">if it's too much right now, you can call or text <b>988</b> anytime. <a href="tel:988">call</a> · <a href="sms:988">text</a></div>`;
+function xOverlay(id, html){
+  let el = $('#' + id); if (!el) { el = document.createElement('div'); el.id = id; el.className = 'xov'; document.body.appendChild(el); }
+  el.innerHTML = `<button class="icon-btn xov-x" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>${html}`;
+  requestAnimationFrame(() => el.classList.add('open'));
+  el.querySelector('.xov-x').onclick = () => { el.classList.remove('open'); el.dispatchEvent(new Event('xclose')); };
+  return el;
+}
+/* 12 · box breathing, the aura breathes along */
+let xBreathT = 0;
+function xBreathe(){
+  const el = xOverlay('xBreath', `<div class="xb-wrap"><div class="xb-ring"><div class="xb-dot" id="xbDot"></div></div><p class="xb-say" id="xbSay">get comfortable</p><p class="xb-n" id="xbN">box breathing · 4 in, 4 hold, 4 out, 4 hold</p></div>${XHELP}`);
+  const steps = [['breathe in', 1.0], ['hold', 1.0], ['breathe out', 0.45], ['hold', 0.45]]; let i = -1, rounds = 0;
+  const dot = $('#xbDot'), say = $('#xbSay'), n = $('#xbN');
+  const step = () => { i = (i + 1) % 4; if (i === 0 && rounds++ >= 0) n.textContent = `round ${rounds}`; say.textContent = steps[i][0]; dot.style.transform = `scale(${steps[i][1]})`; try { navigator.vibrate && i % 2 === 0 && navigator.vibrate(12); } catch {} };
+  clearInterval(xBreathT); dot.style.transform = 'scale(.45)'; setTimeout(() => { step(); xBreathT = setInterval(step, 4000); }, 900);
+  el.addEventListener('xclose', () => { clearInterval(xBreathT); if (rounds > 1) toast(`${rounds - 1} round${rounds === 2 ? '' : 's'} of breathing`); }, { once: true });
+}
+/* 13 · 5-4-3-2-1 grounding */
+function xGround(){
+  const S5 = [[5, 'things you can see', 'look around. name them, out loud or in your head.'], [4, 'things you can feel', 'your feet on the floor, your sleeve, the air.'], [3, 'things you can hear', 'near and far. even the quiet has sounds.'], [2, 'things you can smell', 'or two smells you like, if nothing\'s there.'], [1, 'thing you can taste', 'or one thing you\'re glad about right now.']];
+  let k = 0; const el = xOverlay('xGroundOv', '<div class="xg-wrap" id="xgWrap"></div>' + XHELP);
+  const paint = () => {
+    if (k >= S5.length) { $('#xgWrap').innerHTML = `<p class="xg-big">you're here.</p><p class="xg-sub">that's grounding. it works better every time you do it.</p><button class="primary" id="xgDone">done</button>`; $('#xgDone').onclick = () => el.querySelector('.xov-x').click(); return; }
+    const [n, what, sub] = S5[k];
+    $('#xgWrap').innerHTML = `<p class="xg-num">${n}</p><p class="xg-big">${what}</p><p class="xg-sub">${sub}</p><div class="xg-dots">${Array.from({ length: n }, (_, i) => `<button class="xg-d" data-i="${i}"></button>`).join('')}</div><button class="ghost" id="xgNext">next</button>`;
+    $$('#xgWrap .xg-d').forEach(d => d.onclick = () => { d.classList.add('on'); if ($$('#xgWrap .xg-d.on').length === n) setTimeout(() => { k++; paint(); }, 450); });
+    $('#xgNext').onclick = () => { k++; paint(); };
+  };
+  paint();
+}
+/* 15 · your own texture chips */
+const xMyChips = () => LS.get('myChips', []);
+function xPaintChips(){
+  const box = $('#chips'); if (!box) return;
+  box.querySelectorAll('.chip.mine, .xaddc').forEach(b => b.remove());
+  xMyChips().forEach(c => box.insertAdjacentHTML('beforeend', `<button class="chip mine${S.chips.includes(c) ? ' on' : ''}" data-c="${esc(c)}">${esc(c)}</button>`));
+  box.insertAdjacentHTML('beforeend', '<button class="xaddc">+ your own</button>');
+  box.querySelector('.xaddc').onclick = () => xEdit('your own word', null, 'a texture word that fits you (one word)', '', v => { const w = v.toLowerCase().replace(/[^a-z\u00c0-\u024f-]/g, '').slice(0, 16); if (!w) return; const list = [...new Set([...xMyChips(), w])].slice(-12); LS.set('myChips', list); xPaintChips(); toast('added “' + w + '”'); }, 16);
+  box.querySelectorAll('.chip.mine').forEach(b => { let t; b.addEventListener('pointerdown', () => { t = setTimeout(() => { if (confirm('remove “' + b.dataset.c + '”?')) { LS.set('myChips', xMyChips().filter(x => x !== b.dataset.c)); S.chips = S.chips.filter(x => x !== b.dataset.c); xPaintChips(); } }, 650); }); ['pointerup', 'pointerleave'].forEach(ev => b.addEventListener(ev, () => clearTimeout(t))); });
+}
+xPaintChips();
+/* 16 · question styles (pro) + 17 · your own question */
+const XQ = {
+  deep: ['what belief about yourself got louder today?', 'what are you pretending not to know?', 'who would you be if nobody was watching this week?', 'what do you keep circling back to, and why?', 'what is this feeling trying to protect?', 'what would you forgive yourself for, if you could?', 'which part of today will you still remember in a year?', 'what are you afraid would happen if you slowed down?', 'what do you need that you haven\'t asked for?', 'when did you last feel completely like yourself?', 'what are you outgrowing?', 'what would the bravest version of you do tomorrow?', 'what story are you telling yourself about this?', 'what does this moment want you to notice?'],
+  light: ['what snack matches this mood?', 'if today was a song, what genre?', 'what would your cat (real or imaginary) say about today?', 'best thing you heard someone say today?', 'what would you do with a free hour right now?', 'rate today in emojis. go.', 'what\'s the most random thing you thought about today?', 'which fictional character would get this mood?', 'what made you smile, even a little?', 'if you could teleport anywhere for 10 minutes, where?', 'what\'s one tiny win nobody saw?', 'pick a color for tomorrow.', 'what are you looking forward to, even slightly?', 'which song is stuck in your head?']
+};
+const xQStyle = () => (isPro() && LS.get('qstyle', 'gentle')) || 'gentle';
+function xPick(q){ const st = xQStyle(); if (st === 'gentle' || !XQ[st]) return pickPrompt(q); const recent = LS.get('recent', []), list = XQ[st], pool = list.filter(p => !recent.includes(p)), p = (pool.length ? pool : list)[Math.floor(Math.random() * (pool.length || list.length))]; LS.set('recent', [p, ...recent].slice(0, 40)); return p; }
+/* 18 · poem length (pro) */
+const xShort = () => isPro() && LS.get('poemLen', 'full') === 'short';
+const xCompose = (a, seed) => { const p = compose(a, seed); return xShort() && p && p.length > 3 ? [p[0], p[Math.floor(p.length / 2)], p[p.length - 1]] : p; };
+/* 14 · one good thing + 17 · own question, on the result screen */
+(function(){
+  const pa = $('.prompt-actions'); if (pa) pa.insertAdjacentHTML('beforeend', '<button class="ghost" id="xOwnQ">write my own</button>');
+  const pc = $('.prompt-card'); if (pc) pc.insertAdjacentHTML('afterend', '<div class="prompt-card xgood"><div class="prompt-k">one good thing today <span>(optional)</span></div><input id="xGood" class="answer" maxlength="120" autocomplete="off" enterkeyhint="done" placeholder="even a small one"></div>');
+  const own = $('#xOwnQ'); if (own) own.onclick = () => xEdit('your own question', null, 'what do you want to sit with?', '', v => { if (!v || !S.result) return; S.result.prompt = v.slice(0, 140).replace(/([^?.!])$/, '$1?'); setPrompt(S.result.prompt); }, 140);
+  $('#xGood')?.addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); });
+})();
+/* 19 · read aloud (pro) */
+function xSpeak(lines){
+  if (!('speechSynthesis' in window)) return toast('this phone can\'t read aloud here');
+  if (speechSynthesis.speaking) { speechSynthesis.cancel(); return; }
+  const u = new SpeechSynthesisUtterance(lines.join('. ')); u.rate = .82; u.pitch = .95;
+  const v = speechSynthesis.getVoices().find(v => /en(-|_)/i.test(v.lang) && /samantha|ava|serena|karen|daniel|female/i.test(v.name)) || speechSynthesis.getVoices().find(v => /^en/i.test(v.lang)); if (v) u.voice = v;
+  speechSynthesis.speak(u);
+}
+/* 11 · share a poem as an image card (pro) */
+async function xPoemCard(m){
+  const poem = poemFor(m); if (!poem) return;
+  try { await document.fonts.load('italic 40px "Instrument Serif"'); } catch {}
+  const c = document.createElement('canvas'); c.width = 1080; c.height = 1350; const x = c.getContext('2d'), [a, b, d] = m.colors;
+  const g = x.createLinearGradient(0, 0, 1080, 1350); g.addColorStop(0, d); g.addColorStop(1, '#07060b'); x.fillStyle = g; x.fillRect(0, 0, 1080, 1350);
+  [[a, 300, 360, 620], [b, 820, 1000, 560]].forEach(([col, cx, cy, r]) => { const rg = x.createRadialGradient(cx, cy, 0, cx, cy, r); rg.addColorStop(0, col + 'cc'); rg.addColorStop(1, col + '00'); x.fillStyle = rg; x.fillRect(0, 0, 1080, 1350); });
+  x.fillStyle = 'rgba(0,0,0,.28)'; x.fillRect(0, 0, 1080, 1350);
+  x.fillStyle = '#f3eefa'; x.textAlign = 'left'; x.font = 'italic 64px "Instrument Serif", Georgia, serif';
+  const wrap = (t, max) => { const w = t.split(' '), out = []; let l = ''; w.forEach(s => { const tl = l ? l + ' ' + s : s; if (x.measureText(tl).width > max && l) { out.push(l); l = s; } else l = tl; }); if (l) out.push(l); return out; };
+  let lines = []; poem.forEach(p => { lines = lines.concat(wrap(p, 860)); });
+  let y = 675 - lines.length * 44; lines.forEach(l => { x.fillText(l, 110, y); y += 88; });
+  x.font = '30px -apple-system, system-ui, sans-serif'; x.fillStyle = 'rgba(243,238,250,.7)';
+  x.fillText((m.word || '') + ' · ' + new Date(m.t).toLocaleDateString([], { month: 'long', day: 'numeric' }).toLowerCase(), 110, 1220);
+  x.textAlign = 'right'; x.fillText('liminal', 970, 1220);
+  const blob = await new Promise(r => c.toBlob(r, 'image/png')), file = new File([blob], 'liminal-poem.png', { type: 'image/png' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file] }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  download(blob, 'liminal-poem.png'); toast('saved');
+}
+XDBTN.push(m => poemFor(m) ? `<button class="xdb" id="xSay">${isPro() ? '' : LOCK}read aloud</button><button class="xdb" id="xCard">${isPro() ? '' : LOCK}share image</button>` : '');
+XDBIND.push(m => {
+  const s = $('#xSay'); if (s) s.onclick = () => isPro() ? xSpeak(poemFor(m)) : openPro('read aloud');
+  const cd = $('#xCard'); if (cd) cd.onclick = () => isPro() ? xPoemCard(m) : openPro('poem image cards');
+});
+XDEXTRA.push(m => m.good ? `<div class="xdgood"><span>one good thing</span>${esc(m.good)}</div>` : '');
+/* 20 · year in pixels (pro), inside insights */
+XINS.push(() => {
+  const now = new Date(), y0 = new Date(now.getFullYear(), now.getMonth() - 11, 1), byDay = {};
+  S.moments.forEach(m => { if (m.t >= y0.getTime()) (byDay[xDay(m.t)] ||= []).push(m); });
+  let cells = '', d = new Date(y0); d.setDate(d.getDate() - d.getDay());
+  const end = xDay(Date.now());
+  while (d.getTime() <= end) { const k = xDay(d), list = byDay[k], before = d < y0; let bg = 'rgba(255,255,255,.05)';
+    if (list) { const v = list.reduce((s, m) => s + m.v, 0) / list.length, e = list.reduce((s, m) => s + m.e, 0) / list.length; bg = moodColors(v, e)[0]; }
+    cells += `<i style="background:${before ? 'transparent' : bg}"${list ? ` title="${new Date(k).toDateString()}"` : ''}></i>`; d.setDate(d.getDate() + 1); }
+  return `<div class="xi-sec"><h5>year in pixels</h5><div class="xi-year">${cells}</div><p class="xi-p" style="margin-top:6px">one square per day for the last 12 months, in that day's color.</p></div>`;
+});
+/* settings rows for these */
+function xSettingsRows(){
+  const el = $('#xRows'); if (!el) return; const pro = isPro();
+  el.innerHTML = `<button class="row" id="xsQ"><span>question style</span><small>${pro ? LS.get('qstyle', 'gentle') : 'gentle · pro adds deep + light-hearted'}</small></button>
+    <button class="row" id="xsLen"><span>poem length</span><small>${pro ? (LS.get('poemLen', 'full') === 'short' ? 'short · 3 lines' : 'full') : 'full · pro adds short'}</small></button>
+    <button class="row" id="xsBr"><span>breathing exercise</span><small>box breathing</small></button>
+    <button class="row" id="xsGr"><span>5-4-3-2-1 grounding</span><small>for anxious moments</small></button>${XSET.map(f => f()).join('')}`;
+  $('#xsQ').onclick = () => { if (!pro) return openPro('question styles'); const o = ['gentle', 'deep', 'light']; LS.set('qstyle', o[(o.indexOf(LS.get('qstyle', 'gentle')) + 1) % 3]); xSettingsRows(); };
+  $('#xsLen').onclick = () => { if (!pro) return openPro('poem length'); LS.set('poemLen', LS.get('poemLen', 'full') === 'short' ? 'full' : 'short'); xSettingsRows(); };
+  $('#xsBr').onclick = xBreathe; $('#xsGr').onclick = xGround;
+  XSETB.forEach(f => f());
+}
+const XSET = [], XSETB = [];
+$('#settingsBtn').addEventListener('click', () => setTimeout(xSettingsRows, 0));
+(function(){ const pl = $('#privline'); if (pl) pl.insertAdjacentHTML('beforebegin', '<div class="xtools"><button id="xtB">breathe</button><button id="xtG">5-4-3-2-1</button></div>'); $('#xtB') && ($('#xtB').onclick = xBreathe); $('#xtG') && ($('#xtG').onclick = xGround); })();
 
 window.__liminal = { db, S, renderArchive, engine, cloud, afterAccount };

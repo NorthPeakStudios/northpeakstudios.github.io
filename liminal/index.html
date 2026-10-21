@@ -26,7 +26,7 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preload" href="fonts/instrument-serif-italic.woff2" as="font" type="font/woff2" crossorigin>
 <script src="pwa.js"></script>
-<link rel="stylesheet" href="app.css?v=18">
+<link rel="stylesheet" href="app.css?v=19">
 </head>
 <body>
 <canvas id="aura" aria-hidden="true"></canvas>
@@ -166,9 +166,10 @@
       <input type="file" id="importFile" accept="application/json,.json" hidden>
       <button class="row danger" id="sDelete"><span>delete everything</span><small id="sDeleteSub">can't be undone</small></button>
     </div>
+    <div class="rows" id="xRows" style="margin-top:10px"></div>
     <p id="installTip" class="install-tip">add liminal to your home screen: tap <b>share</b>, then <b>add to home screen</b>. it opens full-screen, works offline, and your archive stays put.</p>
     <p class="tip-sound">no sound? flip the ringer switch on or turn up the volume.</p>
-    <p class="foot small">liminal 1.2 · <a href="https://northpeakstudios.github.io/" target="_blank" rel="noopener">by Northpeak Studios</a></p>
+    <p class="foot small">liminal 1.3 · <a href="https://northpeakstudios.github.io/" target="_blank" rel="noopener">by Northpeak Studios</a></p>
   </div>
 </div>
 
@@ -219,6 +220,6 @@
 <script src="vpshort.js"></script>
 <script src="np-update.js?v=1" data-sw="sw.js" defer></script>
 <script src="np-email.js?v=1"></script>
-<script type="module" src="js/app.js?v=20"></script>
+<script type="module" src="js/app.js?v=21"></script>
 </body>
 </html>
