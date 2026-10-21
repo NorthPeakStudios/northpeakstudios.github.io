@@ -68,7 +68,7 @@ function startApp(){
  $('#mintPanel').hidden=!CAN('mint_codes');$('#codesPanel').hidden=!(CAN('revoke_codes')||CAN('mint_codes'));$('#livePanel').hidden=!CAN('view_requests');
  switchView(view);load();}
 function switchView(v){view=v;document.querySelectorAll('#tabs button').forEach(function(b){b.classList.toggle('on',b.dataset.v===v)});['req','sheet','more','users','acct','logs'].forEach(function(x){$('#v-'+x).hidden=x!==v});
- if(v==='users')loadUsers();if(v==='acct')loadAccounts();if(v==='logs')loadLogs()}
+ if(v==='users')loadUsers();if(v==='acct')loadAccounts();if(v==='logs'){loadLogs();loadActlog()}}
 var MAPP={synapse:{app:'syn',body:{product:'synapse_lifetime'},name:'Synapse Lifetime',works:'Synapse'},axon:{app:'axon',body:{},name:'Axon Pro',works:'Axon'},liminal:{app:'liminal',body:{},name:'Liminal Pro',works:'Liminal'},all:{app:'syn',body:{product:'all_access'},name:'All-Access',works:'Synapse, Axon and Liminal'}},MSEL='synapse';
 function CODES_OK(){return CAN('mint_codes')||CAN('revoke_codes')}
 function loadAll(){
@@ -184,14 +184,23 @@ function loadLogs(quiet,more){
   var sel=$('#lgU'),cur=LG.u;sel.innerHTML='<option value="">Everyone</option>'+j.users.map(function(u){return '<option'+(u===cur?' selected':'')+' value="'+esc(u)+'">@'+esc(u)+'</option>'}).join('');
   $('#lgMore').hidden=j.logs.length<200;
   $('#logsBox').innerHTML=LG.items.length?LG.items.map(function(l){var ic=ICON[l.act]||(l.ok===0?'⚠️':'✅');
-   var what=esc(String(l.act).replace(/_/g,' '))+(l.app?' · '+(l.app==='syn'?'Synapse':'Axon'):'')+(l.tgt?' · <span class="mono">'+esc(l.tgt)+'</span>':'')+(l.ok===0?' <span class="tag s-dismissed">failed</span>':'');
+   var what=esc(String(l.act).replace(/_/g,' '))+(l.app?' · '+esc(APPN[l.app]||l.app):'')+(l.tgt?' · <span class="mono">'+esc(l.tgt)+'</span>':'')+(l.ok===0?' <span class="tag s-dismissed">failed</span>':'');
    return '<div class="lg"><span class="ic">'+ic+'</span><div><b>'+(l.u?'@'+esc(l.u):'unknown')+'</b>'+(l.role?' <span class="rl '+esc(l.role)+'">'+esc(l.role)+'</span>':'')+' '+what+'</div><div class="l2">'+esc(fmtT(l.t))+' · '+esc(l.ip||'')+' · '+esc(l.ua||'')+(l.det?' · '+esc(l.det):'')+'</div></div>'}).join(''):'<div class="empty">Nothing logged here.</div>'})}
+
+
+/* ---------- owner-key changes (np-actlog v1): each backend's own log of admin calls made with its owner key ---------- */
+var ACTN={mint:'made a code',grant:'gave Pro','code-delete':'deleted a code',revoke:'revoked a code',reset:'reset a code device',mark:'set a request',dismiss:'dismissed a request',delete:'deleted a request',open:'switched buying','acct-license':'changed a license','acct-delete':'deleted an account','acct-reset':'reset a password','np-license':'changed a license','np-delete':'deleted an account','np-password':'reset a password','acct-set':'changed an account','sess-config':'set up admin sign-in'};
+function loadActlog(){var box=$('#actBox');if(!box)return;$('#actPanel').hidden=!CAN('view_logs');if(!CAN('view_logs'))return;
+ Promise.all(['syn','axon','liminal'].map(function(a){return appApi(a,'actlog').then(function(j){return {a:a,ok:!!(j&&j.ok),rows:(j&&j.ok?j.log:[]).map(function(r){r.app=a;return r})}},function(){return {a:a,ok:false,rows:[]}})})).then(function(v){
+  var bad=v.filter(function(x){return !x.ok}).map(function(x){return APPN[x.a]||x.a});
+  var all=[].concat.apply([],v.map(function(x){return x.rows})).filter(function(r){return r.who==='owner-token'}).sort(function(a,b){return b.t-a.t}).slice(0,80);
+  box.innerHTML=(all.length?all.map(function(l){return '<div class="lg"><span class="ic">🔑</span><div><b>owner key</b> '+esc(ACTN[l.act]||String(l.act).replace(/-/g,' '))+' · '+esc(APPN[l.app]||l.app)+(l.tgt?' · <span class="mono">'+esc(l.tgt)+'</span>':'')+(l.det?' · '+esc(l.det):'')+'</div><div class="l2">'+esc(fmtT(l.t))+'</div></div>'}).join(''):'<div class="empty">No owner-key changes yet.</div>')+(bad.length?'<p class="sub" style="margin-top:8px">Couldn\u2019t read: '+esc(bad.join(', '))+'</p>':'')})}
 
 /* ---------- clicks ---------- */
 document.addEventListener('click',function(e){
  var t=e.target.closest('button,[data-copy]');if(!t||(t.type==='submit'&&t.form))return;
  if(t.dataset.copy){navigator.clipboard&&navigator.clipboard.writeText(t.dataset.copy).then(function(){toast('Copied '+t.dataset.copy)},function(){toast(t.dataset.copy)});return}
- if(t.id==='rf'){load();if(view==='users')loadUsers();if(view==='logs')loadLogs();return}
+ if(t.id==='rf'){load();if(view==='users')loadUsers();if(view==='logs'){loadLogs();loadActlog()}return}
  if(t.id==='whoBtn'){$('#mePanel').hidden=!$('#mePanel').hidden;return}
  if(t.id==='logout'){api('/api/logout',{}).then(function(){ME=null;D=null;RT={};setTok(null);show('login');toast('Logged out')});return}
  if(t.id==='meChpw'){show('chpw');$('#chCancel').hidden=false;$('#chpwp').textContent='Change your password.';return}

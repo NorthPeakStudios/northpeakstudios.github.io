@@ -185,6 +185,9 @@ select{-webkit-appearance:none;appearance:none;background-image:linear-gradient(
  <div class="panel"><h2>🧾 Access log</h2>
   <div class="row" style="margin-bottom:8px"><select class="sm" id="lgU"><option value="">Everyone</option></select></div>
   <div class="chips" id="lgK"></div><div id="logsBox"></div><button class="wide" id="lgMore" hidden style="margin-top:8px">Older</button></div>
+ <div class="panel" id="actPanel"><h2>🔑 Owner-key changes</h2>
+  <p class="sub" style="margin:0 0 8px">Changes made straight to an app with its owner key instead of from this page, for example by scripts or alerts. They're logged starting Oct 21, 2026. Changes made on this page show in the access log above.</p>
+  <div id="actBox"><div class="empty">Loading…</div></div></div>
 </section>
 <section id="v-acct" hidden><!-- np-accounts v1 -->
  <div class="panel"><h2>👤 Accounts <span class="sub" id="acN"></span></h2>
@@ -195,4 +198,4 @@ select{-webkit-appearance:none;appearance:none;background-image:linear-gradient(
   <p class="sub" style="margin-top:10px">Passwords are stored scrambled (hashed), so nobody can see them, not even you. Reset password makes a new one and shows it once.</p></div>
 </section>
 </div></div><div id="toast"></div>
-<script src="admin.js?v=1"></script></body></html>
+<script src="admin.js?v=2"></script></body></html>
