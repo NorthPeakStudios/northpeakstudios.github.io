@@ -364,7 +364,7 @@ function drawDetail(){
   $('#dIndex').textContent = list.length > 1 ? `${idx + 1} of ${list.length}` : '';
   $('#dBody').innerHTML = `<p class="d-date">${d.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }).toLowerCase()} · ${fmtTime(m.t)}</p>
     ${pro ? `<div class="d-scene"><canvas id="dScene" width="680" height="440"></canvas><span>${esc(SCENES[sceneFor(m)])}</span></div><h2 class="d-word">${esc(m.word)}</h2>` : ''}
-    ${poem ? `<div class="d-poem">${poem.map(l => `<span>${esc(l)}</span>`).join('')}</div>` : `<button class="poem-lock d-lock"><span class="pl-lines"><i></i><i></i><i></i></span><span class="pl-k">${LOCK}this moment's poem &amp; painting are waiting</span><span class="pl-cta">${lockCta()}</span></button>`}
+    ${poem ? `<div class="d-poem">${poem.map(l => `<span>${esc(l)}</span>`).join('')}</div><button class="d-copy" id="dCopy">copy poem</button>` : `<button class="poem-lock d-lock"><span class="pl-lines"><i></i><i></i><i></i></span><span class="pl-k">${LOCK}this moment's poem &amp; painting are waiting</span><span class="pl-cta">${lockCta()}</span></button>`}
     ${m.text ? `<p class="d-said">${esc(m.text)}</p>` : ''}
     ${m.care ? `<div class="care"><p>if it's still heavy, you can call or text <b>988</b> anytime.</p><div class="care-links"><a href="tel:988">call 988</a><a href="sms:988">text 988</a></div></div>` : ''}
     <p class="d-q">the question</p><p class="d-prompt">${esc(m.prompt)}</p>
@@ -372,6 +372,10 @@ function drawDetail(){
     ${m.chips && m.chips.length ? `<div class="d-chips">${m.chips.map(c => `<span>${esc(c)}</span>`).join('')}</div>` : ''}
     ${pro ? `<p class="d-coord">${Math.round(m.v * 100)}% light · ${Math.round(m.e * 100)}% restless</p>` : ''}`;
   if (pro) drawScene($('#dScene'), m); else $('#dBody .d-lock').onclick = () => openPro('this moment\'s poem');
+  /* np-r2: copy a poem to send to someone (text only, nothing leaves the phone unless you paste it) */
+  const cp = $('#dCopy'); if (cp && poem) cp.onclick = async () => { const t = poem.join('\n');
+    try { await navigator.clipboard.writeText(t); toast('poem copied'); }
+    catch { if (navigator.share) { try { await navigator.share({ text: t }); } catch {} } else toast('couldn\'t copy here'); } };
   $('#dPrev').style.visibility = idx > 0 ? 'visible' : 'hidden'; $('#dNext').style.visibility = idx < list.length - 1 ? 'visible' : 'hidden';
   $('#dDelete').textContent = 'delete'; $('#dDelete').dataset.armed = '';
   $('#dBody').scrollTop = 0;
