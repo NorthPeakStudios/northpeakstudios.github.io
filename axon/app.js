@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.6.15 */
+/* Axon · Northpeak Studios · v1.6.16 */
 (function () {
   'use strict';
-  var VERSION = '1.6.15';
+  var VERSION = '1.6.16';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -217,6 +217,14 @@
   function folderName(p) { return p ? p.split('/').pop() : ''; }
   function parentOf(p) { var i = p.lastIndexOf('/'); return i < 0 ? '' : p.slice(0, i); }
   function crumbOf(p) { return p ? p.split('/').join(' / ') + ' /' : '/'; }
+  /* top-level folders as tabs (a zip's folders land here): All + one tab per folder, shown once there are two or more */
+  function folderTabs(active) {
+    var tops = childFolders('').filter(function (f) { return f !== TEMPLATES; });
+    if (tops.length < 2) return '';
+    return '<div class="ftabs" role="tablist"><button class="ftab' + (active ? '' : ' on') + '" role="tab" data-act="ftab" data-path="">All</button>' +
+      tops.map(function (f) { return '<button class="ftab' + (active === f ? ' on' : '') + '" role="tab" data-act="ftab" data-path="' + esc(f) + '">' + esc(folderName(f)) + '<i>' + countIn(f) + '</i></button>'; }).join('') + '</div>';
+  }
+  function ftabsIntoView() { var on = $('.ftabs .ftab.on'), bar = $('.ftabs'); if (on && bar) bar.scrollLeft = Math.max(0, on.offsetLeft - (bar.clientWidth - on.offsetWidth) / 2); }
   function countIn(p) { var c = 0; notes.forEach(function (n) { if (n.folder === p || n.folder.indexOf(p + '/') === 0) c++; }); return c; }
   function childFolders(p) {
     return Array.from(folders).filter(function (f) { return parentOf(f) === p; }).sort(function (a, b) { return a.localeCompare(b); });
@@ -731,7 +739,7 @@
     }
     var pins = pinnedNotes(), rs = recallStats();
     var h = '<div class="pullhint" id="pullhint">Release to jump to a note</div><div class="page"><div class="eyebrow">Vault · ' + notes.size + ' note' + (notes.size === 1 ? '' : 's') + '</div><h1 class="h1">Notes</h1>' +
-      '<button class="searchbox" data-act="qs" style="width:100%;text-align:left">' + I.search + '<span style="flex:1;font-size:17px">Jump to a note or command</span></button>' + backupRow() +
+      '<button class="searchbox" data-act="qs" style="width:100%;text-align:left">' + I.search + '<span style="flex:1;font-size:17px">Jump to a note or command</span></button>' + folderTabs('') + backupRow() +
       '<div class="rows" style="margin-top:14px">' + (isPro() ? todayRow() : '') +
       (function () { var tc = allTasks(); if (!tc.length) return ''; var op = tc.filter(function (t) { return !t.done; }).length; return '<button class="row today" data-act="gotasks">' + I.check.replace('<svg', '<svg class="fi"') + '<span class="nm">Tasks</span><span class="ct">' + (op ? '<i class="duen">' + op + ' open</i>' : 'all done') + '</span><span class="chev">' + I.chev + '</span></button>'; })() +
       (rs.total ? '<button class="row today" data-act="gorecall">' + I.recall.replace('<svg', '<svg class="fi"') + '<span class="nm">Recall</span><span class="ct">' + (rs.due ? '<i class="duen">' + rs.due + ' due</i>' : 'all caught up') + '</span><span class="chev">' + I.chev + '</span></button>' : '') + '</div>' +
@@ -761,7 +769,7 @@
     var backLabel = all || !parentOf(p) ? 'Notes' : folderName(parentOf(p));
     var h = '<div class="page"><div class="nav"><button class="back" data-act="back" data-to="' + (all || !parentOf(p) ? '#/' : '#/f/' + encodeURIComponent(parentOf(p))) + '">' + I.back + '<span>' + esc(backLabel) + '</span></button><div class="acts">' +
       (all ? '' : '<button class="ib" aria-label="New note here" data-act="newhere" data-path="' + esc(p) + '">' + I.newnote + '</button><button class="ib" aria-label="Folder options" data-act="foldermore" data-path="' + esc(p) + '">' + I.more + '</button>') +
-      '</div></div><div class="crumb">' + (all ? 'every note' : esc(crumbOf(p))) + '</div><h1 class="h1" style="margin-top:4px">' + esc(title) + '</h1>' +
+      '</div></div>' + (all ? '' : folderTabs(p.split('/')[0])) + '<div class="crumb">' + (all ? 'every note' : esc(crumbOf(p))) + '</div><h1 class="h1" style="margin-top:4px">' + esc(title) + '</h1>' +
       (all || notesIn(p).length > 1 ? '<div class="sortrow">' + sortChip() + '</div>' : '');
     if (all) {
       var r = Array.from(notes.values()).sort(sorter);
@@ -775,6 +783,7 @@
       if (!subs.length && !ns.length) h += '<div class="empty"><b>Empty folder</b>' + (p === TEMPLATES ? 'Notes you put here show up in \u201cNew from template\u201d.' : 'Tap + to add a note here.') + '</div>';
     }
     viewEl.innerHTML = h + '</div>';
+    ftabsIntoView();
   }
 
   /* ---------- note ---------- */
@@ -2184,7 +2193,7 @@
     var byMeta = {}; if (meta) meta.notes.forEach(function (m) { if (m && typeof m.p === 'string') byMeta[m.p] = m; });
     function okTitle(t) { return typeof t === 'string' && t.trim() && t.length <= 120 && !/[\[\]|#^\\\/:]/.test(t); }
     function okFolder(f) { return typeof f === 'string' && !/[\[\]|#^\\:]/.test(f) && f.split('/').every(Boolean); }
-    var count = 0, renamed = 0, same = 0, kept = {};
+    var count = 0, renamed = 0, same = 0, kept = {}, intoTops = {};
     entries.forEach(function (e) {
       var m = meta && e.path.indexOf(metaRoot) === 0 ? byMeta[e.path.slice(metaRoot.length)] : null;
       var parts = e.path.split('/'); if (strip) parts.shift();
@@ -2203,6 +2212,7 @@
       var n = createNote({ id: id, title: t, folder: folder, body: body, created: (m && +m.created > 0 ? +m.created : when) || undefined, updated: when || undefined });
       if (m && m.pinned) { n.pinned = true; putNote(n); }
       if (id) kept[id] = 1;
+      if (folder) intoTops[folder.split('/')[0]] = 1;
       count++;
     });
     keeps.forEach(function (k) { var p = k.split('/'); if (strip) p.shift(); p = p.map(function (x) { return x.replace(/[\[\]|#^\\:]/g, '').trim(); }).filter(Boolean).join('/'); if (p && p !== 'attachments') ensureFolder(p); });
@@ -2214,8 +2224,9 @@
     });
     if (nrc) recallSoon();
     if (!count && same) toast('Everything in that file is already in your vault');
-    else toast('Imported ' + count + ' note' + (count === 1 ? '' : 's') + (nimg ? ' · ' + nimg + ' image' + (nimg === 1 ? '' : 's') : '') + (same ? ' · ' + same + ' already here' : '') + (renamed ? ' · ' + renamed + ' renamed to avoid clashes' : '') + (badN ? ' · ' + badN + ' file' + (badN === 1 ? '' : 's') + ' couldn\u2019t be unpacked' : ''));
-    render();
+    else toast('Imported ' + count + ' note' + (count === 1 ? '' : 's') + (function () { var t = Object.keys(intoTops).sort(); return t.length > 1 ? ' into ' + t.length + ' tabs: ' + t.join(', ') : t.length === 1 ? ' into ' + t[0] : ''; })() + (nimg ? ' · ' + nimg + ' image' + (nimg === 1 ? '' : 's') : '') + (same ? ' · ' + same + ' already here' : '') + (renamed ? ' · ' + renamed + ' renamed to avoid clashes' : '') + (badN ? ' · ' + badN + ' file' + (badN === 1 ? '' : 's') + ' couldn\u2019t be unpacked' : ''));
+    /* land on Notes, where each imported folder is now a tab */
+    if (count && !meta && route().v !== 'vault') go('#/'); else render();
   }
 
   /* ---------- actions ---------- */
@@ -3760,6 +3771,12 @@
     }
   });
 
+  act.ftab = function (el) {
+    /* switching between tabs replaces the page, so Back from any tab returns to Notes (All) */
+    var p = el.dataset.path, inTab = route().v === 'folder';
+    if (!p) { go('#/'); return; }
+    go('#/f/' + encodeURIComponent(p), inTab);
+  };
   act.getpro = function (el) { openPro(el && el.dataset.what || ''); };
   (function () {
     var PA = { fromtmpl: 'Templates', today: 'Daily notes', calendar: 'Daily notes', day: 'Daily notes', gorecall: 'Recall', gotasks: 'Tasks', dailytmpl: 'Templates', accent: 'Accent colors', allcards: 'Flashcard export', cards: 'Flashcard export', autolink: 'Auto-link', sysignup: 'Cloud sync', usetmpl: 'Templates' };

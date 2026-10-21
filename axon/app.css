@@ -739,3 +739,11 @@ body.reviewing #view{padding-bottom:calc(var(--bpad) + 16px)}
 .prolock .pfine{font-size:13px;margin-top:16px}
 .progrp{margin-top:6px}
 .prolock .plk{display:flex;justify-content:center}
+
+/* folder tabs (each top-level folder, e.g. from a zip) */
+.ftabs{display:flex;gap:8px;overflow-x:auto;margin:14px -20px 0;padding:2px 20px 4px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.ftabs::-webkit-scrollbar{display:none}
+.ftab{flex:none;height:34px;padding:0 14px;border-radius:17px;background:var(--card);border:1px solid var(--line);color:var(--dim);font:500 14.5px var(--sans);white-space:nowrap;display:flex;align-items:center}
+.ftab i{font-style:normal;opacity:.55;margin-left:6px;font-size:12.5px}
+.ftab.on{background:var(--text);color:#0b0b0c;border-color:var(--text)}
+.ftab.on i{opacity:.6}
