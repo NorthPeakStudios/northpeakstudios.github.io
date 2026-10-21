@@ -161,3 +161,33 @@ section{padding:72px 0}
 .js .rv{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1)}
 .js .rv.in{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){.js .rv{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
+
+/* studio page: two apps (v3) */
+.duo{min-height:min(560px,128vw)}
+.duo .phone.p1{width:min(250px,58vw);transform:translateX(-22%) rotate(-3deg);z-index:1}
+.duo .phone.p2{position:absolute;width:min(220px,50vw);left:50%;top:13%;transform:translateX(-4%) rotate(4deg);z-index:2}
+.duo .chip.c1{left:max(0px,calc(50% - 190px));top:4%}
+.duo .chip.c3{left:auto;right:max(0px,calc(50% - 190px));bottom:4%}
+.apps-sec{padding:8px 0 40px}
+.apps{display:grid;gap:16px}
+@media (min-width:760px){.apps{grid-template-columns:1fr 1fr}}
+.app-card{display:flex;flex-direction:column;gap:16px;padding:22px;border-radius:var(--r);border:1px solid var(--line);background:linear-gradient(180deg,var(--card2),var(--card));color:var(--text);text-decoration:none;transition:border-color .2s,transform .15s}
+.app-card:hover{border-color:rgba(255,255,255,.2);transform:translateY(-2px)}
+.app-card small{color:var(--dim);font-size:13px;text-align:center;margin-top:-6px}
+.app-top{display:flex;gap:14px;align-items:center}
+.app-top h3{margin:0;font-size:24px}
+.app-top p{margin:2px 0 0;color:var(--muted);font-size:15px}
+.app-ic{flex:none;width:54px;height:54px;border-radius:15px;display:grid;place-items:center;font-weight:850;font-size:26px;color:#05070c}
+.app-ic.syn{background:var(--grad)}
+.app-ic.axn{background:linear-gradient(135deg,#a08cff,#33e1d2)}
+.app-nums{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.app-nums li{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:14px;padding:10px 8px;text-align:center;font-size:13px;color:var(--muted)}
+.app-nums b{display:block;color:var(--text);font-size:20px;font-weight:800;letter-spacing:-.02em}
+#synapse,#axon{scroll-margin-top:70px}
+#synapse{padding-bottom:30px}
+.feats{padding-top:60px}
+.btns.center{justify-content:center;margin-top:60px}
+#axon .tiles{margin-top:70px}
+@media (min-width:980px){.pricing.three{grid-template-columns:repeat(3,1fr)}}
+@media (min-width:820px) and (max-width:979px){.pricing.three{grid-template-columns:1fr 1fr}.pricing.three .plan.hot{grid-column:1/-1}}
+.head-cta{white-space:nowrap}
