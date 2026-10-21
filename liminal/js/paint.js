@@ -23,7 +23,7 @@ function deform(pts, depth, variance, r){
 function blobBase(cx, cy, s, r){
   const n = 10, pts = [];
   for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; pts.push([cx + Math.cos(a) * s, cy + Math.sin(a) * s, 0.6 + r() * 0.9]); }
-  return deform(pts, 3, 0.24, r);
+  return deform(pts, 3, 0.2, r);
 }
 function fillPoly(ctx, pts){ ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); ctx.closePath(); ctx.fill(); }
 
@@ -43,28 +43,28 @@ export function paint(canvas, moments, { progressive = false, caption = null } =
   const ctx = canvas.getContext('2d'), w = canvas.width, h = canvas.height;
   const spots = layout(moments, w, h), N = spots.length;
   // pigment layer at low resolution — upscaling it is what makes the edges bleed like wet paper
-  const sc = 0.34, off = document.createElement('canvas'); off.width = Math.max(2, Math.round(w * sc)); off.height = Math.max(2, Math.round(h * sc));
+  const sc = 0.26, off = document.createElement('canvas'); off.width = Math.max(2, Math.round(w * sc)); off.height = Math.max(2, Math.round(h * sc));
   const o = off.getContext('2d'); o.scale(sc, sc);
   const bg = o.createRadialGradient(w / 2, h * 0.48, 0, w / 2, h * 0.5, Math.max(w, h) * 0.75);
   bg.addColorStop(0, '#17131f'); bg.addColorStop(1, '#08070c'); o.fillStyle = bg; o.fillRect(0, 0, w, h);
   // a faint wash of everything, so the paper is tinted by the whole history
   spots.forEach(sp => { const c = hexRgb(sp.m.colors[1] || sp.m.colors[0]), g = o.createRadialGradient(sp.x, sp.y, 0, sp.x, sp.y, sp.s * 2.6);
     g.addColorStop(0, `rgba(${c},${0.10})`); g.addColorStop(1, `rgba(${c},0)`); o.fillStyle = g; o.fillRect(0, 0, w, h); });
-  const layers = N < 8 ? 34 : N < 30 ? 24 : N < 90 ? 16 : 10;
+  const layers = N < 8 ? 40 : N < 30 ? 30 : N < 90 ? 18 : 11;
   const jobs = [];
   spots.forEach(sp => {
     const cols = (sp.m.colors || ['#888', '#666', '#222']).map(hexRgb);
     const r = mulberry32(sp.m.seed >>> 0);
     const ox = gauss(r) * sp.s * 0.5, oy = gauss(r) * sp.s * 0.5;
-    jobs.push({ c: cols[1], x: sp.x + ox, y: sp.y + oy, s: sp.s * 0.85, r, a: 0.04 });
-    jobs.push({ c: cols[0], x: sp.x, y: sp.y, s: sp.s, r, a: 0.05 + sp.t * 0.02 });
+    jobs.push({ c: cols[1], x: sp.x + ox, y: sp.y + oy, s: sp.s * 0.95, r, a: 0.032 });
+    jobs.push({ c: cols[0], x: sp.x, y: sp.y, s: sp.s, r, a: 0.04 + sp.t * 0.018 });
   });
   const drawJob = j => {
     const base = blobBase(j.x, j.y, j.s, j.r);
     o.fillStyle = `rgba(${j.c[0]},${j.c[1]},${j.c[2]},${j.a})`;
     for (let l = 0; l < layers; l++) {
       const shrink = 1.05 - (l / layers) * 0.4;
-      fillPoly(o, deform(base.map(p => [j.x + (p[0] - j.x) * shrink, j.y + (p[1] - j.y) * shrink, p[2]]), 2, 0.3, j.r));
+      fillPoly(o, deform(base.map(p => [j.x + (p[0] - j.x) * shrink, j.y + (p[1] - j.y) * shrink, p[2]]), 2, 0.2, j.r));
     }
   };
   const blit = () => {

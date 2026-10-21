@@ -1,5 +1,5 @@
 // liminal service worker — offline app shell. no network calls of its own.
-const V = 'liminal-v3';
+const V = 'liminal-v4';
 const SHELL = ['./', 'index.html', 'app.css', 'manifest.webmanifest', 'js/app.js', 'js/audio.js', 'js/color.js', 'js/db.js', 'js/paint.js', 'js/poet.js', 'js/prompts.js',
   'fonts/instrument-serif-normal.woff2', 'fonts/instrument-serif-italic.woff2', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon.svg', 'icons/favicon-32.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
