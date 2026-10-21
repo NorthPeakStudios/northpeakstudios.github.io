@@ -1,7 +1,7 @@
 /* Axon · Northpeak Studios · v1.6.17 */
 (function () {
   'use strict';
-  var VERSION = '1.6.17';
+  var VERSION = '1.6.18';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -2935,7 +2935,7 @@
   }
 
   /* ---------- formatting guide (rendered, never saved as a note) ---------- */
-  var GUIDE = '## Fast ways in\n- Type **/** anywhere to insert a block, or tap **+** on the toolbar.\n- **[[** links a note. **![[Note]]** shows another note right inside this one.\n- Press and hold a note in a list for pin, rename, move, duplicate and delete.\n- Pull down on the Notes screen (or tap the search bar) to jump anywhere.\n- Double-tap any paragraph to edit right there.\n\n## Text\n**bold**, *italic*, ~~strike~~, ==highlight==, `code`, [^1] footnotes, $E = mc^2$ math.\n\n## Lists\n- [ ] Checklist item\n  - [x] Nested item (indent with the \u2192 button)\n1. Numbered\n\n## Callouts and toggles\n> [!info] Info\n> Also tip, warning, danger, question and example.\n\n> [!toggle]- Tap to open a toggle\n> Hidden until you need it.\n\n## Recall cards\nWhat does ATP stand for :: adenosine triphosphate\nThe {{c::hippocampus}} helps form new memories.\n\n## Sync\n**Settings \u203a Cloud sync** keeps your notes on every device you log in on. They\u2019re encrypted with your password before they leave this one, so only you can read them.\n\n## History\nEvery note keeps earlier versions for 30 days: **\u22ef \u203a History**. **Restore as new note** brings an old version back as its own note and leaves the current one alone. Then tap **Merge** on that copy to pick, change by change, what goes back into the original.\n\n## Axon Pro\nWriting, folders, [[links]], search, Markdown, Trash, import and backups are free. Cloud sync, History, Graph, Templates, Daily notes, Recall, Discover, Tasks, accent colors, auto-link and flashcard export are **Axon Pro**, $35 once: **Settings \u203a Get Axon Pro**. You pay with an Apple Cash request, and Pro turns on by itself once it\u2019s paid. Nothing you\u2019ve written is ever locked.\n\n## Properties\nStart a note with a block like this to get a chip row:\n```yaml\n---\ntags: [biology, exam]\ndate: 2026-10-19\n---\n```\n\n[^1]: Footnotes collect at the bottom of the note.';
+  var GUIDE = '## Fast ways in\n- Type **/** anywhere to insert a block, or tap **+** on the toolbar.\n- **[[** links a note. **![[Note]]** shows another note right inside this one.\n- Press and hold a note in a list for pin, rename, move, duplicate and delete.\n- Pull down on the Notes screen (or tap the search bar) to jump anywhere.\n- Double-tap any paragraph to edit right there.\n\n## Text\n**bold**, *italic*, ~~strike~~, ==highlight==, `code`, [^1] footnotes, $E = mc^2$ math.\n\n## Lists\n- [ ] Checklist item\n  - [x] Nested item (indent with the \u2192 button)\n1. Numbered\n\n## Callouts and toggles\n> [!info] Info\n> Also tip, warning, danger, question and example.\n\n> [!toggle]- Tap to open a toggle\n> Hidden until you need it.\n\n## Recall cards\nWhat does ATP stand for :: adenosine triphosphate\nThe {{c::hippocampus}} helps form new memories.\n\n## Sync\n**Settings \u203a Cloud sync** keeps your notes on every device you log in on. They\u2019re encrypted with your password before they leave this one, so only you can read them.\n\n## History\nEvery note keeps earlier versions for 30 days: **\u22ef \u203a History**. **Restore as new note** brings an old version back as its own note and leaves the current one alone. Then tap **Merge** on that copy to pick, change by change, what goes back into the original.\n\n## Axon Pro\nWriting, folders, [[links]], search, Markdown, Trash, import and backups are free. Cloud sync, History, Graph, Templates, Daily notes, Recall, Discover, Tasks, accent colors, auto-link and flashcard export are **Axon Pro**, $35 once: **Settings \u203a Get Axon Pro**. **Northpeak All-Access**, $100 lifetime, unlocks Axon, Synapse and every future Northpeak app; bought in Synapse, its code goes in **Get Axon Pro \u203a Have an All-Access code?** You pay with an Apple Cash request, and Pro turns on by itself once it\u2019s paid. Nothing you\u2019ve written is ever locked.\n\n## Properties\nStart a note with a block like this to get a chip row:\n```yaml\n---\ntags: [biology, exam]\ndate: 2026-10-19\n---\n```\n\n[^1]: Footnotes collect at the bottom of the note.';
   function renderGuide() {
     viewEl.innerHTML = '<div class="page"><div class="nav"><button class="back" data-act="back" data-to="#/settings">' + I.back + '<span>Settings</span></button><div class="acts"></div></div><div class="eyebrow">Axon</div><h1 class="h1">Formatting guide</h1><article class="prose">' + MD.render(GUIDE, { resolve: function () { return true; } }) + '</article></div>';
   }
@@ -3842,6 +3842,16 @@
      auto-link and flashcard export. A device that had Axon before Pro existed keeps all of it (grandfathered). Accounts get
      Pro from the sync server, which is also where sync itself is checked. Nothing here hides, locks or deletes a note. */
   var PRO = { grand: false, acct: '', need: false, req: null };
+  /* Northpeak All-Access ($100 lifetime, every Northpeak app). Synapse holds the license codes; the two servers pass signed
+     notes through this app (they can't call each other directly), so an All-Access request shows on both admin lists. */
+  var NP_SYNAPSE = 'https://odin-cards.sites.tab.bot';
+  var NP_PLANS = { axon_pro: { name: 'Axon Pro', price: '$35', one: 'one time \u00b7 yours for good', sub: 'Axon, one time' },
+    all_access: { name: 'Northpeak All-Access', price: '$100', one: 'lifetime \u00b7 Axon, Synapse and every future Northpeak app', sub: 'every Northpeak app, lifetime' } };
+  function npHop(j, n) {
+    n = n || 0; if (!j || !j.relay || n > 3 || j.relay.to !== 'synapse') return Promise.resolve(j);
+    return fetch(NP_SYNAPSE + j.relay.path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ m: j.relay.m, sig: j.relay.sig }), credentials: 'omit' })
+      .then(function (r) { return r.json(); }).then(function (k) { if (k && k.relay && k.relay.to === 'axon') return AXS.api(k.relay.path, { body: { m: k.relay.m, sig: k.relay.sig } }).catch(function () { return null; }); return k; }).catch(function () { return null; });
+  }
   var LOCK = '<svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.2"/><path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7"/></svg>';
   function isPro() { return !!(PRO.grand || PRO.acct); }
   function savePro() { DB.put('meta', { k: 'pro', v: PRO }).catch(function () {}); }
@@ -3869,6 +3879,7 @@
     proLast = Date.now();
     try {
       var j = await AXS.api('/api/me', { token: sy.token }), had = PRO.need && !isPro() || PRO.need;
+      if ((j.allAccess || null) !== (PRO.aa || null)) { PRO.aa = j.allAccess || null; savePro(); }
       proFromServer(!!j.pro, j.request || null);
       if (j.pro && had) { toast('Axon Pro is on. Thank you!'); syncNow(false); }
       if (route().v === 'settings' && !openOverlays.length) renderSettings();
@@ -3895,27 +3906,36 @@
   async function openPro(what) {
     var tt = $('#toast'); if (tt) tt.classList.remove('show');
     var mode = '', msg = '', f = { name: (PRO.req && PRO.req.name) || '', phone: (PRO.req && PRO.req.phone) || '' };
+    var plan = (PRO.aa || (PRO.req && PRO.req.plan === 'all_access')) ? 'all_access' : 'axon_pro', code = '';
     await overlay(function (done) {
       var el = document.createElement('div'); el.className = 'mergev prov'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Axon Pro');
       function waiting() { return PRO.req && PRO.req.status === 'new' && syOn() && mode !== 'edit'; }
       function paint() {
         var h = '<div class="mvh"><button data-p="close">Close</button><b>Axon Pro</b><span class="pgap"></span></div><div class="mvbody pbody">';
-        h += '<div class="phero"><div class="pprice">$35</div><div class="pone">one time \u00b7 yours for good</div>' + (what && !isPro() ? '<p class="pwhy"><b>' + esc(what) + '</b> is part of Axon Pro.</p>' : '') + '</div>';
+        var P = NP_PLANS[plan];
+        h += '<div class="phero"><div class="pprice">' + P.price + '</div><div class="pone">' + P.one + '</div>' + (what && !isPro() ? '<p class="pwhy"><b>' + esc(what) + '</b> is part of Axon Pro.</p>' : '') + '</div>';
         if (isPro() && !(PRO.grand && !PRO.acct && syOn() && PRO.need)) {
           h += '<div class="pbox pon"><b>Axon Pro is on' + '</b><p>' + (PRO.acct ? 'It\u2019s on your account <b>' + esc(PRO.acct) + '</b>, so it works on every device you log in on.' : 'This device had Axon before Pro existed, so it keeps every Pro feature for good.') + '</p></div>';
+          if (PRO.aa) h += '<div class="pbox pon"><b>Northpeak All-Access</b><p>Your code <b class="pcode">' + esc(PRO.aa) + '</b> unlocks every Northpeak app. In Synapse, open <b>Settings \u203a Synapse Pro \u203a Have an unlock code?</b> and enter it.</p></div>';
         }
         if (!isPro() || (PRO.grand && !PRO.acct && syOn() && PRO.need)) {
           if (waiting()) {
-            h += '<div class="pbox psent"><b>' + I.check + 'Request sent</b><p>Watch Messages for an Apple Cash request for <b>$35</b> from Northpeak Studios' + (PRO.req.phone ? ' at <b>' + esc(PRO.req.phone) + '</b>' : '') + '. Pro turns on by itself once it\u2019s paid, on every device logged in as <b>' + esc(sy.user) + '</b>.</p>' +
+            h += '<div class="pbox psent"><b>' + I.check + 'Request sent</b><p>Watch Messages for an Apple Cash request for <b>' + ((PRO.req && PRO.req.plan === 'all_access') ? '$100' : '$35') + '</b>' + ((PRO.req && PRO.req.plan === 'all_access') ? ' (Northpeak All-Access)' : '') + ' from Northpeak Studios' + (PRO.req.phone ? ' at <b>' + esc(PRO.req.phone) + '</b>' : '') + '. Pro turns on by itself once it\u2019s paid, on every device logged in as <b>' + esc(sy.user) + '</b>.</p>' +
               '<div class="pbtns"><button class="pmain" data-p="check">Check now</button><button data-p="edit">Change details</button></div>' + (msg ? '<div class="perr">' + esc(msg) + '</div>' : '') + '</div>';
+          } else if (mode === 'code') {
+            h += '<div class="pbox"><b>Have an All-Access code?</b><p>Bought Northpeak All-Access in Synapse? Enter the code (SYN-XXXX-XXXX) and Axon Pro turns on' + (syOn() ? ' for <b>' + esc(sy.user) + '</b>.' : '. Next you\u2019ll pick a username and password, so it works on all your devices.') + '</p>' +
+              '<input name="pcode" placeholder="SYN-XXXX-XXXX" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go" value="' + esc(code) + '">' +
+              (msg ? '<div class="perr">' + esc(msg) + '</div>' : '') +
+              '<div class="pbtns"><button class="pmain" data-p="redeem">Unlock</button><button data-p="back">Back</button></div></div>';
           } else {
-            h += '<div class="pbox"><b>Get Pro</b><p>No card needed. Send your name and phone number and Northpeak Studios sends you an <b>Apple Cash request for $35</b> in Messages. Once it\u2019s paid, Pro turns on by itself.</p>' +
+            h += '<div class="pplans" role="radiogroup" aria-label="Plan">' + ['axon_pro', 'all_access'].map(function (k) { var x = NP_PLANS[k]; return '<button class="pplan' + (plan === k ? ' on' : '') + '" role="radio" aria-checked="' + (plan === k) + '" data-p="plan" data-plan="' + k + '"><b>' + x.name + '</b><span>' + x.price + ' \u00b7 ' + x.sub + '</span></button>'; }).join('') + '</div>';
+            h += '<div class="pbox"><b>Get ' + esc(P.name) + '</b><p>No card needed. Send your name and phone number and Northpeak Studios sends you an <b>Apple Cash request for ' + P.price + '</b> in Messages. Once it\u2019s paid, Pro turns on by itself' + (plan === 'all_access' ? ', and you get one code that unlocks Synapse too' : '') + '.</p>' +
               '<input name="pname" placeholder="Your name" autocomplete="name" enterkeyhint="next" value="' + esc(f.name) + '">' +
               '<input name="pphone" type="tel" placeholder="Phone number for Apple Cash" autocomplete="tel" inputmode="tel" enterkeyhint="go" value="' + esc(f.phone) + '">' +
               '<p class="pnote">' + (syOn() ? 'Pro goes on your account <b>' + esc(sy.user) + '</b>.' : 'Next you\u2019ll pick a username and password. Pro goes on that account, so you can log in and use it on all your devices.') + '</p>' +
               (msg ? '<div class="perr">' + esc(msg) + '</div>' : '') +
               '<div class="pbtns"><button class="pmain" data-p="send">' + (syOn() ? 'Send request' : 'Continue') + '</button></div>' +
-              (syOn() ? '' : '<button class="plink" data-p="login">Bought Pro already? Log in</button>') + '</div>';
+              (syOn() ? '' : '<button class="plink" data-p="login">Bought Pro already? Log in</button>') + '<button class="plink" data-p="code">Have an All-Access code?</button></div>';
           }
         }
         h += '<ul class="plist">' + PRO_LIST.map(function (x) { return '<li>' + I.check + '<span><b>' + esc(x[0]) + '</b>' + esc(x[1]) + '</span></li>'; }).join('') + '</ul>';
@@ -3930,8 +3950,9 @@
         if (!syOn()) { var ok = await syAuth('signup', { forPro: true }); if (!ok) { paint(); return; } if (isPro() && PRO.acct) { paint(); return; } }
         var b = $('[data-p=send]', el); if (b) { b.disabled = true; b.textContent = 'Sending\u2026'; }
         try {
-          var r = await AXS.api('/api/pro/request', { token: sy.token, body: { name: f.name, phone: f.phone, username: sy.user } });
-          PRO.req = { id: r.id, status: 'new', name: f.name, phone: f.phone, at: Date.now() }; savePro(); mode = '';
+          var r = await AXS.api('/api/pro/request', { token: sy.token, body: { name: f.name, phone: f.phone, username: sy.user, plan: plan } });
+          PRO.req = { id: r.id, status: 'new', name: f.name, phone: f.phone, plan: plan, at: Date.now() }; savePro(); mode = '';
+          npHop(r);
         } catch (e) {
           msg = e.offline ? 'You\u2019re offline. Connect and try again.' : e.message === 'slow_down' ? 'Too many requests from here. Try again later.' : e.message === 'bad_phone' ? 'That phone number doesn\u2019t look right.' : 'That didn\u2019t go through (' + e.message + '). Try again.';
         }
@@ -3943,10 +3964,32 @@
         if (p === 'close') done(null);
         else if (p === 'send') send();
         else if (p === 'edit') { mode = 'edit'; msg = ''; paint(); }
+        else if (p === 'plan') { plan = b.dataset.plan === 'all_access' ? 'all_access' : 'axon_pro'; msg = ''; var nm = $('[name=pname]', el), ph = $('[name=pphone]', el); if (nm) f.name = nm.value; if (ph) f.phone = ph.value; paint(); }
+        else if (p === 'code') { mode = 'code'; msg = ''; paint(); }
+        else if (p === 'back') { mode = ''; msg = ''; paint(); }
+        else if (p === 'redeem') redeem();
         else if (p === 'login') { var ok = await syAuth('login', { forPro: true }); if (ok) { await proCheck(true); } paint(); }
         else if (p === 'check') { b.disabled = true; b.textContent = 'Checking\u2026'; var j = await proCheck(true); msg = !j ? 'Couldn\u2019t check (offline?). Try again.' : j.pro ? '' : j.request && j.request.status === 'declined' ? 'This request was declined. Change your details to send a new one.' : 'Not marked paid yet. It turns on by itself once it is.'; paint(); }
       });
-      el.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.name === 'pphone') { e.preventDefault(); send(); } else if (e.key === 'Enter' && e.target.name === 'pname') { e.preventDefault(); var ph = $('[name=pphone]', el); if (ph) ph.focus(); } });
+      async function redeem() { // an All-Access code: Synapse signs a yes, this account's Pro turns on
+        code = ($('[name=pcode]', el).value || '').trim().toUpperCase();
+        if (code.replace(/[^0-9A-Z]/g, '').replace(/^SYN/, '').length !== 8) { msg = 'Type the whole code, like SYN-AB12-CD34.'; paint(); return; }
+        msg = '';
+        if (!syOn()) { var ok = await syAuth('signup', { forPro: true }); if (!ok) { paint(); return; } }
+        var bt = $('[data-p=redeem]', el); if (bt) { bt.disabled = true; bt.textContent = 'Checking\u2026'; }
+        var proof = {};
+        try { var at = await fetch(NP_SYNAPSE + '/api/pro/link/attest', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code: code, app: 'axon' }), credentials: 'omit' }).then(function (x) { return x.json(); }); if (at && at.valid) proof = { m: at.m, sig: at.sig }; } catch (e) {}
+        try {
+          var r = await AXS.api('/api/pro/redeem', { token: sy.token, body: Object.assign({ code: code }, proof) });
+          PRO.aa = r.code || code; savePro(); mode = ''; plan = 'all_access';
+          await proCheck(true); if (r.pro) proFromServer(true);
+          toast('Axon Pro is on. Thank you!'); syncNow(false);
+        } catch (e) {
+          msg = e.offline ? 'You\u2019re offline. Connect and try again.' : e.message === 'used' ? 'That code is already unlocking another Axon account.' : e.message === 'slow_down' ? 'Too many tries. Wait a bit and try again.' : e.message === 'bad_code' ? 'That isn\u2019t a Northpeak All-Access code. Check it and try again.' : 'That didn\u2019t go through (' + e.message + '). Try again.';
+        }
+        paint();
+      }
+      el.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.name === 'pphone') { e.preventDefault(); send(); } else if (e.key === 'Enter' && e.target.name === 'pcode') { e.preventDefault(); redeem(); } else if (e.key === 'Enter' && e.target.name === 'pname') { e.preventDefault(); var ph = $('[name=pphone]', el); if (ph) ph.focus(); } });
       paint();
       return el;
     });
