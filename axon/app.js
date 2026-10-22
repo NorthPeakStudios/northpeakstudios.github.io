@@ -747,7 +747,7 @@
     var pins = pinnedNotes(), rs = recallStats();
     var h = '<div class="pullhint" id="pullhint">Release to jump to a note</div><div class="page"><div class="eyebrow">Vault · ' + notes.size + ' note' + (notes.size === 1 ? '' : 's') + '</div><h1 class="h1">Notes</h1>' +
       '<button class="searchbox" data-act="qs" style="width:100%;text-align:left">' + I.search + '<span style="flex:1;font-size:17px">Jump to a note or command</span></button>' + folderTabs('') + backupRow() + xStrip() +
-      '<div class="rows" style="margin-top:14px">' + (isPro() ? todayRow() : '') +
+      '<div class="rows" style="margin-top:14px">' + (isPro() ? todayRow() : '') + xDueRow() + xOTDRow() +
       (function () { var tc = allTasks(); if (!tc.length) return ''; var op = tc.filter(function (t) { return !t.done; }).length; return '<button class="row today" data-act="gotasks">' + I.check.replace('<svg', '<svg class="fi"') + '<span class="nm">Tasks</span><span class="ct">' + (op ? '<i class="duen">' + op + ' open</i>' : 'all done') + '</span><span class="chev">' + I.chev + '</span></button>'; })() +
       (rs.total ? '<button class="row today" data-act="gorecall">' + I.recall.replace('<svg', '<svg class="fi"') + '<span class="nm">Recall</span><span class="ct">' + (rs.due ? '<i class="duen">' + rs.due + ' due</i>' : 'all caught up') + '</span><span class="chev">' + I.chev + '</span></button>' : '') + '</div>' +
       (pins.length ? '<div class="sec"><span>Pinned</span></div><div class="rows">' + pins.map(function (n) { return '<button class="row" data-act="open" data-id="' + n.id + '">' + I.pin.replace('<svg', '<svg class="fi pinfi"') + '<span class="nm">' + esc(n.title) + '</span><span class="chev">' + I.chev + '</span></button>'; }).join('') + '</div>' : '') +
@@ -1650,6 +1650,7 @@
     if (kind === 'date') { insertText(ed, ymd(new Date()), c, c); return; }
     if (kind === 'time') { var d = new Date(); insertText(ed, String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'), c, c); return; }
     if (kind === 'sym') { xSymbols(ed, c); return; }
+    if (kind === 'toc') { xTOC(ed, c); return; }
     if (kind === 'daylink') { insertText(ed, '[[' + ymd(new Date()) + ']]', c, c); return; }
     if (kind === 'footnote') {
       var used = {}, re = /\[\^(\d+)\]/g, mm; while ((mm = re.exec(ed.value))) used[mm[1]] = 1;
@@ -2004,7 +2005,7 @@
       '<div class="sec"><span>Daily notes</span></div><div class="group">' +
       '<button class="item" data-act="dailytmpl"><span>' + proTag('Template for new daily notes') + '<small>' + (settings.dailyTmpl ? esc(settings.dailyTmpl) : 'None \u2014 new daily notes start empty') + '</small></span><svg class="chv" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '<div class="item"><span>Where they live<small>Daily notes are kept in the \u201c' + DAILY + '\u201d folder, named by date. Tap the day chip on one to open the calendar.</small></span></div></div>' +
-      xWritingSettings() + '<div class="sec"><span>Discover</span></div><div class="group">' +
+      xWritingSettings() + xLookSettings() + '<div class="sec"><span>Discover</span></div><div class="group">' +
       '<div class="item"><span>Discover uses the internet<small>Looks up your note topics on Wikipedia while Discover is open. Only the search words are sent.</small></span><div class="seg">' + [['1', 'On'], ['0', 'Off']].map(function (s) { return '<button class="' + ((settings.discoverNet !== false) === (s[0] === '1') ? 'on' : '') + '" data-act="dnet" data-v="' + s[0] + '" style="font-family:var(--sans);font-size:13px">' + s[1] + '</button>'; }).join('') + '</div></div>' +
       '<button class="item" data-act="dclear"><span>Clear Discover history<small>Forget saved cards and \u201cnot for me\u201d picks</small></span></button></div>' +
       '<div class="sec"><span>Recall</span></div><div class="group">' +
@@ -2049,6 +2050,7 @@
     var rows = [['Notes', s.notes + (s.daily ? ' (' + s.daily + ' daily)' : '')], ['Words', s.words.toLocaleString()], ['Folders', s.folders], ['Links between notes', s.links], ['Unresolved links', s.unresolved], ['Mentions not yet linked', s.auto], ['Notes with no links', s.orphans], ['Tags', s.tags], ['Recall cards', s.cards], ['Images', s.images]];
     if (s.longest && s.longest.w) rows.push(['Longest note', s.longest.n.title + ' \u00b7 ' + s.longest.w.toLocaleString() + ' words']);
     if (s.newest) rows.push(['Last edited', s.newest.title + ' \u00b7 ' + agoLong(s.newest.updated)]);
+    var tw = xTopWords(8); if (tw.length) rows.push(['Most-used words', tw.map(function (x) { return x[0] + ' ' + x[1]; }).join(' \u00b7 ')]);
     await dialog({ title: 'Vault stats', html: '<div class="stats">' + rows.map(function (r) { return '<div><span>' + esc(String(r[0])) + '</span><b>' + esc(String(r[1])) + '</b></div>'; }).join('') + '</div>', ok: 'Done', noCancel: true });
   }
   function applySettings() {
@@ -2057,6 +2059,7 @@
     r.setProperty('--accent', settings.accent);
     var v = parseInt(settings.accent.slice(1), 16);
     r.setProperty('--accent-soft', 'rgba(' + (v >> 16 & 255) + ',' + (v >> 8 & 255) + ',' + (v & 255) + ',.16)');
+    try { xApplyLook(); } catch (e) {}
   }
   function saveSettings() { DB.put('meta', { k: 'settings', v: settings }); applySettings(); }
 
@@ -4372,7 +4375,7 @@
     savePro();
     if (was !== isPro()) proChanged();
   }
-  function proChanged() { proTabs(); if (!editing && !openOverlays.length) render(); }
+  function proChanged() { try { xApplyLook(); } catch (e) {} proTabs(); if (!editing && !openOverlays.length) render(); }
   function proTabs() {
     document.querySelectorAll('.tb[data-tab=graph] span, .tb[data-tab=discover] span').forEach(function (sp) {
       var l = sp.querySelector('.tlock');
@@ -4877,7 +4880,7 @@
     var nav = $('.nav.stick'); if (nav) nav.insertAdjacentHTML('afterend', '<div class="xcount" id="xcount"></div><div class="xgoalbar" id="xgoalbar" hidden><i></i></div>');
     var fx = $('#xfocusx'); if (!fx) { fx = document.createElement('button'); fx.id = 'xfocusx'; fx.className = 'xfocusx'; fx.textContent = 'Exit focus'; fx.addEventListener('click', function () { xFocus(false); }); document.body.appendChild(fx); }
     fx.hidden = !settings.focus; document.body.classList.toggle('xfocus', !!settings.focus);
-    ed.addEventListener('input', function () { xPaintCount(ed); xTypewriter(ed); });
+    ed.addEventListener('input', function () { xPaintCount(ed); xTypewriter(ed); xMarkWrite(); });
     ed.addEventListener('keyup', function () { xPaintCount(ed); });
     ed.addEventListener('click', function () { xTypewriter(ed); });
     document.addEventListener('selectionchange', function sc() { if (!document.body.contains(ed)) return document.removeEventListener('selectionchange', sc); if (document.activeElement === ed) xPaintCount(ed); });
@@ -5033,6 +5036,183 @@
     ['Archive this note', 'archive done hide', function () { var r = route(); if (r.v === 'note' && notes.get(r.id)) { xArchive(notes.get(r.id)); render(); } else toast('Open a note first'); }]);
 
   var XNMENU = [], XNMFN = {};
+
+  /* ================= Oct 21 features (batch 3: study + export) ================= */
+  /* 21 · reminders (pro): due: in the note's properties */
+  function xDue(n) { var d = fmGet(n, 'due'); return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : ''; }
+  function xDueList() { var out = []; notes.forEach(function (n) { var d = xDue(n); if (d) out.push({ n: n, d: d }); }); return out.sort(function (a, b) { return a.d < b.d ? -1 : a.d > b.d ? 1 : 0; }); }
+  function xDueRow() {
+    var today = ymd(new Date()), l = xDueList(), now = l.filter(function (x) { return x.d <= today; }).length;
+    if (!l.length) return '';
+    return '<button class="row today" data-act="xgo" data-to="x:due"><svg class="fi" viewBox="0 0 24 24"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.5 1.5M5 4.5 3 6.5M19 4.5l2 2"/></svg><span class="nm">Reminders</span><span class="ct">' + (now ? '<i class="duen">' + now + ' due</i>' : l.length + ' upcoming') + '</span><span class="chev">' + I.chev + '</span></button>';
+  }
+  async function xRemind(n) {
+    if (!proOk('Reminders')) return;
+    var add = function (k) { var d = new Date(); d.setDate(d.getDate() + k); return ymd(d); }, cur = xDue(n);
+    var a = await sheet({ title: 'Remind me', message: cur ? 'Now: ' + cur : 'It shows up in Reminders on that day', actions: [{ label: 'Today', value: add(0) }, { label: 'Tomorrow', value: add(1) }, { label: 'In 3 days', value: add(3) }, { label: 'Next week', value: add(7) }, { label: 'Pick a date\u2026', value: 'pick' }].concat(cur ? [{ label: 'Remove reminder', value: '-', danger: true }] : []) });
+    if (!a) return;
+    if (a === 'pick') { a = await dialog({ title: 'Remind me on', message: 'Year-month-day, like ' + add(14), input: true, value: cur || add(1), ok: 'Save', validate: function (v) { return /^\d{4}-\d{2}-\d{2}$/.test(v) && !isNaN(new Date(v + 'T12:00')) ? null : 'Like ' + add(14); } }); if (!a) return; }
+    fmSet(n, 'due', a === '-' ? '' : a); xSaveBody(n); toast(a === '-' ? 'Reminder removed' : 'Reminder set for ' + dayLabel(a)); render();
+  }
+  XV.due = function () {
+    var today = ymd(new Date()), l = xDueList(), g = { o: [], t: [], u: [] };
+    l.forEach(function (x) { (x.d < today ? g.o : x.d === today ? g.t : g.u).push(x); });
+    var sec = function (t, arr) { return arr.length ? '<div class="sec"><span>' + t + '</span></div><div class="rows">' + arr.map(function (x) { return '<div class="row xtagrow"><button class="row" style="border:0;flex:1;min-width:0" data-act="open" data-id="' + x.n.id + '">' + I.doc + '<span class="nm">' + esc(x.n.title) + '</span><span class="ct">' + esc(dayLabel(x.d)) + '</span></button><button class="chev" aria-label="Done" data-act="xdone" data-id="' + x.n.id + '">' + I.check + '</button></div>'; }).join('') + '</div>' : ''; };
+    return xPage('Reminders', isPro() ? l.length + ' set' : 'Pro', '<p class="xp">Set one from a note\u2019s \u22ef menu. \u2713 clears it.</p>' + (l.length ? sec('Overdue', g.o) + sec('Today', g.t) + sec('Coming up', g.u) : xEmpty('No reminders', 'Open a note, tap \u22ef, then Remind me.')));
+  };
+  act.xdone = function (el) { var n = notes.get(el.dataset.id); if (!n) return; fmSet(n, 'due', ''); xSaveBody(n); toast('Done \u2713'); render(); };
+  /* 22 · writing heatmap (pro) */
+  function xWDays() { var w = xLS('wdays', null); if (!w) { w = {}; notes.forEach(function (n) { [n.created, n.updated].forEach(function (t) { if (t) { var k = ymd(new Date(t)); w[k] = (w[k] || 0) + 1; } }); }); xLSset('wdays', w); } return w; }
+  var xWMark = 0;
+  function xMarkWrite() { if (Date.now() - xWMark < 60000) return; xWMark = Date.now(); var w = xWDays(), k = ymd(new Date()); w[k] = (w[k] || 0) + 1; xLSset('wdays', w); }
+  XV.heatmap = function () {
+    var w = xWDays(), d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - d.getDay() - 7 * 11);
+    var cells = '', days = 0, total = 0, mx = 1; Object.keys(w).forEach(function (k) { mx = Math.max(mx, w[k]); });
+    for (var i = 0; i < 84; i++) { var k = ymd(d), c = w[k] || 0, fut = d > new Date(); if (c && !fut) { days++; total += c; } cells += '<i title="' + k + '" style="' + (fut ? 'opacity:0' : c ? 'background:var(--accent);opacity:' + (0.3 + 0.7 * Math.min(1, c / Math.max(3, mx * 0.6))).toFixed(2) : '') + '"></i>'; d.setDate(d.getDate() + 1); }
+    var st = 0, t = new Date(); if (!w[ymd(t)]) t.setDate(t.getDate() - 1); while (w[ymd(t)]) { st++; t.setDate(t.getDate() - 1); }
+    return xPage('Writing heatmap', 'Last 12 weeks', '<div class="xheat-stats"><div><b>' + days + '</b><span>days written</span></div><div><b>' + st + '</b><span>day streak</span></div><div><b>' + total + '</b><span>edits</span></div></div><div class="xheat"><div class="xheat-d"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div><div class="xheat-g">' + cells + '</div></div><p class="xp">Each square is a day; brighter means more writing. Counts notes you made or edited on this device (before today it uses each note\u2019s created and last-edited dates).</p>');
+  };
+  /* 23 · self-test mode (pro): blur a note's text, tap to reveal */
+  function xSelfTest(n) {
+    if (!proOk('Self-test mode')) return;
+    if (route().v !== 'note') go('#/n/' + n.id);
+    setTimeout(function () { var pr = $('#prose'); if (!pr) return; var on = !pr.classList.contains('xtest'); pr.classList.toggle('xtest', on); pr.querySelectorAll('.xrev').forEach(function (e) { e.classList.remove('xrev'); }); toast(on ? 'Self-test: tap a line to reveal it' : 'Self-test off'); var b = $('#xtestbar'); if (b) b.remove(); if (on) viewEl.insertAdjacentHTML('beforeend', '<div class="xtestbar" id="xtestbar"><button data-act="xtestall">Reveal all</button><button data-act="xtestoff">Done</button></div>'); }, 60);
+  }
+  act.xtestall = function () { var pr = $('#prose'); if (pr) pr.querySelectorAll('p,li,td,blockquote,pre,.callout').forEach(function (e) { e.classList.add('xrev'); }); };
+  act.xtestoff = function () { var pr = $('#prose'); if (pr) pr.classList.remove('xtest'); var b = $('#xtestbar'); if (b) b.remove(); };
+  viewEl.addEventListener('click', function (e) {
+    var pr = e.target.closest('#prose.xtest'); if (!pr) return;
+    var t = e.target.closest('p,li,td,blockquote,pre,.callout'); if (!t || t.classList.contains('xrev')) return;
+    e.preventDefault(); e.stopPropagation(); t.classList.add('xrev');
+  }, true);
+  /* 24 · print / save as PDF */
+  function xPrint(n) {
+    var pr = route().v === 'note' && $('#prose') ? $('#prose').innerHTML : MD.render(n.body, mdOpt());
+    var box = $('#xprint'); if (!box) { box = document.createElement('div'); box.id = 'xprint'; document.body.appendChild(box); }
+    box.innerHTML = '<h1>' + esc(n.title) + '</h1><div class="prose">' + pr + '</div><p class="xpf">Axon \u00b7 ' + new Date().toLocaleDateString() + '</p>';
+    document.body.classList.add('xprinting');
+    var done = function () { document.body.classList.remove('xprinting'); box.innerHTML = ''; window.removeEventListener('afterprint', done); };
+    window.addEventListener('afterprint', done);
+    setTimeout(function () { try { window.print(); } catch (e) { toast('Printing isn\u2019t available here'); } setTimeout(done, 1500); }, 120);
+  }
+  /* 25 · download one note as .md */
+  function xDownloadMD(n) { deliver(new Blob([n.body], { type: 'text/markdown' }), safeName(n.title) + '.md', 'text/markdown', 'Saved ' + safeName(n.title) + '.md'); }
+  /* 26 · export a note as a web page (pro) */
+  async function xExportHTML(n) {
+    if (!proOk('HTML export')) return;
+    var holder = document.createElement('div'); holder.innerHTML = route().v === 'note' && $('#prose') ? $('#prose').innerHTML : MD.render(n.body, mdOpt());
+    var imgs = holder.querySelectorAll('img');
+    for (var i = 0; i < imgs.length; i++) { try { var src = imgs[i].getAttribute('src') || ''; if (/^blob:/.test(src)) { var b = await (await fetch(src)).blob(); imgs[i].src = await new Promise(function (res) { var fr = new FileReader(); fr.onload = function () { res(fr.result); }; fr.readAsDataURL(b); }); } } catch (e) {} }
+    holder.querySelectorAll('a.wl').forEach(function (a) { var s = document.createElement('span'); s.className = 'wl'; s.textContent = a.textContent; a.replaceWith(s); });
+    var css = 'body{max-width:720px;margin:40px auto;padding:0 22px;font:17px/1.65 -apple-system,system-ui,Georgia,serif;color:#1d1d1f;background:#fff}h1{font-size:32px;line-height:1.2}h2{margin-top:1.6em}code,pre{font-family:ui-monospace,Menlo,monospace;background:#f4f4f5;border-radius:6px}pre{padding:12px;overflow:auto}code{padding:1px 5px}blockquote{border-left:3px solid #ddd;margin:0;padding:2px 14px;color:#555}img{max-width:100%;border-radius:8px}table{border-collapse:collapse}td,th{border:1px solid #ddd;padding:6px 10px}mark{background:#ffe58a}.wl{color:#c2410c}footer{margin-top:40px;color:#999;font-size:13px}';
+    var html = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(n.title) + '</title><style>' + css + '</style></head><body><h1>' + esc(n.title) + '</h1>' + holder.innerHTML + '<footer>Written in Axon \u00b7 Northpeak Studios</footer></body></html>';
+    deliver(new Blob([html], { type: 'text/html' }), safeName(n.title) + '.html', 'text/html', 'Saved ' + safeName(n.title) + '.html');
+  }
+  /* 27 · read aloud (pro) */
+  var xTTS = null;
+  function xReadAloud(n) {
+    if (!proOk('Read aloud')) return;
+    if (!('speechSynthesis' in window)) return toast('Read aloud isn\u2019t available in this browser');
+    var holder = document.createElement('div'); holder.innerHTML = MD.render(n.body, mdOpt());
+    holder.querySelectorAll('pre,.fn,sup').forEach(function (e) { e.remove(); });
+    var text = holder.innerText || holder.textContent || ''; if (!text.trim()) return toast('Nothing to read');
+    speechSynthesis.cancel();
+    var rates = [0.8, 1, 1.25, 1.5], ri = rates.indexOf(settings.ttsRate || 1); if (ri < 0) ri = 1;
+    var chunks = (text.replace(/\s+\n/g, '\n').match(/[^.!?\n]+[.!?\n]*/g) || []).filter(function (s) { return s.trim(); }), i = 0;
+    var pill = $('#xtts'); if (!pill) { pill = document.createElement('div'); pill.id = 'xtts'; pill.className = 'xpomo xtts'; document.body.appendChild(pill); }
+    var paint = function () { pill.innerHTML = '<i></i><span>Reading \u00b7 ' + Math.min(chunks.length, i + 1) + '/' + chunks.length + '</span><button data-r="1">' + rates[ri] + '\u00d7</button><button data-x="1">Stop</button>'; };
+    var stop = function () { xTTS = null; speechSynthesis.cancel(); pill.remove(); };
+    var speak = function () { if (xTTS !== tok) return; if (i >= chunks.length) return stop(); paint(); var u = new SpeechSynthesisUtterance(chunks[i]); u.rate = rates[ri]; u.onend = function () { i++; speak(); }; u.onerror = function () { i++; speak(); }; speechSynthesis.speak(u); };
+    var tok = {}; xTTS = tok;
+    pill.onclick = function (e) { var b = e.target.closest('button'); if (!b) return; if (b.dataset.x) return stop(); ri = (ri + 1) % rates.length; settings.ttsRate = rates[ri]; saveSettings(); speechSynthesis.cancel(); setTimeout(speak, 80); };
+    speak();
+  }
+  /* 28 · glossary (pro) */
+  XV.glossary = function () {
+    var all = []; notes.forEach(function (n) { MD.cards(n.body).forEach(function (c) { all.push({ q: c.q, a: c.a, n: n }); }); });
+    all.sort(function (x, y) { return x.q.toLowerCase().localeCompare(y.q.toLowerCase()); });
+    var h = '', last = '';
+    all.forEach(function (c) { var L = (c.q.replace(/[^A-Za-z0-9]/g, '').charAt(0) || '#').toUpperCase(); if (L !== last) { h += '<div class="sec"><span>' + esc(L) + '</span></div>'; last = L; } h += '<button class="xgl" data-act="open" data-id="' + c.n.id + '"><b>' + esc(c.q) + '</b><span>' + esc(c.a) + '</span><small>' + esc(c.n.title) + '</small></button>'; });
+    return xPage('Glossary', all.length + ' term' + (all.length === 1 ? '' : 's') + (isPro() ? '' : ' \u00b7 Pro'), '<p class="xp">Every \u201cterm :: definition\u201d card in your vault, A\u2013Z. Tap one to open its note.</p>' + (all.length ? h : xEmpty('No cards yet', 'Write a line like  Dopamine :: the reward neurotransmitter')));
+  };
+  /* 29 · table of contents */
+  function xTOC(ed, at) {
+    var title = editing ? editing.n.title : '', hs = []; ed.value.split('\n').forEach(function (l) { var m = /^(#{1,3})\s+(.+?)\s*#*$/.exec(l); if (m) hs.push([m[1].length, m[2].replace(/[\[\]|]/g, '')]); });
+    if (!hs.length) { toast('Add some # headings first'); return; }
+    var min = Math.min.apply(null, hs.map(function (h) { return h[0]; }));
+    var t = '**Contents**\n' + hs.map(function (h) { return '  '.repeat(h[0] - min) + '- [[' + title + '#' + h[1] + '|' + h[1] + ']]'; }).join('\n') + '\n';
+    insertText(ed, t, at, at);
+  }
+  /* 30 · most-used words */
+  function xTopWords(k) {
+    var stop = {}; 'the a an and or but if of to in on at by for with from as is are was were be been it its this that these those i you he she we they me my your our their them his her not no so do does did have has had will would can could should about into than then there here what which who when where why how all any some more most other such only own same just also very up down out over under again once both each few own s t don isnt im ive dont ill youre its can'.split(' ').forEach(function (w) { stop[w] = 1; });
+    var c = {}; notes.forEach(function (n) { if (inTemplates(n)) return; cleanText(n.body).toLowerCase().replace(/[^a-z\u00c0-\u024f'\s-]/g, ' ').split(/\s+/).forEach(function (w) { w = w.replace(/^['-]+|['-]+$/g, ''); if (w.length > 2 && !stop[w]) c[w] = (c[w] || 0) + 1; }); });
+    return Object.keys(c).sort(function (a, b) { return c[b] - c[a]; }).slice(0, k).map(function (w) { return [w, c[w]]; });
+  }
+  /* note menu + tools + commands */
+  XNMENU.push(function (n) { return { label: proTag(xDue(n) ? 'Reminder \u00b7 ' + dayLabel(xDue(n)) : 'Remind me\u2026'), value: 'xremind', icon: '<svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.5 1.5"/></svg>' }; },
+    function () { return { label: proTag('Self-test mode'), value: 'xtest', icon: I.eye }; },
+    function () { return { label: proTag('Read aloud'), value: 'xtts', icon: '<svg viewBox="0 0 24 24"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>' }; },
+    function () { return { label: 'Print or save as PDF', value: 'xprint', icon: I.doc.replace(' class="fi"', '') }; },
+    function () { return { label: 'Download .md file', value: 'xmd', icon: I.copy }; },
+    function () { return { label: proTag('Export as web page (.html)'), value: 'xhtml', icon: I.ext }; });
+  XNMFN.xremind = xRemind; XNMFN.xtest = xSelfTest; XNMFN.xtts = xReadAloud; XNMFN.xprint = xPrint; XNMFN.xmd = xDownloadMD; XNMFN.xhtml = xExportHTML;
+  XTOOLS.push({ label: 'Table of contents', value: 'toc' }); XTOOLFN.toc = function (ed, sel) { xTOC(ed, sel.s); };
+  SLASH.push(['toc', 'Table of contents', 'toc contents headings index outline', '\u2630', 'toc']);
+  XSTRIP.unshift(['due', 'Reminders', 'x:due'], ['heat', 'Heatmap', 'x:heatmap'], ['gloss', 'Glossary', 'x:glossary']);
+  function xCurNote() { var r = route(); return editing ? editing.n : r.v === 'note' ? notes.get(r.id) : null; }
+  COMMANDS.push(['Reminders', 'due remind date todo', function () { go('#/x/due'); }], ['Writing heatmap', 'streak calendar activity days', function () { if (proOk('Writing heatmap')) go('#/x/heatmap'); }],
+    ['Glossary', 'terms definitions cards a-z dictionary', function () { if (proOk('Glossary')) go('#/x/glossary'); }],
+    ['Self-test this note', 'quiz blur hide reveal study', function () { var n = xCurNote(); if (n) xSelfTest(n); else toast('Open a note first'); }],
+    ['Read this note aloud', 'speak voice listen tts', function () { var n = xCurNote(); if (n) xReadAloud(n); else toast('Open a note first'); }],
+    ['Print / save as PDF', 'pdf print paper', function () { var n = xCurNote(); if (n) xPrint(n); else toast('Open a note first'); }],
+    ['Download this note (.md)', 'export markdown file save', function () { var n = xCurNote(); if (n) xDownloadMD(n); else toast('Open a note first'); }],
+    ['Export this note as a web page', 'html export share page', function () { var n = xCurNote(); if (n) xExportHTML(n); else toast('Open a note first'); }]);
+
+
+  /* ================= Oct 21 features (batch 4: look + small things) ================= */
+  /* 31 · on this day */
+  function xOTD() {
+    var now = new Date(), d = now.getDate(), m = now.getMonth(), y = now.getFullYear(), out = [];
+    notes.forEach(function (n) { if (!n.created || isDaily(n) && false) return; var c = new Date(n.created); if (c.getDate() === d && !(c.getMonth() === m && c.getFullYear() === y)) out.push(n); });
+    return out.sort(function (a, b) { return b.created - a.created; });
+  }
+  function xAgoLabel(t) { var c = new Date(t), n = new Date(), mo = (n.getFullYear() - c.getFullYear()) * 12 + n.getMonth() - c.getMonth(); return mo >= 12 && mo % 12 === 0 ? (mo / 12) + ' year' + (mo === 12 ? '' : 's') + ' ago' : mo + ' month' + (mo === 1 ? '' : 's') + ' ago'; }
+  function xOTDRow() { var l = xOTD(); if (!l.length) return ''; return '<button class="row today" data-act="xgo" data-to="x:otd"><svg class="fi" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 9.5h16M8.5 3v4M15.5 3v4"/></svg><span class="nm">On this day</span><span class="ct">' + l.length + ' note' + (l.length === 1 ? '' : 's') + '</span><span class="chev">' + I.chev + '</span></button>'; }
+  XV.otd = function () { var l = xOTD(); return xPage('On this day', new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric' }), '<p class="xp">Notes you started on this date in earlier months.</p><div class="rows">' + (l.length ? l.map(function (n) { return xRow(n, xAgoLabel(n.created)); }).join('') : xEmpty('Nothing from this date yet', 'Come back next month.')) + '</div>'); };
+  /* 32 · 33 · 34 · themes (pro), reading font (pro), line spacing + page width */
+  function xApplyLook() {
+    var h = document.documentElement, pro = isPro();
+    h.classList.toggle('th-dim', pro && settings.theme === 'dim'); h.classList.toggle('th-oled', pro && settings.theme === 'oled');
+    ['serif', 'sans', 'mono'].forEach(function (f) { h.classList.toggle('rf-' + f, pro && settings.rfont === f); });
+    h.style.setProperty('--xlh', settings.lh || 1.62); h.style.setProperty('--xpw', (settings.pw || 680) + 'px');
+    var tc = settings.theme === 'oled' && pro ? '#000000' : settings.theme === 'dim' && pro ? '#1c1d21' : '#0b0b0c';
+    document.querySelectorAll('meta[name=theme-color]').forEach(function (m) { m.setAttribute('content', tc); });
+  }
+  function xLookSettings() {
+    var seg = function (act2, cur, opts, pro) { return '<div class="seg">' + opts.map(function (o) { return '<button class="' + (String(cur) === String(o[0]) ? 'on' : '') + '" data-act="' + act2 + '" data-v="' + o[0] + '" style="font-family:var(--sans);font-size:13px">' + o[1] + '</button>'; }).join('') + '</div>'; };
+    var pro = isPro();
+    return '<div class="sec"><span>Look</span></div><div class="group">' +
+      '<div class="item"><span>' + proTag('Theme') + '<small>Dim is softer; OLED is true black (saves battery on iPhone screens)</small></span>' + seg('xtheme', pro ? settings.theme || 'dark' : 'dark', [['dark', 'Dark'], ['dim', 'Dim'], ['oled', 'OLED']]) + '</div>' +
+      '<div class="item"><span>' + proTag('Reading font') + '<small>How notes read when you\u2019re not editing</small></span>' + seg('xrfont', pro ? settings.rfont || 'serif' : 'serif', [['serif', 'Serif'], ['sans', 'Sans'], ['mono', 'Mono']]) + '</div>' +
+      '<div class="item"><span>Line spacing</span>' + seg('xlh', settings.lh || 1.62, [[1.45, 'Tight'], [1.62, 'Normal'], [1.85, 'Airy']]) + '</div>' +
+      '<div class="item"><span>Page width<small>Matters on iPad and computers</small></span>' + seg('xpw', settings.pw || 680, [[560, 'Narrow'], [680, 'Normal'], [900, 'Wide']]) + '</div></div>';
+  }
+  act.xtheme = function (el) { if (el.dataset.v !== 'dark' && !proOk('Themes')) return; settings.theme = el.dataset.v; saveSettings(); renderSettings(); };
+  act.xrfont = function (el) { if (el.dataset.v !== 'serif' && !proOk('Reading font')) return; settings.rfont = el.dataset.v; saveSettings(); renderSettings(); };
+  act.xlh = function (el) { settings.lh = parseFloat(el.dataset.v); saveSettings(); renderSettings(); };
+  act.xpw = function (el) { settings.pw = parseInt(el.dataset.v, 10); saveSettings(); renderSettings(); };
+  /* 35 · checklist progress on note rows */
+  XDECOR.push(function (n, b) {
+    var done = (n.body.match(/^\s*(?:[-*+]|\d+[.)])\s+\[[xX]\]/gm) || []).length, open = (n.body.match(/^\s*(?:[-*+]|\d+[.)])\s+\[ \]/gm) || []).length;
+    if (done + open < 2 || b.querySelector('.xprog')) return;
+    var tgt = b.querySelector('.ct') || b.querySelector('.t time') || b.querySelector('.nm');
+    var pill = '<span class="xprog' + (open ? '' : ' all') + '"><i><b style="width:' + Math.round(done / (done + open) * 100) + '%"></b></i><em>' + done + '/' + (done + open) + '</em></span>';
+    if (tgt && tgt.classList.contains('ct')) tgt.insertAdjacentHTML('afterbegin', pill); else if (tgt && tgt.tagName === 'TIME') tgt.insertAdjacentHTML('beforebegin', pill); else if (tgt) tgt.insertAdjacentHTML('afterend', pill.replace('class="xprog', 'class="xprog xprog-r'));
+  });
+  XSTRIP.splice(3, 0, ['otd', 'On this day', 'x:otd']);
+  COMMANDS.push(['On this day', 'anniversary past memories month ago', function () { go('#/x/otd'); }], ['Theme', 'dark dim oled black appearance', function () { go('#/settings'); }]);
+
   window.__axon = { notes: notes, folders: folders, trash: trash, rc: rc, recallStats: recallStats, byTitle: byTitle, backlinks: backlinks, renameNote: renameNote, exportFiles: function () { return notes; }, Zip: Zip, importFiles: importFiles };
   boot();
 })();

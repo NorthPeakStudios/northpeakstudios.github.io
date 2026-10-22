@@ -918,3 +918,48 @@ body.editing .xpomo{bottom:auto;top:calc(var(--sat) + 50px);left:auto;right:calc
 .xbh{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .xbh b{font:600 15px var(--sans);color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .xbl{display:block;width:100%;text-align:left;border:0;background:none;color:var(--dim);font:14px var(--sans);padding:6px 0 0}
+
+/* ===== Oct 21 features · batch 3 ===== */
+.xheat-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0 16px}
+.xheat-stats div{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.xheat-stats b{display:block;font:600 24px var(--sans)}.xheat-stats span{font:12px var(--sans);color:var(--dim)}
+.xheat{display:flex;gap:6px}
+.xheat-d{display:grid;grid-template-rows:repeat(7,1fr);gap:4px;font:10px var(--sans);color:var(--faint)}
+.xheat-d span{display:flex;align-items:center;height:100%}
+.xheat-g{flex:1;display:grid;grid-template-rows:repeat(7,1fr);grid-auto-flow:column;grid-auto-columns:1fr;gap:4px}
+.xheat-g i{aspect-ratio:1;border-radius:4px;background:var(--card2)}
+#prose.xtest p:not(.xrev),#prose.xtest li:not(.xrev),#prose.xtest td:not(.xrev),#prose.xtest blockquote:not(.xrev),#prose.xtest pre:not(.xrev){filter:blur(6px);cursor:pointer;transition:filter .25s;user-select:none;-webkit-user-select:none}
+#prose.xtest li:not(.xrev) li{filter:none}
+.xtestbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--tabh) + var(--bpad) + 12px);z-index:35;display:flex;gap:6px;background:var(--card2);border:1px solid var(--line2);border-radius:16px;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.xtestbar button{height:38px;padding:0 16px;border-radius:11px;border:0;background:var(--card);color:var(--text);font:600 14px var(--sans)}
+.xtts{left:50%!important;transform:translateX(-50%)}
+.xtts button{border:0;background:var(--card);color:var(--text);font:600 12px var(--sans);border-radius:10px;padding:4px 9px}
+.xgl{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:10px 0;color:var(--text)}
+.xgl b{display:block;font:600 16px var(--sans)}.xgl span{display:block;font:15px/1.45 var(--serif);color:var(--text);opacity:.85;margin-top:2px}.xgl small{display:block;font:12px var(--sans);color:var(--dim);margin-top:4px}
+#xprint{display:none}
+@media print{
+  body.xprinting>*:not(#xprint){display:none!important}
+  body.xprinting #xprint{display:block;color:#111;background:#fff;font:12pt/1.55 Georgia,serif;padding:0}
+  body.xprinting #xprint h1{font:700 22pt/1.2 -apple-system,system-ui,sans-serif;margin:0 0 12pt}
+  body.xprinting #xprint .prose,body.xprinting #xprint .prose *{color:#111!important;background:none!important}
+  body.xprinting #xprint img{max-width:100%}
+  body.xprinting #xprint .xpf{color:#888;font-size:9pt;margin-top:18pt}
+  html,body{background:#fff!important;height:auto!important;overflow:visible!important}
+}
+
+/* ===== Oct 21 features · batch 4 ===== */
+html.th-dim{--bg:#1b1c20;--bg2:#1f2024;--card:#24252a;--card2:#2a2b31;--line:#303137;--line2:#3a3b42;--text:#ecebe7}
+html.th-oled{--bg:#000;--bg2:#000;--card:#0b0b0c;--card2:#121214;--line:#1a1a1c;--line2:#242427}
+html.th-dim body,html.th-oled body{background:var(--bg)}
+html.rf-sans .prose,html.rf-sans h1.ntitle{font-family:var(--sans)}
+html.rf-mono .prose,html.rf-mono h1.ntitle{font-family:var(--mono)}
+html.rf-mono .prose{font-size:calc(var(--fs) * .9)}
+.prose{line-height:var(--xlh,1.62)}
+.editor{line-height:calc(var(--xlh,1.62) - .02)}
+.page{max-width:var(--xpw,680px)}
+.xprog{display:inline-flex;align-items:center;gap:5px;margin-right:8px;font:600 11px var(--sans);color:var(--dim);font-style:normal;vertical-align:1px}
+.xprog i{display:inline-block;position:relative;width:26px;height:4px;border-radius:2px;background:var(--line2);overflow:hidden}
+.xprog i b{position:absolute;left:0;top:0;bottom:0;background:var(--accent);border-radius:2px}
+.xprog em{font-style:normal}
+.xprog.all{color:#34d399}.xprog.all i b{background:#34d399}
+.xprog-r{margin:0 6px 0 auto;flex:none}

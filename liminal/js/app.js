@@ -1,6 +1,6 @@
 import { PROMPTS } from './prompts.js';
 import { moodColors, mixHex, hexRgb, moodWord, quadrant } from './color.js';
-import { Engine } from './audio.js';
+import { Engine } from './audio.js?v=2';
 import { analyze, compose } from './poet.js';
 import { drawScene, sceneFor, SCENES, poster } from './paint.js?v=12';
 import * as cloud from './cloud.js?v=16';
@@ -29,7 +29,7 @@ const aura = (() => {
     const k = 1 - Math.pow(0.94, dt / 16);
     for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) cur.c[i][j] += (tgt.c[i][j] - cur.c[i][j]) * k;
     cur.fx += (tgt.fx - cur.fx) * k; cur.fy += (tgt.fy - cur.fy) * k; cur.en += (tgt.en - cur.en) * k;
-    phase += dt * (0.00010 + cur.en * 0.00045);
+    phase += dt * (0.00010 + cur.en * 0.00045) * (window.__xcalm ? 0.08 : 1);
     const [g, s, d] = cur.c.map(c => c.map(x => Math.round(x)));
     ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = `rgb(${d})`; ctx.fillRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'screen';
@@ -162,7 +162,7 @@ function translate(){
   $('#resWord').textContent = word; $('#wordDot').style.background = colors[0]; $('#wordDot').style.boxShadow = `0 0 10px ${colors[0]}`;
   $('#swatches').innerHTML = colors.map(c => `<i style="background:${c}"></i>`).join('');
   $('#care').hidden = !r.a.crisis;
-  $('#prompt').textContent = S.result.prompt; $('#answer').value = ''; if ($('#xGood')) $('#xGood').value = '';
+  $('#prompt').textContent = S.result.prompt; $('#answer').value = ''; if ($('#xGood')) $('#xGood').value = ''; try { xResetResult(); } catch {}
   showStage('#stResult');
 }
 $('#translate').onclick = () => { $('#text').blur(); translate(); };
@@ -174,7 +174,7 @@ $('#answer').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.
 
 $('#keep').onclick = async () => {
   const R = S.result; if (!R) return;
-  const m = { id: uid(), t: Date.now(), tz: -new Date().getTimezoneOffset(), mode: R.mode, text: R.text, poem: R.poem || null, v: +R.a.v.toFixed(3), e: +R.a.e.toFixed(3), chips: R.chips, colors: R.colors, word: R.word, prompt: R.prompt, answer: $('#answer').value.trim(), good: ($('#xGood') ? $('#xGood').value.trim() : '') || undefined, seed: R.seed, care: !!R.a.crisis, v1: 1 };
+  const m = { id: uid(), t: Date.now(), tz: -new Date().getTimezoneOffset(), mode: R.mode, text: R.text, poem: R.poem || null, v: +R.a.v.toFixed(3), e: +R.a.e.toFixed(3), chips: R.chips, colors: R.colors, word: R.word, prompt: R.prompt, answer: $('#answer').value.trim(), good: ($('#xGood') ? $('#xGood').value.trim() : '') || undefined, seed: R.seed, ctx: S.xr && S.xr.ctx.length ? S.xr.ctx.slice() : undefined, sleep: S.xr && S.xr.sleep != null ? S.xr.sleep : undefined, energy: S.xr && S.xr.energy ? S.xr.energy : undefined, care: !!R.a.crisis, v1: 1 };
   try { await db.put(m); } catch (err) { toast('couldn\'t save — storage is full or blocked'); return; }
   S.moments.unshift(m); cloud.markDirty(m.id); syncSoon();
   flyToArchive(isPro() ? R.colors : ['#cfc8e6', '#8f88b0', '#2a2640']); toast('kept · ' + fmtTime(m.t));
@@ -218,7 +218,7 @@ const PRO_VIEWS = { painting: ['your moments, painted', 'every feeling you keep 
 function renderArchive(){
   const n = S.moments.length, where = cloud.signedIn() ? 'synced to ' + cloud.acct.user : 'stays on your phone';
   $('#count').textContent = n ? `${n} moment${n === 1 ? '' : 's'} · ${where}` : where;
-  xOnThisDay();
+  xOnThisDay(); try { xPinned(); } catch {}
   document.body.classList.toggle('is-pro', isPro());
   if (S.tab !== 'archive' && !S.detail) return;
   if (PRO_VIEWS[S.view] && !isPro()) return renderLocked(S.view);
@@ -389,9 +389,9 @@ $('#dPrev').onclick = () => { S.detail.idx--; drawDetail(); };
 $('#dNext').onclick = () => { S.detail.idx++; drawDetail(); };
 $('#dDelete').onclick = async e => {
   const b = e.currentTarget; if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'tap again to delete'; return; }
-  const m = S.detail.list[S.detail.idx]; await db.remove(m.id); cloud.markGone(m.id); syncSoon();
+  const m = S.detail.list[S.detail.idx]; await db.remove(m.id); cloud.markGone(m.id); syncSoon(6500);
   S.moments = S.moments.filter(x => x.id !== m.id); S.detail.list = S.detail.list.filter(x => x.id !== m.id);
-  toast('deleted'); if (!S.detail.list.length) closeDetail(); else { S.detail.idx = Math.min(S.detail.idx, S.detail.list.length - 1); drawDetail(); }
+  xUndoDelete(m); if (!S.detail.list.length) closeDetail(); else { S.detail.idx = Math.min(S.detail.idx, S.detail.list.length - 1); drawDetail(); }
   renderArchive();
 };
 let sy = null; $('#detail').addEventListener('touchstart', e => sy = e.touches[0].clientY, { passive: true });
@@ -662,7 +662,8 @@ function xFilter(list){
     if (f.mood === 'light' && !(m.v >= .5)) return false; if (f.mood === 'heavy' && !(m.v < .5)) return false;
     if (f.mood === 'restless' && !(m.e >= .5)) return false; if (f.mood === 'still' && !(m.e < .5)) return false;
     if (f.tag && !xTagsOf(m).includes(f.tag)) return false;
-    if (q) { const hay = [m.text, m.answer, m.word, m.prompt, m.good, (m.chips || []).join(' '), xTagsOf(m).join(' '), (m.poem || []).join(' ')].join(' ').toLowerCase(); if (!q.split(/\s+/).every(w => hay.includes(w.replace(/^#/, '')))) return false; }
+    if (f.ctx && !(m.ctx || []).includes(f.ctx)) return false;
+    if (q) { const hay = [m.text, m.answer, m.word, m.prompt, m.good, (m.chips || []).join(' '), (m.ctx || []).join(' '), xTagsOf(m).join(' '), (m.poem || []).join(' ')].join(' ').toLowerCase(); if (!q.split(/\s+/).every(w => hay.includes(w.replace(/^#/, '')))) return false; }
     return true;
   });
 }
@@ -670,7 +671,7 @@ function xBarHTML(){
   const f = S.xf, st = xStreak(), tags = xAllTags();
   const chip = (k, v, label) => `<button class="xchip${(k === 'fav' ? f.fav : f[k] === v) ? ' on' : ''}" data-k="${k}" data-v="${esc(v)}">${label}</button>`;
   return `<div class="xbar"><div class="xtop"><label class="xsearch"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><input id="xq" type="search" placeholder="search your moments" value="${esc(f.q)}" autocomplete="off" autocapitalize="off" enterkeyhint="search"></label>
-    <button class="xins" id="xInsights">${isPro() ? '' : LOCK}insights</button></div>
+    <button class="xins" id="xRand" aria-label="random moment">⟲</button><button class="xins" id="xInsights">${isPro() ? '' : LOCK}insights</button></div>
     ${st.n ? `<p class="xstreak">${st.n} day${st.n === 1 ? '' : 's'} in a row${st.today ? '' : ' · keep one today to keep it going'}</p>` : ''}
     <div class="xchips">${chip('fav', '1', '★ favorites')}${chip('mood', 'light', 'light')}${chip('mood', 'heavy', 'heavy')}${chip('mood', 'restless', 'restless')}${chip('mood', 'still', 'still')}${tags.map(t => chip('tag', t, '#' + esc(t))).join('')}${XCHIPS.map(fn => fn(chip)).join('')}</div></div>`;
 }
@@ -685,6 +686,7 @@ function xMomentsEl(){
 function xBindBar(){
   const q = $('#xq'); if (q) q.oninput = () => { S.xf.q = q.value; renderMoments(); };
   $$('#xbarWrap .xchip').forEach(b => b.onclick = () => { const k = b.dataset.k, v = b.dataset.v; if (k === 'fav') S.xf.fav = !S.xf.fav; else S.xf[k] = S.xf[k] === v ? '' : v; $('#xbarWrap').innerHTML = xBarHTML(); xBindBar(); renderMoments(); });
+  const rb = $('#xRand'); if (rb) rb.onclick = () => xRandom();
   const ib = $('#xInsights'); if (ib) ib.onclick = () => isPro() ? xInsights() : openPro('insights');
 }
 const xNoMatch = () => `<div class="empty xnone"><h4>nothing matches</h4><p>try another word or clear the filters.</p><button class="ghost" id="xClear">clear filters</button></div>`;
@@ -869,5 +871,148 @@ function xSettingsRows(){
 const XSET = [], XSETB = [];
 $('#settingsBtn').addEventListener('click', () => setTimeout(xSettingsRows, 0));
 (function(){ const pl = $('#privline'); if (pl) pl.insertAdjacentHTML('beforebegin', '<div class="xtools"><button id="xtB">breathe</button><button id="xtG">5-4-3-2-1</button></div>'); $('#xtB') && ($('#xtB').onclick = xBreathe); $('#xtG') && ($('#xtG').onclick = xGround); })();
+
+
+/* ================= Oct 21 features (batch 3) ================= */
+const xFileOut = async (blob, name, type, msg) => { const file = new File([blob], name, { type }); if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file] }); return; } catch (e) { if (e.name === 'AbortError') return; } } download(blob, name); toast(msg || 'saved'); };
+/* 21 · poem book (pro): every poem, printable / save as PDF */
+function xPoemBook(){
+  const ms = S.moments.filter(m => poemFor(m)).slice().sort((a, b) => a.t - b.t); if (!ms.length) return toast('no poems yet');
+  let box = $('#xbook'); if (!box) { box = document.createElement('div'); box.id = 'xbook'; document.body.appendChild(box); }
+  box.innerHTML = `<h1>liminal</h1><p class="xbk-sub">${ms.length} poem${ms.length === 1 ? '' : 's'} · ${new Date(ms[0].t).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' }).toLowerCase()} – ${new Date(ms[ms.length - 1].t).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' }).toLowerCase()}</p>` +
+    ms.map(m => `<section><div class="xbk-band">${m.colors.map(c => `<i style="background:${c}"></i>`).join('')}</div><p class="xbk-d">${new Date(m.t).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).toLowerCase()} · ${esc(m.word)}</p><div class="xbk-p">${poemFor(m).map(l => `<span>${esc(l)}</span>`).join('')}</div>${m.text ? `<p class="xbk-s">“${esc(m.text)}”</p>` : ''}</section>`).join('');
+  document.body.classList.add('xprinting');
+  const done = () => { document.body.classList.remove('xprinting'); removeEventListener('afterprint', done); };
+  addEventListener('afterprint', done);
+  setTimeout(() => { try { print(); } catch { toast('printing isn\'t available here'); } setTimeout(done, 1500); }, 150);
+}
+/* 22 · export as a spreadsheet */
+function xCSV(){
+  const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const rows = [['date', 'time', 'feeling', 'light %', 'restless %', 'words', 'textures', 'question', 'answer', 'one good thing', 'tags', 'where/who', 'sleep h', 'energy', 'favorite', 'poem'].map(q).join(',')];
+  S.moments.slice().sort((a, b) => a.t - b.t).forEach(m => { const d = new Date(m.t); rows.push([d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'), d.toTimeString().slice(0, 5), m.word, Math.round(m.v * 100), Math.round(m.e * 100), m.text, (m.chips || []).join(' '), m.prompt, m.answer, m.good, xTagsOf(m).join(' '), (m.ctx || []).join(' '), m.sleep ?? '', m.energy ?? '', m.fav ? 'yes' : '', (m.poem || []).join(' / ')].map(q).join(',')); });
+  xFileOut(new Blob(['\ufeff' + rows.join('\r\n')], { type: 'text/csv' }), `liminal-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv', `exported ${S.moments.length} moments`);
+}
+/* 23 · app lock (pro) */
+const xHash = async s => { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('liminal-lock:' + s)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); };
+let xHidAt = 0;
+function xLockOn(){ return !!LS.get('lock', null); }
+function xShowLock(){
+  if (!xLockOn() || $('#xLock')) return;
+  const rs = LS.get('lockReset', 0); if (rs && Date.now() > rs) { LS.set('lock', null); LS.set('lockReset', 0); toast('app lock was reset'); return; }
+  const el = document.createElement('div'); el.id = 'xLock'; el.className = 'xlock';
+  let code = '';
+  const paint = (msg) => { el.innerHTML = `<div class="xl-door"></div><p class="xl-t">${msg || 'enter your passcode'}</p><div class="xl-dots">${[0, 1, 2, 3].map(i => `<i class="${i < code.length ? 'on' : ''}"></i>`).join('')}</div><div class="xl-pad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, '', 0, '⌫'].map(k => k === '' ? '<span></span>' : `<button data-k="${k}">${k}</button>`).join('')}</div><button class="xl-forgot" id="xlF">${rs ? 'resets ' + new Date(rs).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }).toLowerCase() : 'forgot it?'}</button>${XHELP}`; };
+  paint(); document.body.appendChild(el);
+  el.addEventListener('click', async e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.id === 'xlF') { if (LS.get('lockReset', 0)) return; if (confirm('turn the lock off in 24 hours? (the wait keeps a quick peek from getting past it)')) { LS.set('lockReset', Date.now() + 864e5); paint('the lock turns off in 24 hours'); } return; }
+    const k = b.dataset.k; if (k === '⌫') code = code.slice(0, -1); else if (code.length < 4) code += k;
+    paint();
+    if (code.length === 4) { if (await xHash(code) === LS.get('lock', null)) { el.classList.add('out'); setTimeout(() => el.remove(), 350); LS.set('lockReset', 0); } else { code = ''; paint('not quite — try again'); try { navigator.vibrate && navigator.vibrate(80); } catch {} } }
+  });
+}
+async function xSetLock(){
+  if (!isPro()) return openPro('app lock');
+  if (xLockOn()) { if (confirm('turn off the app lock?')) { LS.set('lock', null); toast('app lock off'); xSettingsRows(); } return; }
+  xEdit('choose a 4-digit passcode', null, 'you\'ll type it each time liminal opens', '', v => {
+    if (!/^\d{4}$/.test(v)) return toast('use exactly 4 digits');
+    setTimeout(() => xEdit('type it again', null, 'just to be sure', '', async v2 => { if (v2 !== v) return toast('they didn\'t match — try again'); LS.set('lock', await xHash(v)); toast('app lock on'); xSettingsRows(); }, 4), 350);
+  }, 4);
+  setTimeout(() => { const i = $('#xeIn'); if (i) { i.inputMode = 'numeric'; i.type = 'password'; i.autocomplete = 'off'; } }, 60);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) xHidAt = Date.now(); else if (xHidAt && Date.now() - xHidAt > 60000) xShowLock(); });
+xShowLock();
+/* 24 · daily reminder in the Calendar app */
+function xReminder(){
+  xEdit('daily reminder', null, 'what time? (like 21:00). adds a repeating check-in to your calendar with an alert.', LS.get('remindAt', '21:00'), v => {
+    const m = /^(\d{1,2}):?(\d{2})$/.exec(v.replace(/\s/g, '')); if (!m || +m[1] > 23 || +m[2] > 59) return toast('like 21:00');
+    const hh = m[1].padStart(2, '0'), mm = m[2]; LS.set('remindAt', hh + ':' + mm);
+    const d = new Date(), ds = d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0'), stamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
+    const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Northpeak Studios//Liminal//EN', 'BEGIN:VEVENT', 'UID:liminal-daily-' + Date.now() + '@northpeakstudios', 'DTSTAMP:' + stamp, `DTSTART:${ds}T${hh}${mm}00`, `DTEND:${ds}T${hh}${mm}00`, 'RRULE:FREQ=DAILY', 'SUMMARY:liminal · how does it feel?', 'DESCRIPTION:a minute to check in. https://northpeakstudios.github.io/liminal/', 'URL:https://northpeakstudios.github.io/liminal/', 'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:how does it feel, right now?', 'TRIGGER:PT0M', 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+    xFileOut(new Blob([ics], { type: 'text/calendar' }), 'liminal-reminder.ics', 'text/calendar', 'open the file to add it to your calendar');
+  }, 5);
+}
+/* 25 · 26 · sleep, energy, where/who on the result screen */
+const XCTX = ['school', 'home', 'friends', 'family', 'alone', 'outside', 'practice', 'online'];
+S.xr = { sleep: null, energy: null, ctx: [] };
+(function(){
+  const k = $('#keep'); if (!k) return;
+  k.insertAdjacentHTML('beforebegin', `<div class="prompt-card xctx"><div class="prompt-k">where / who <span>(optional)</span></div><div class="xctx-chips">${XCTX.map(c => `<button data-c="${c}">${c}</button>`).join('')}</div>
+    <div class="xsl"><label>sleep last night <b id="xSlV">—</b></label><input type="range" id="xSl" min="0" max="12" step="0.5" value="7"></div>
+    <div class="xsl"><label>energy <b id="xEnV">—</b></label><input type="range" id="xEn" min="1" max="5" step="1" value="3"></div></div>`);
+  $$('.xctx-chips button').forEach(b => b.onclick = () => { const c = b.dataset.c, a = S.xr.ctx; S.xr.ctx = a.includes(c) ? a.filter(x => x !== c) : [...a, c].slice(-3); b.classList.toggle('on', S.xr.ctx.includes(c)); });
+  const EN = ['', 'drained', 'low', 'okay', 'good', 'buzzing'];
+  $('#xSl').oninput = e => { S.xr.sleep = +e.target.value; $('#xSlV').textContent = e.target.value + 'h'; };
+  $('#xEn').oninput = e => { S.xr.energy = +e.target.value; $('#xEnV').textContent = EN[e.target.value]; };
+})();
+function xResetResult(){ S.xr = { sleep: null, energy: null, ctx: [] }; $$('.xctx-chips button').forEach(b => b.classList.remove('on')); if ($('#xSlV')) { $('#xSlV').textContent = '—'; $('#xEnV').textContent = '—'; $('#xSl').value = 7; $('#xEn').value = 3; } }
+XDEXTRA.push(m => { const bits = []; if (m.ctx && m.ctx.length) bits.push(m.ctx.map(esc).join(', ')); if (m.sleep != null) bits.push(m.sleep + 'h sleep'); if (m.energy) bits.push(['', 'drained', 'low', 'okay', 'good', 'buzzing'][m.energy] + ' energy'); return bits.length ? `<p class="xdctx">${bits.join(' · ')}</p>` : ''; });
+XCHIPS.push(chip => { const used = new Set(); S.moments.forEach(m => (m.ctx || []).forEach(c => used.add(c))); return XCTX.filter(c => used.has(c)).map(c => chip('ctx', c, c)).join(''); });
+XINS.push(() => {
+  const ms = S.moments.filter(m => m.sleep != null); if (ms.length < 4) return '';
+  const hi = ms.filter(m => m.sleep >= 8), lo = ms.filter(m => m.sleep < 7), avg = l => Math.round(l.reduce((s, m) => s + m.v, 0) / l.length * 100);
+  return `<div class="xi-sec"><h5>sleep</h5><p class="xi-p">average ${(ms.reduce((s, m) => s + m.sleep, 0) / ms.length).toFixed(1)}h over ${ms.length} moments.${hi.length && lo.length ? ` after 8h+ you were <b>${avg(hi)}%</b> light; under 7h, <b>${avg(lo)}%</b>.` : ''}</p></div>`;
+});
+/* 27 · random past moment */
+function xRandom(){ if (!S.moments.length) return; const i = Math.floor(Math.random() * S.moments.length); openDetail(S.moments, i); }
+/* 28 · sound timer (pro) */
+let xSndT = 0;
+function xSoundTimer(){
+  if (!isPro()) return openPro('sound timer');
+  const o = [0, 5, 10, 20, 30], cur = LS.get('sndTimer', 0), nx = o[(o.indexOf(cur) + 1) % o.length]; LS.set('sndTimer', nx);
+  clearTimeout(xSndT);
+  if (nx) { if (S.muted) setMuted(false); xSndT = setTimeout(() => { const v0 = engine.vol; let k = 0; const f = setInterval(() => { k++; engine.setVolume(v0 * (1 - k / 20)); if (k >= 20) { clearInterval(f); setMuted(true); engine.setVolume(v0); LS.set('sndTimer', 0); toast('sound timer done · sound off'); xSettingsRows(); } }, 1000); }, nx * 60000); toast(`sound fades out in ${nx} min`); }
+  else toast('sound timer off');
+  xSettingsRows();
+}
+/* 29 · undo delete */
+function xUndoDelete(m){
+  let el = $('#xUndo'); if (!el) { el = document.createElement('div'); el.id = 'xUndo'; el.className = 'xundo'; document.body.appendChild(el); }
+  el.innerHTML = `<span>moment deleted</span><button>undo</button>`; el.classList.add('on');
+  clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('on'), 5500);
+  el.querySelector('button').onclick = async () => { el.classList.remove('on'); try { await db.put(m); } catch { return toast('couldn\'t bring it back'); } cloud.markDirty(m.id); syncSoon(1500); S.moments = [...S.moments.filter(x => x.id !== m.id), m].sort((a, b) => b.t - a.t); paintKey = ''; renderArchive(); toast('brought it back'); };
+}
+/* 30 · pin a poem to the feel screen (pro) */
+function xPinned(){
+  const el = $('#xPin'); if (!el) return; const id = LS.get('pinPoem', null), m = id && S.moments.find(x => x.id === id), poem = m && isPro() && poemFor(m);
+  if (!poem) { el.hidden = true; return; }
+  el.hidden = false; el.innerHTML = `<div class="xpin-p">${poem.map(l => `<span>${esc(l)}</span>`).join('')}</div><button class="xpin-x" aria-label="Unpin">×</button>`;
+  el.querySelector('.xpin-x').onclick = e => { e.stopPropagation(); LS.set('pinPoem', null); xPinned(); toast('unpinned'); };
+  el.onclick = () => openDetail(S.moments, S.moments.indexOf(m));
+}
+XDBTN.push(m => poemFor(m) ? `<button class="xdb" id="xPinB">${isPro() ? '' : LOCK}${LS.get('pinPoem', null) === m.id ? 'unpin' : 'pin to feel'}</button>` : '');
+XDBIND.push(m => { const b = $('#xPinB'); if (b) b.onclick = () => { if (!isPro()) return openPro('pinned poems'); const on = LS.get('pinPoem', null) === m.id; LS.set('pinPoem', on ? null : m.id); xPinned(); drawDetail(); toast(on ? 'unpinned' : 'pinned to the feel screen'); }; });
+(function(){ const h = $('#stWords .ask'); if (h) h.insertAdjacentHTML('beforebegin', '<button class="xpin" id="xPin" hidden></button>'); setTimeout(xPinned, 350); })();
+/* 31 · 32 · 33 · volume, text size, reduce motion */
+function xApplyLook(){
+  const ts = LS.get('textSize', 1), calm = LS.get('calm', matchMedia('(prefers-reduced-motion: reduce)').matches);
+  document.documentElement.style.setProperty('--xts', ts); document.documentElement.classList.toggle('xts-on', ts !== 1);
+  document.documentElement.classList.toggle('xcalm', !!calm); window.__xcalm = !!calm;
+}
+xApplyLook();
+/* 34 · your numbers */
+function xNumbers(){
+  const ms = S.moments, days = new Set(ms.map(m => xDay(m.t))), words = ms.reduce((s, m) => s + ([m.text, m.answer, m.good].join(' ').match(/[A-Za-z\u00c0-\u024f']+/g) || []).length, 0);
+  const sorted = [...days].sort((a, b) => a - b); let best = 0, run = 0, prev = 0; sorted.forEach(d => { run = prev && Math.round((d - prev) / 864e5) === 1 ? run + 1 : 1; best = Math.max(best, run); prev = d; });
+  return { n: ms.length, days: days.size, words, best, first: ms.length ? ms[ms.length - 1].t : 0 };
+}
+XSET.push(() => { const N = xNumbers(), ts = LS.get('textSize', 1), calm = LS.get('calm', matchMedia('(prefers-reduced-motion: reduce)').matches), lock = xLockOn(), st = LS.get('sndTimer', 0);
+  return `<div class="row xnum"><span>your numbers</span><small>${N.n} moments · ${N.days} days · ${N.words} words · best streak ${N.best} day${N.best === 1 ? '' : 's'}${N.first ? ' · since ' + new Date(N.first).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }).toLowerCase() : ''}</small></div>
+  <div class="row xvol"><span>sound volume</span><input type="range" id="xVol" min="0.05" max="1" step="0.05" value="${engine.vol}"></div>
+  <button class="row" id="xsTimer"><span>sound timer</span><small>${isPro() ? (st ? 'fades out ' + st + ' min after you set it' : 'off') : 'pro'}</small></button>
+  <button class="row" id="xsTs"><span>text size</span><small>${ts === 1 ? 'normal' : ts < 1.2 ? 'large' : 'larger'}</small></button>
+  <button class="row" id="xsCalm"><span>reduce motion</span><span class="toggle${calm ? ' on' : ''}"></span></button>
+  <button class="row" id="xsLock"><span>app lock</span><small>${isPro() ? (lock ? 'on · 4-digit passcode' : 'off') : 'pro'}</small></button>
+  <button class="row" id="xsRem"><span>daily reminder</span><small>adds a check-in to your calendar${LS.get('remindAt', '') ? ' · ' + LS.get('remindAt', '') : ''}</small></button>
+  <button class="row" id="xsCsv"><span>export spreadsheet</span><small>.csv for numbers, sheets, excel</small></button>
+  <button class="row" id="xsBook"><span>poem book</span><small>${isPro() ? 'every poem on printable pages · save as pdf' : 'pro'}</small></button>`; });
+XSETB.push(() => {
+  $('#xVol').oninput = e => engine.setVolume(+e.target.value);
+  $('#xsTimer').onclick = xSoundTimer; $('#xsLock').onclick = xSetLock; $('#xsRem').onclick = xReminder; $('#xsCsv').onclick = xCSV;
+  $('#xsBook').onclick = () => isPro() ? xPoemBook() : openPro('the poem book');
+  $('#xsTs').onclick = () => { const o = [1, 1.12, 1.25], c = LS.get('textSize', 1); LS.set('textSize', o[(o.indexOf(c) + 1) % 3]); xApplyLook(); xSettingsRows(); };
+  $('#xsCalm').onclick = () => { LS.set('calm', !LS.get('calm', matchMedia('(prefers-reduced-motion: reduce)').matches)); xApplyLook(); xSettingsRows(); };
+});
 
 window.__liminal = { db, S, renderArchive, engine, cloud, afterAccount };

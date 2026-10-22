@@ -8,7 +8,7 @@ function mulberry32(a){ return function(){ a |= 0; a = a + 0x6D2B79F5 | 0; let t
 const PROGS = [[0,5,3,4],[0,3,5,4],[0,5,1,4],[0,2,5,3],[0,3,0,4],[0,4,5,3]];
 
 export class Engine {
-  constructor(){ this.ctx = null; this.on = false; this.muted = false; this.mood = { v:.5, e:.3, chips:[] }; this.seed = 1; this.step = 0; }
+  constructor(){ this.ctx = null; this.on = false; this.muted = false; this.vol = (() => { try { const v = parseFloat(localStorage.getItem('lim.vol')); return isFinite(v) ? Math.min(1, Math.max(0.05, v)) : 1; } catch { return 1; } })(); this.mood = { v:.5, e:.3, chips:[] }; this.seed = 1; this.step = 0; }
   get ready(){ return !!this.ctx; }
   async unlock(){
     if (!this.ctx) {
@@ -115,7 +115,7 @@ export class Engine {
     if (this.on) return; this.on = true;
     const t = this.ctx.currentTime; this.nextTime = t + 0.08;
     this.master.gain.cancelScheduledValues(t); this.master.gain.setValueAtTime(this.master.gain.value, t);
-    this.master.gain.linearRampToValueAtTime(this.muted ? 0 : 0.7, t + 2.2);
+    this.master.gain.linearRampToValueAtTime(this.muted ? 0 : 0.7 * this.vol, t + 2.2);
     this.subGain.gain.setTargetAtTime(this.p.sub, t, 0.5);
     clearInterval(this._timer); this._timer = setInterval(() => this._tick(), 30);
   }
@@ -125,10 +125,15 @@ export class Engine {
     this.master.gain.linearRampToValueAtTime(0, t + fade);
     clearInterval(this._timer);
   }
+  setVolume(v){
+    this.vol = Math.min(1, Math.max(0.05, v)); try { localStorage.setItem('lim.vol', String(this.vol)); } catch {}
+    if (!this.ctx || !this.on || this.muted) return;
+    const t = this.ctx.currentTime; this.master.gain.cancelScheduledValues(t); this.master.gain.setValueAtTime(this.master.gain.value, t); this.master.gain.linearRampToValueAtTime(0.7 * this.vol, t + 0.15);
+  }
   setMuted(m){
     this.muted = m; if (!this.ctx) return;
     const t = this.ctx.currentTime; this.master.gain.cancelScheduledValues(t); this.master.gain.setValueAtTime(this.master.gain.value, t);
-    this.master.gain.linearRampToValueAtTime(m || !this.on ? 0 : 0.7, t + 0.6);
+    this.master.gain.linearRampToValueAtTime(m || !this.on ? 0 : 0.7 * this.vol, t + 0.6);
   }
   suspend(){ if (this.ctx && this.ctx.state === 'running') this.ctx.suspend(); }
   resume(){ if (this.ctx && this.ctx.state !== 'running') this.ctx.resume(); }
