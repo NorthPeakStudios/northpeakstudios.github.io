@@ -1015,4 +1015,75 @@ XSETB.push(() => {
   $('#xsCalm').onclick = () => { LS.set('calm', !LS.get('calm', matchMedia('(prefers-reduced-motion: reduce)').matches)); xApplyLook(); xSettingsRows(); };
 });
 
+
+/* ================= Oct 21 (steer 4:42 PM): every new feature is Pro (988 stays free); themes ================= */
+const XLOCK = '<svg class="xlk" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></svg>';
+xFilter = (f => list => isPro() ? f(list) : list)(xFilter);
+xBarHTML = (f => () => isPro() ? f() : `<div class="xbar"><button class="xprobar" id="xProBar">${XLOCK}<span>search, favorites, filters, streaks, random moment and insights</span><b>pro</b></button></div>`)(xBarHTML);
+xBindBar = (f => () => { if (isPro()) return f(); const b = $('#xProBar'); if (b) b.onclick = () => openPro('search, filters and insights'); })(xBindBar);
+xDetailHook = (f => m => {
+  if (isPro()) return f(m);
+  const box = document.createElement('div'); box.className = 'xd';
+  box.innerHTML = `<div class="xdrow"><button class="xdb xdpro" id="xProD">${XLOCK} favorite, tags, answer, read aloud, share image, pin · pro</button></div>${XDEXTRA.map(g => g(m)).join('')}`;
+  const date = $('#dBody .d-date'); date ? date.after(box) : $('#dBody').prepend(box);
+  $('#xProD').onclick = () => openPro('favorites, tags and sharing');
+})(xDetailHook);
+xOnThisDay = (f => () => { f(); const el = $('#xOtd'); if (!el || el.hidden || isPro()) return; el.innerHTML = `${XLOCK}<span><b>on this day</b> · a past moment from this date is waiting · pro</span>`; el.onclick = () => openPro('on this day'); })(xOnThisDay);
+const xProOv = (id, what) => { const el = xOverlay(id, `<div class="xpro-ov">${XLOCK}<h3>${what} is part of pro</h3><p>every new calm tool lives in liminal pro. the help line below is always free.</p><button class="primary" id="xProGo">see pro</button></div>${XHELP}`); $('#xProGo').onclick = () => { el.querySelector('.xov-x').click(); openPro(what); }; };
+xBreathe = (f => () => isPro() ? f() : xProOv('xBreath', 'breathing'))(xBreathe);
+xGround = (f => () => isPro() ? f() : xProOv('xGroundOv', 'grounding'))(xGround);
+xPaintChips = (f => () => { f(); if (isPro()) return; const a = $('#chips .xaddc'); if (a) { a.innerHTML = XLOCK + ' your own'; a.onclick = () => openPro('your own words'); } })(xPaintChips);
+xUndoDelete = (f => m => isPro() ? f(m) : toast('deleted'))(xUndoDelete);
+xSettingsRows = (f => () => {
+  f(); if (isPro()) return;
+  $$('#xRows .row').forEach(r => {
+    if (r.id === 'xsBr' || r.id === 'xsGr' || r.id === 'xsTheme') return;
+    const sm = r.querySelector('small'); if (sm && !/pro/.test(sm.textContent)) sm.textContent = (sm.textContent ? sm.textContent + ' · ' : '') + 'pro';
+    if (r.classList.contains('xnum') && sm) sm.textContent = 'moments, days, words and your best streak · pro';
+    const inp = r.querySelector('input'); if (inp) { inp.disabled = true; inp.style.opacity = .4; }
+    r.onclick = e => { e.preventDefault(); e.stopPropagation(); openPro(r.querySelector('span')?.textContent || 'this'); };
+  });
+  ['xsBr', 'xsGr'].forEach(id => { const sm = $('#' + id + ' small'); if (sm && !/pro/.test(sm.textContent)) sm.textContent += ' · pro'; });
+})(xSettingsRows);
+/* result screen + feel screen locked states */
+let xWasPro = null;
+function xApplyPro(){
+  const pro = isPro(); if (pro === xWasPro) return; xWasPro = pro;
+  document.documentElement.classList.toggle('xfree', !pro);
+  $$('.xtools button').forEach(b => { b.innerHTML = (pro ? '' : XLOCK) + (b.id === 'xtB' ? 'breathe' : '5-4-3-2-1'); });
+  const g = $('#xGood'); if (g) { g.readOnly = !pro; g.placeholder = pro ? 'even a small one' : 'one good thing · pro'; }
+  const own = $('#xOwnQ'); if (own) own.innerHTML = (pro ? '' : XLOCK) + 'write my own';
+  const cx = $('.xctx'); if (cx) cx.classList.toggle('xlocked', !pro);
+  try { xPaintChips(); } catch {}
+  try { xApplyLook(); xTheme(); } catch {}
+  try { if ($('#xRows')) xSettingsRows(); } catch {}
+  try { renderArchive(); } catch {}
+}
+document.addEventListener('click', e => {
+  if (isPro()) return;
+  const t = e.target.closest('#xOwnQ, #xGood, .xctx');
+  if (!t) return; e.preventDefault(); e.stopImmediatePropagation(); if (t.id === 'xGood') t.blur();
+  openPro(t.id === 'xOwnQ' ? 'your own questions' : t.id === 'xGood' ? 'one good thing' : 'where / who, sleep and energy');
+}, true);
+document.addEventListener('pointerdown', e => { if (!isPro() && e.target.closest('.xctx input')) e.preventDefault(); }, true);
+xApplyLook = (f => () => { if (isPro()) return f(); document.documentElement.style.setProperty('--xts', 1); document.documentElement.classList.remove('xts-on'); const calm = matchMedia('(prefers-reduced-motion: reduce)').matches; document.documentElement.classList.toggle('xcalm', calm); window.__xcalm = calm; })(xApplyLook);
+/* themes: auto starts opposite to the phone (light phone → dark liminal, dark phone → light liminal) */
+const XLT = [['auto', 'auto', 0], ['dark', 'dark', 0], ['light', 'light', 0], ['oled', 'black', 1], ['dusk', 'dusk', 1], ['ocean', 'ocean', 1], ['forest', 'forest', 1], ['rose', 'rose', 1]];
+const XLTBG = { dark: '#07060b', light: '#f4f0f8', oled: '#000000', dusk: '#140a0a', ocean: '#04111b', forest: '#05110b', rose: '#14070e' };
+const xLMQ = matchMedia('(prefers-color-scheme: dark)');
+function xThemeNow(){ let t = LS.get('theme', 'auto'); const it = XLT.find(x => x[0] === t); if (!it || (it[2] && !isPro())) t = 'auto'; if (t === 'auto') t = xLMQ.matches ? 'light' : 'dark'; return t; }
+function xTheme(){
+  const t = xThemeNow(), h = document.documentElement;
+  if (t === 'dark') h.removeAttribute('data-lt'); else h.setAttribute('data-lt', t);
+  h.classList.toggle('xlight', t === 'light');
+  document.querySelectorAll('meta[name=theme-color]').forEach(m => m.setAttribute('content', XLTBG[t] || '#07060b'));
+  const cs = document.querySelector('meta[name=color-scheme]'); if (cs) cs.setAttribute('content', t === 'light' ? 'light' : 'dark');
+}
+try { xLMQ.addEventListener('change', () => { if (LS.get('theme', 'auto') === 'auto') xTheme(); }); } catch { try { xLMQ.addListener(() => { if (LS.get('theme', 'auto') === 'auto') xTheme(); }); } catch {} }
+XSET.unshift(() => { const cur = LS.get('theme', 'auto'), pro = isPro();
+  return `<div class="row xthrow" id="xsTheme"><span>theme</span><small>auto starts opposite to your phone${pro ? '' : ' · colour themes are pro'}</small></div><div class="xths">${XLT.map(t => `<button class="xth${cur === t[0] ? ' on' : ''}" data-t="${t[0]}"><i class="xth-${t[0]}"></i><span>${t[2] && !pro ? XLOCK : ''}${t[1]}</span></button>`).join('')}</div>`; });
+XSETB.unshift(() => { $$('#xRows .xth').forEach(b => b.onclick = () => { const it = XLT.find(x => x[0] === b.dataset.t); if (it[2] && !isPro()) return openPro('colour themes'); LS.set('theme', it[0]); xTheme(); xSettingsRows(); }); });
+if ($('#xtB')) $('#xtB').onclick = () => xBreathe(); if ($('#xtG')) $('#xtG').onclick = () => xGround();
+xTheme(); xApplyPro(); setInterval(xApplyPro, 2500);
+
 window.__liminal = { db, S, renderArchive, engine, cloud, afterAccount };

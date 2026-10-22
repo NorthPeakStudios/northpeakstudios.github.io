@@ -2272,7 +2272,7 @@
     var a = preset || await sheet({ title: n.title, left: true, actions: [{ label: n.pinned ? 'Unpin' : 'Pin to top', value: 'pin', icon: I.pin }, { label: 'Find in note', value: 'find', icon: I.search }, { label: 'Make Synapse cards\u2026', value: 'syn', icon: I.recall }, { label: 'Share\u2026', value: 'share', icon: I.ext }, { label: 'Copy as Markdown', value: 'copy', icon: I.copy }, { label: proTag('History\u2026'), value: 'hist', icon: I.restore }, { label: proTag(copyOrigin(n) ? 'Merge into \u201c' + copyOrigin(n).title + '\u201d\u2026' : 'Merge a note into this\u2026'), value: 'merge', icon: I.copy }, { label: 'Rename', value: 'rename', icon: I.edit }, { label: 'Move to folder', value: 'move', icon: I.folder.replace(' class="fi"', '') }, { label: 'Duplicate', value: 'dup', icon: I.copy }]
       .concat(inTemplates(n) ? [] : [{ label: proTag('Save as template'), value: 'tmpl', icon: I.tmpl }])
       .concat(nc ? [{ label: proTag('Review ' + nc + ' card' + (nc === 1 ? '' : 's') + ' now'), value: 'review', icon: I.recall }, { label: proTag('Export ' + nc + ' card' + (nc === 1 ? '' : 's') + ' (CSV for Synapse)'), value: 'cards', icon: I.copy }] : [])
-      .concat([{ label: proTag('Local graph'), value: 'lg', icon: I.graph }, { label: proTag('Color label\u2026'), value: 'xcolor', icon: '<i class="xdot" style="background:' + ((xColor(n) || [0, 'var(--dim)'])[1]) + '"></i>' }, { label: n.folder === ARCHIVE ? 'Unarchive' : 'Archive', value: 'xarch', icon: I.folder.replace(' class="fi"', '') }].concat(XNMENU.map(function (f) { return f(n); }).filter(Boolean)), [{ label: 'Move to Trash', value: 'delete', danger: true, icon: I.trash }]) });
+      .concat([{ label: proTag('Local graph'), value: 'lg', icon: I.graph }, { label: proTag('Color label\u2026'), value: 'xcolor', icon: '<i class="xdot" style="background:' + ((xColor(n) || [0, 'var(--dim)'])[1]) + '"></i>' }, { label: proTag(n.folder === ARCHIVE ? 'Unarchive' : 'Archive'), value: 'xarch', icon: I.folder.replace(' class="fi"', '') }].concat(XNMENU.map(function (f) { return f(n); }).filter(Boolean)), [{ label: 'Move to Trash', value: 'delete', danger: true, icon: I.trash }]) });
     if (a === 'xcolor') { xPickColor(n); return; }
     if (a === 'xarch') { xArchive(n); if (route().v === 'note') renderNote(n.id); else render(); return; }
     if (XNMFN[a]) { XNMFN[a](n); return; }
@@ -3344,7 +3344,7 @@
       { label: n.pinned ? 'Unpin' : 'Pin to top', value: 'pin', icon: I.pin }, { label: 'Rename', value: 'rename', icon: I.edit },
       { label: 'Move to folder', value: 'move', icon: I.folder.replace(' class="fi"', '') }, { label: 'Duplicate', value: 'dup', icon: I.copy }]
       .concat(nc ? [{ label: 'Review ' + nc + ' card' + (nc === 1 ? '' : 's'), value: 'review', icon: I.recall }] : [])
-      .concat([{ label: n.folder === ARCHIVE ? 'Unarchive' : 'Archive', value: 'xarch', icon: I.folder.replace(' class="fi"', '') }, { label: proTag('Color label\u2026'), value: 'xcolor', icon: '<i class="xdot" style="background:' + ((xColor(n) || [0, 'var(--dim)'])[1]) + '"></i>' }, { label: 'Move to Trash', value: 'delete', danger: true, icon: I.trash }]), left: true });
+      .concat([{ label: proTag(n.folder === ARCHIVE ? 'Unarchive' : 'Archive'), value: 'xarch', icon: I.folder.replace(' class="fi"', '') }, { label: proTag('Color label\u2026'), value: 'xcolor', icon: '<i class="xdot" style="background:' + ((xColor(n) || [0, 'var(--dim)'])[1]) + '"></i>' }, { label: 'Move to Trash', value: 'delete', danger: true, icon: I.trash }]), left: true });
     if (!a) return;
     if (a === 'xarch') { xArchive(n); render(); return; }
     if (a === 'xcolor') { xPickColor(n); return; }
@@ -5212,6 +5212,68 @@
   });
   XSTRIP.splice(3, 0, ['otd', 'On this day', 'x:otd']);
   COMMANDS.push(['On this day', 'anniversary past memories month ago', function () { go('#/x/otd'); }], ['Theme', 'dark dim oled black appearance', function () { go('#/settings'); }]);
+
+
+  I.lock = '<svg class="fi xlk" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></svg>';
+  /* ================= Oct 21 (steer 4:42 PM): every new feature is Pro; themes follow the device inversely ================= */
+  function xG(name, f, when) { return function () { if ((!when || when.apply(this, arguments)) && !proOk(name)) return; return f.apply(this, arguments); }; }
+  xFocus = xG('Focus mode', xFocus, function (on) { return on === undefined ? !settings.focus : !!on; });
+  xTypewriter = (function (f) { return function () { if (isPro()) return f.apply(this, arguments); }; })(xTypewriter);
+  xPaintCount = (function (f) { return function (ed) {
+    if (isPro()) return f.apply(this, arguments);
+    var el = $('#xcount'); if (el && !el.querySelector('.xlockp')) el.innerHTML = '<button class="xlockp" data-act="xgetpro" data-f="Word count and goals">' + I.lock + ' Word count \u00b7 Pro</button>';
+  }; })(xPaintCount);
+  xSetGoal = xG('Word goals', xSetGoal); pomoStart = xG('Pomodoro timer', pomoStart); xSymbols = xG('Symbol picker', xSymbols);
+  xTools = xG('Text tools', xTools); xMoveLine = xG('Move lines', xMoveLine);
+  xPaste = (function (f) { return function () { if (isPro()) return f.apply(this, arguments); }; })(xPaste);
+  xArchive = xG('Archive', xArchive); xCapture = xG('Inbox capture', xCapture);
+  xPrint = xG('Print and PDF', xPrint); xDownloadMD = xG('Download as .md', xDownloadMD); xTOC = xG('Table of contents', xTOC);
+  xTopWords = (function (f) { return function () { return isPro() ? f.apply(this, arguments) : []; }; })(xTopWords);
+  xEditHook = (function (f) { return function () { var r = f.apply(this, arguments); if (!isPro()) { document.body.classList.remove('xfocus'); var b = $('#xfocusx'); if (b) b.hidden = true; var e = $('#ed'); if (e) xPaintCount(e); } return r; }; })(xEditHook);
+  XNMFN.xremind = xRemind; XNMFN.xtest = xSelfTest; XNMFN.xtts = xReadAloud; XNMFN.xprint = xPrint; XNMFN.xmd = xDownloadMD; XNMFN.xhtml = xExportHTML;
+  XTOOLFN.toc = function (ed, sel) { xTOC(ed, sel.s); };
+  XNMENU.forEach(function (f, i) { XNMENU[i] = function () { var o = f.apply(this, arguments); if (o && !/ \u00b7 Pro$/.test(o.label)) o.label = proTag(o.label); return o; }; });
+  XDECOR.forEach(function (f, i) { XDECOR[i] = function () { if (isPro()) return f.apply(this, arguments); }; });
+  act.xgetpro = function (el) { proOk(el.dataset.f || 'This'); };
+  var XVNAME = { archive: 'Archive', colors: 'Color labels', tags: 'Tag manager', select: 'Select mode', orphans: 'Orphan notes', broken: 'Broken links', recent: 'Recently viewed', due: 'Reminders', heatmap: 'Writing heatmap', glossary: 'Glossary', otd: 'On this day' };
+  Object.keys(XV).forEach(function (k) { var f = XV[k]; XV[k] = function () { if (isPro()) return f.apply(this, arguments); var nm = XVNAME[k] || 'This'; return xPage(nm, 'Axon Pro', '<div class="xlocked">' + I.lock + '<h3>' + esc(nm) + ' is part of Axon Pro</h3><p>All of the new tools are in Pro.</p><button data-act="xgetpro" data-f="' + esc(nm) + '">See Axon Pro</button></div>'); }; });
+  /* themes */
+  var XTHEMES = [['auto', 'Auto', 0], ['dark', 'Dark', 0], ['light', 'Light', 0], ['oled', 'OLED black', 1], ['dim', 'Dim', 1], ['sepia', 'Sepia', 1], ['ocean', 'Ocean', 1], ['forest', 'Forest', 1], ['grape', 'Grape', 1], ['rose', 'Rose', 1]];
+  var XTHBG = { dark: '#0b0b0c', light: '#f7f6f3', oled: '#000000', dim: '#1b1c20', sepia: '#f3ead6', ocean: '#07131f', forest: '#08140d', grape: '#110b1b', rose: '#190b12' };
+  var xMQ = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+  function xThemeNow() {
+    var t = settings.theme || 'auto', free = t === 'auto' || t === 'dark' || t === 'light';
+    if (!free && !isPro()) t = 'auto';
+    if (t === 'auto') t = xMQ && xMQ.matches ? 'light' : 'dark'; /* starts opposite to the phone: light phone gets dark, dark phone gets light */
+    return t;
+  }
+  xApplyLook = function () {
+    var h = document.documentElement, pro = isPro(), t = xThemeNow();
+    if (t === 'dark') h.removeAttribute('data-xt'); else h.setAttribute('data-xt', t);
+    h.classList.remove('th-dim', 'th-oled');
+    var light = t === 'light' || t === 'sepia'; h.classList.toggle('xlight', light);
+    ['serif', 'sans', 'mono'].forEach(function (f) { h.classList.toggle('rf-' + f, pro && settings.rfont === f); });
+    h.style.setProperty('--xlh', pro && settings.lh || 1.62); h.style.setProperty('--xpw', (pro && settings.pw || 680) + 'px');
+    document.querySelectorAll('meta[name=theme-color]').forEach(function (m) { m.setAttribute('content', XTHBG[t] || '#0b0b0c'); });
+    var cs = document.querySelector('meta[name=color-scheme]'); if (cs) cs.setAttribute('content', light ? 'light' : 'dark');
+  };
+  if (xMQ) { var xMQf = function () { if (!settings.theme || settings.theme === 'auto') xApplyLook(); }; if (xMQ.addEventListener) xMQ.addEventListener('change', xMQf); else if (xMQ.addListener) xMQ.addListener(xMQf); }
+  xLookSettings = function () {
+    var pro = isPro(), cur = settings.theme || 'auto';
+    var seg = function (act2, c, opts) { return '<div class="seg">' + opts.map(function (o) { return '<button class="' + (String(c) === String(o[0]) ? 'on' : '') + '" data-act="' + act2 + '" data-v="' + o[0] + '" style="font-family:var(--sans);font-size:13px">' + o[1] + '</button>'; }).join('') + '</div>'; };
+    var sw = XTHEMES.map(function (t) { var bg = t[0] === 'auto' ? 'linear-gradient(135deg,#0b0b0c 50%,#f7f6f3 50%)' : XTHBG[t[0]]; return '<button class="xth' + (cur === t[0] ? ' on' : '') + '" data-act="xtheme" data-v="' + t[0] + '"><i style="background:' + bg + '"></i><span>' + t[1] + (t[2] && !pro ? ' ' + I.lock : '') + '</span></button>'; }).join('');
+    return '<div class="sec"><span>Look</span></div><div class="group">' +
+      '<div class="item" style="display:block"><span>Theme<small>Auto starts opposite to your phone: light phone, dark Axon; dark phone, light Axon.' + (pro ? '' : ' Colour themes are Pro.') + '</small></span><div class="xths">' + sw + '</div></div>' +
+      '<div class="item"><span>' + proTag('Reading font') + '<small>How notes read when you\u2019re not editing</small></span>' + seg('xrfont', pro ? settings.rfont || 'serif' : 'serif', [['serif', 'Serif'], ['sans', 'Sans'], ['mono', 'Mono']]) + '</div>' +
+      '<div class="item"><span>' + proTag('Line spacing') + '</span>' + seg('xlh', pro ? settings.lh || 1.62 : 1.62, [[1.45, 'Tight'], [1.62, 'Normal'], [1.85, 'Airy']]) + '</div>' +
+      '<div class="item"><span>' + proTag('Page width') + '<small>Matters on iPad and computers</small></span>' + seg('xpw', pro ? settings.pw || 680 : 680, [[560, 'Narrow'], [680, 'Normal'], [900, 'Wide']]) + '</div></div>';
+  };
+  act.xtheme = function (el) { var v = el.dataset.v, t = XTHEMES.filter(function (x) { return x[0] === v; })[0]; if (!t) return; if (t[2] && !proOk('Colour themes')) return; settings.theme = v; saveSettings(); renderSettings(); };
+  act.xlh = xG('Line spacing', act.xlh); act.xpw = xG('Page width', act.xpw);
+  /* writing settings toggles: lock icons for free users */
+  xWritingSettings = (function (f) { return function () { var h = f.apply(this, arguments); return isPro() ? h : h.replace('<div class="group">', '<div class="group xpro-g" data-act="xgetpro" data-f="Writing tools">'); }; })(xWritingSettings);
+  xStrip = (function (f) { return function () { var h = f.apply(this, arguments); return isPro() ? h : h.replace(/(<button[^>]*class="chip[^"]*"[^>]*>)/g, '$1' + I.lock.replace('<svg', '<svg style="width:12px;height:12px;margin-right:4px;vertical-align:-1px"')); }; })(xStrip);
+  try { xApplyLook(); } catch (e) {}
 
   window.__axon = { notes: notes, folders: folders, trash: trash, rc: rc, recallStats: recallStats, byTitle: byTitle, backlinks: backlinks, renameNote: renameNote, exportFiles: function () { return notes; }, Zip: Zip, importFiles: importFiles };
   boot();
