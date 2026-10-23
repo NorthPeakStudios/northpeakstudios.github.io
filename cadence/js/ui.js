@@ -30,7 +30,7 @@ const UI = (() => {
         // seconds offset
         const prev=sorted[j-1]; const off=(prev && T.diatonicIndex(n)-T.diatonicIndex(prev)===1 && (j%2===1))?14:0;
         s+=`<ellipse cx="${x+off}" cy="${ny}" rx="6.6" ry="4.6" transform="rotate(-20 ${x+off} ${ny})" class="nh ${col}"/><ellipse cx="${x+off}" cy="${ny}" rx="3.4" ry="2" transform="rotate(-50 ${x+off} ${ny})" class="nhole"/>`;
-        if(n.a!==0 || ev.showNatural) s+=`<text x="${x-24-(j%2&&sorted.length>2?6:0)}" y="${ny+5}" font-size="17" font-family="${MUSIC_FONT}" class="glyph ${col}">${n.a===0?'♮':ACCG[n.a]}</text>`;
+        const ka=(ks>0?[3,0,4,1,5,2,6].slice(0,ks):[6,2,5,1,4,0,3].slice(0,-ks)).includes(n.l)?Math.sign(ks):0; if(n.a!==ka || ev.showNatural) s+=`<text x="${x-24-(j%2&&sorted.length>2?6:0)}" y="${ny+5}" font-size="17" font-family="${MUSIC_FONT}" class="glyph ${col}">${n.a===0?'♮':ACCG[n.a]}</text>`;
       });
       if(ev.label) s+=`<text x="${x}" y="${height-12}" text-anchor="middle" class="lbl">${ev.label}</text>`;
       if(ev.bar) s+=`<line x1="${x+evW/2}" x2="${x+evW/2}" y1="${top}" y2="${bottomY}" class="sl"/>`;
