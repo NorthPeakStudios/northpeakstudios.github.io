@@ -5,7 +5,7 @@
 (function () {
   'use strict';
   var SYN = 'https://odin-cards.sites.tab.bot';
-  var APPS = { axon: ['https://axon-sync.sites.tab.bot', 'axon-sync/v1:'], liminal: ['https://liminal-sync.sites.tab.bot', 'liminal-sync/v1:'] };
+  var APPS = { axon: ['https://axon-sync.sites.tab.bot', 'axon-sync/v1:'], liminal: ['https://liminal-sync.sites.tab.bot', 'liminal-sync/v1:'], cadence: ['https://cadence-sync.sites.tab.bot', 'cadence-sync/v1:'] };
   var te = new TextEncoder();
   function hex(b) { return Array.prototype.map.call(new Uint8Array(b), function (x) { return (x < 16 ? '0' : '') + x.toString(16); }).join(''); }
   async function call(url, body, tok, syn) {
