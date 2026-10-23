@@ -3,8 +3,8 @@ const UI = (() => {
   const MUSIC_FONT = "'Noto Music','Bravura','Apple Symbols','Segoe UI Symbol',serif";
   const ACCG = {'-2':'𝄫','-1':'♭','0':'','1':'♯','2':'𝄪'};
   const CLEF = { treble:{bottom:30, glyph:'𝄞', gy:3, size:46}, bass:{bottom:18, glyph:'𝄢', gy:1, size:34}, alto:{bottom:24, glyph:'𝄡', gy:2, size:40}, tenor:{bottom:22, glyph:'𝄡', gy:3, size:40} };
-  const SHARP_POS = {treble:[38,35,39,36,33,37,34], bass:[24,21,25,22,19,23,20], alto:[31,28,32,29,26,30,27], tenor:[36,33,30,34,31,35,32]};
-  const FLAT_POS  = {treble:[34,37,33,36,32,35,31], bass:[20,23,19,22,18,21,17], alto:[27,30,26,29,25,28,24], tenor:[29,32,28,31,27,30,26]};
+  const SHARP_POS = {treble:[38,35,39,36,33,37,34], bass:[24,21,25,22,19,23,20], alto:[31,28,32,29,26,30,27], tenor:[24,28,25,29,26,30,27]};
+  const FLAT_POS  = {treble:[34,37,33,36,32,35,31], bass:[20,23,19,22,18,21,17], alto:[27,30,26,29,25,28,24], tenor:[27,30,26,29,25,28,24]};
   // events: [{notes:[noteObj], label:'', color:''}], opts: {clef, keySig, width, height, showNames}
   function staff(events, opts={}){
     const clef=opts.clef||'treble', C=CLEF[clef], sp=10, top=40, bottomY=top+4*sp;
