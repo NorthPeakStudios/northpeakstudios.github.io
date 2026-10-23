@@ -121,3 +121,4 @@ table.mx{border-collapse:collapse;font-size:13px;margin:6px auto}table.mx td,tab
 .hlc{fill:#ff8a3d!important;stroke:#ff8a3d!important}
 @media print{body.printing .top,body.printing .tabbar,body.printing #view>*:not(#sheet){display:none!important}body.printing{background:#fff}body.printing main{padding:0}}
 .play.sm{padding:4px 10px;font-size:13px}
+.mtbanner b,.mtbanner span{display:block}
