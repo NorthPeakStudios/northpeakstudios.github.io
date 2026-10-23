@@ -43,7 +43,10 @@ const AN = (() => {
   function hist(notes,a=-Infinity,b=Infinity){ const h=Array(12).fill(0); for(const n of notes){ const s=Math.max(a,n.start), e=Math.min(b,n.start+n.dur); if(e>s) h[n.midi%12]+=e-s; } return h; }
   function keys(h){ const out=[]; for(let t=0;t<12;t++){ const rot=i=>h[(i+t)%12]; const hr=Array.from({length:12},(_,i)=>rot(i)); out.push({tonic:t,minor:false,r:corr(hr,KMAJ)}); out.push({tonic:t,minor:true,r:corr(hr,KMIN)}); } return out.sort((a,b)=>b.r-a.r); }
   const FLATKEYS=new Set([5,10,3,8,1,6]); // F Bb Eb Ab Db Gb majors prefer flats
-  const keyName=k=>{ const names=(k.minor? [0,5,7,10,3,8].includes(k.tonic) : FLATKEYS.has(k.tonic))? ['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B']:['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B']; let n=names[k.tonic]; if(!k.minor&&k.tonic===6) n='G♭'; if(k.minor&&k.tonic===3) n='E♭'; if(k.minor&&k.tonic===8) n='G♯'; if(k.minor&&k.tonic===1) n='C♯'; if(k.minor&&k.tonic===6) n='F♯'; return n+(k.minor?' minor':' major'); };
+  const keyName=k=>T.spell.keyName(k.tonic,k.minor); // spelled by key: E♭ major, G♯ minor, F♯ minor (never A♯/D♯ for a flat-side key)
+  /* chord symbol spelled in its key: the root by its scale degree in the key (chromatic roots by chromatic degree), the bass by interval from the root */
+  const spellCh=(ch,bass,k)=>{ const rn=k?T.spell.inKey(ch.root,k.tonic,k.minor):T.spell.root(ch.root,ch.type); const tn=T.spell.tones(rn,ch.type), by={}; tn.forEach(t=>by[T.pc(T.parse(t))]=t);
+    return rn+T.CHORDS[ch.type].sym+(bass!=null&&bass!==ch.root?'/'+(by[bass]||(k?T.spell.inKey(bass,k.tonic,k.minor):T.spell.pc(bass))):''); };
   // ---------- chords ----------
   const TEMPL={maj:[0,4,7],min:[0,3,7],dim:[0,3,6],aug:[0,4,8],dom7:[0,4,7,10],maj7:[0,4,7,11],min7:[0,3,7,10],hdim7:[0,3,6,10],dim7:[0,3,6,9]};
   function bestChord(h,bassPc){ const tot=h.reduce((a,b)=>a+b,0); if(tot<1e-6) return null; let best=null;
@@ -80,7 +83,7 @@ const AN = (() => {
       segs.push({t,ch:bestChord(h,bass),bass,top,m:Math.floor(t/mlen+1e-6)}); }
     // merge identical consecutive chords within same measure
     const merged=[]; for(const s of segs){ const L=merged[merged.length-1]; if(L&&s.ch&&L.ch&&L.ch.root===s.ch.root&&L.ch.type===s.ch.type&&L.bass===s.bass){ L.dur+=beat; L.top=s.top; } else merged.push({...s,dur:beat}); }
-    merged.forEach((s,i)=>{ const k=keyAt(s.m); const nx=merged.slice(i+1).find(x=>x.ch); const r=s.ch?roman(s.ch,k,s.bass,nx&&nx.ch):null; s.key=k; s.rn=r?r.rn:'—'; s.note=r?r.note:'rest'; s.name=s.ch?T.PC_NAMES_SHARP[s.ch.root]+T.CHORDS[s.ch.type].sym+(s.bass!=null&&s.bass!==s.ch.root?'/'+T.PC_NAMES_SHARP[s.bass]:''):'—'; });
+    merged.forEach((s,i)=>{ const k=keyAt(s.m); const nx=merged.slice(i+1).find(x=>x.ch); const r=s.ch?roman(s.ch,k,s.bass,nx&&nx.ch):null; s.key=k; s.rn=r?r.rn:'—'; s.note=r?r.note:'rest'; s.name=s.ch?spellCh(s.ch,s.bass,k):'—'; });
     // cadences
     const cad=[]; for(let i=0;i<merged.length-1;i++){ const a=merged[i], b=merged[i+1]; if(!a.ch||!b.ch) continue; const k=b.key; const ao=(a.ch.root-k.tonic+12)%12, bo=(b.ch.root-k.tonic+12)%12; const strong=(b.dur>=2*beat)||Math.abs((b.t/mlen)%1)<1e-6;
       const aDom=ao===7&&['maj','dom7'].includes(a.ch.type); const bTon=bo===0&&(k.minor?['min','maj']:['maj','maj7']).includes(b.ch.type);

@@ -126,8 +126,8 @@ function runQuiz(v, source, opts={}){
     html += `<div id="fb"></div>`;
     qb.innerHTML = html;
     if(cur.play){ $('#qplay').onclick=()=>cur.play(); if(cur.ear) setTimeout(()=>cur.play(),250); }
-    if(cur.type==='piano'){ UI.piano($('#qpiano'),{from:48,to:84,onNote:m=>{ if(answered) return; done(m===cur.answerMidi, `You tapped ${T.PC_NAMES_SHARP[m%12]}${Math.floor(m/12)-1}.`); }}); }
-    else if(cur.type==='melody'){ const taps=[]; const upd=()=>$('#qtaps').textContent='Your notes: '+(taps.map(m=>T.PC_NAMES_SHARP[m%12]+(Math.floor(m/12)-1)).join(' ')||'—');
+    if(cur.type==='piano'){ UI.piano($('#qpiano'),{from:48,to:84,onNote:m=>{ if(answered) return; done(m===cur.answerMidi, `You tapped ${m===cur.answerMidi&&cur.answer?cur.answer:T.spell.midiName(m,T.spell.pc(m%12))}.`); }}); }
+    else if(cur.type==='melody'){ const taps=[]; const upd=()=>$('#qtaps').textContent='Your notes: '+(taps.map(m=>T.spell.midiName(m,T.spell.pc(m%12))).join(' ')||'—');
       upd(); UI.piano($('#qpiano'),{from:48,to:84,onNote:m=>{ if(answered) return; taps.push(m); upd(); if(taps.length===cur.answerMidis.length){ const ok=taps.every((x,k)=>x===cur.answerMidis[k]); const okPc=taps.every((x,k)=>x%12===cur.answerMidis[k]%12); done(ok||okPc, ok?'':okPc?'(right notes, octave aside — counts!)':''); } }});
       $('#qundo').onclick=()=>{ taps.pop(); upd(); }; }
     else $$('.choice',qb).forEach(b=>b.onclick=()=>{ if(answered) return; const c=cur.choices[+b.dataset.i]; b.classList.add(c===cur.answer?'right':'wrong'); if(c!==cur.answer) $$('.choice',qb).forEach(x=>{ if(cur.choices[+x.dataset.i]===cur.answer) x.classList.add('right'); }); done(c===cur.answer); });

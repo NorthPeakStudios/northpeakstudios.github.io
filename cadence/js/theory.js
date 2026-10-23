@@ -104,9 +104,9 @@ const T = (() => {
     locrian:{iv:['m2','m3','P4','d5','m6','m7'], name:'Locrian'},
     major_pentatonic:{iv:['M2','M3','P5','M6'], name:'major pentatonic'},
     minor_pentatonic:{iv:['m3','P4','P5','m7'], name:'minor pentatonic'},
-    blues:{iv:['m3','P4','A4','P5','m7'], name:'blues (minor blues hexatonic)'},
+    blues:{iv:['m3','P4','d5','P5','m7'], name:'blues (minor blues hexatonic)'},
     whole_tone:{iv:['M2','M3','A4','A5','A6'], name:'whole-tone'},
-    altered:{iv:['m2','A2','M3','A4','A5','m7'], name:'altered (super-Locrian)'},
+    altered:{iv:['m2','A2','M3','A4','m6','m7'], name:'altered (super-Locrian)'},
     lydian_dominant:{iv:['M2','M3','A4','P5','M6','m7'], name:'Lydian dominant'},
     phrygian_dominant:{iv:['m2','M3','P4','P5','m6','m7'], name:'Phrygian dominant'},
   };
@@ -175,7 +175,7 @@ const T = (() => {
   function R(t){ return t.minor? {r:mod(t.r+3,12),minor:false} : {r:mod(t.r+9,12),minor:true}; }
   function L(t){ return t.minor? {r:mod(t.r+8,12),minor:false} : {r:mod(t.r+4,12),minor:true}; }
   const PC_NAMES_SHARP=['C','C♯','D','E♭','E','F','F♯','G','A♭','A','B♭','B'];
-  const triadName = t => PC_NAMES_SHARP[t.r]+(t.minor?' minor':' major');
+  const triadName = t => (t.minor?['C','C♯','D','E♭','E','F','F♯','G','G♯','A','B♭','B']:PC_NAMES_SHARP)[t.r]+(t.minor?' minor':' major'); // C♯ minor / G♯ minor, D♭ major / A♭ major
 
   // ---------- transposing instruments (written -> concert: interval concert sounds BELOW written) ----------
   const INSTRUMENTS = {
@@ -191,3 +191,26 @@ const T = (() => {
     normalize,normalOrder,primeForm,intervalVector,forte,pcLabel,Tn,TnI,P,R,L,triadName,PC_NAMES_SHARP,INSTRUMENTS,writtenToConcert,concertToWritten,QNAME,NUMNAME};
 })();
 if(typeof module!=='undefined') module.exports=T;
+
+/* Cadence spelling (Oct 22, 2026): name pitch classes the way a musician reads them — by chord or key, never a fixed sharp table.
+   A♯ vs B♭ depends on context: roots of major-family chords and major keys take the flat-side name (B♭, E♭, A♭, D♭), roots of
+   minor-family chords and minor keys take the conventional name (C♯m, G♯m, F♯m), chord tones are spelled by interval from the
+   root (E major = E G♯ B, never E A♭ B), and chromatic notes in a key use the chromatic scale-degree names (♭2 ♭3 ♯4 ♭6 ♭7 in
+   major; raised 3/6/7 and ♯4 in minor, so A minor's leading tone is G♯). */
+(function(){
+  const MAJ=['C','D♭','D','E♭','E','F','F♯','G','A♭','A','B♭','B'], MIN=['C','C♯','D','E♭','E','F','F♯','G','G♯','A','B♭','B'];
+  const MINORISH=new Set(['min','dim','min7','hdim7','dim7','minmaj7','min9','min11']);
+  const nm=n=>T.name(n), mod=(a,n)=>((a%n)+n)%n;
+  function root(pc,type){ return (MINORISH.has(type)?MIN:MAJ)[mod(pc,12)]; }
+  function tones(rootName,type){ const r=T.parse(rootName); return [rootName].concat(((T.CHORDS[type]||{}).iv||[]).map(iv=>nm(T.up(r,iv)))); }
+  function keyScale(tonicPc,minor){ const tn=(minor?MIN:MAJ)[mod(tonicPc,12)], t=T.parse(tn); return [tn].concat((minor?['M2','m3','P4','P5','m6','m7']:['M2','M3','P4','P5','M6','M7']).map(iv=>nm(T.up(t,iv)))); }
+  const CHROM_MAJ={1:[1,-1],3:[2,-1],6:[3,1],8:[5,-1],10:[6,-1]}, CHROM_MIN={1:[1,-1],4:[2,1],6:[3,1],9:[5,1],11:[6,1]};
+  function inKey(pc,tonicPc,minor){ pc=mod(pc,12); const sc=keyScale(tonicPc,minor); for(const n of sc) if(T.pc(T.parse(n))===pc) return n;
+    const d=(minor?CHROM_MIN:CHROM_MAJ)[mod(pc-tonicPc,12)]; const b=T.parse(sc[d[0]]); return nm(T.note(b.l,b.a+d[1],4)); }
+  function keyName(tonicPc,minor){ return (minor?MIN:MAJ)[mod(tonicPc,12)]+(minor?' minor':' major'); }
+  /* a chord's notes, each midi spelled as its chord tone (with the right octave number for B♯/C♭ etc.) */
+  function midiName(m,name){ const n=T.parse(name); const o=Math.floor((m-(T.pc(n)===mod(m,12)?([0,2,4,5,7,9,11][n.l]+n.a):0))/12)-1; return name+o; }
+  function chordNotes(midis,rootPc,type){ const tn=tones(root(rootPc,type),type), by={}; for(const t of tn) by[T.pc(T.parse(t))]=t; return midis.map(m=>by[mod(m,12)]||MAJ[mod(m,12)]); }
+  /* pitch-class fallback with no context: the common-practice table (B♭ E♭ A♭ D♭, F♯) */
+  T.spell={MAJ,MIN,root,tones,keyScale,inKey,keyName,midiName,chordNotes,pc:p=>MAJ[mod(p,12)]};
+})();

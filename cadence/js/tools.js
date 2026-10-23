@@ -1,8 +1,11 @@
 // Tools: piano + MIDI + chord namer, fretboard, visualizer, transposer.
 const MIDI_IN = { listeners:new Set(), ok:false, async init(){ if(this.ok||!navigator.requestMIDIAccess) return this.ok; try{ const acc=await navigator.requestMIDIAccess(); const hook=()=>{ for(const inp of acc.inputs.values()) inp.onmidimessage=e=>{ const [st,n,vel]=e.data; const on=(st&0xf0)===0x90&&vel>0, off=(st&0xf0)===0x80||((st&0xf0)===0x90&&vel===0); if(on||off) this.listeners.forEach(f=>f(n,on,vel)); }; }; hook(); acc.onstatechange=hook; this.ok=true; this.count=acc.inputs.size; }catch(e){ this.ok=false; } return this.ok; } };
-function chordName(midis){ const pcs=[...new Set(midis.map(m=>m%12))]; if(pcs.length<2) return pcs.length?T.PC_NAMES_SHARP[pcs[0]]:''; if(pcs.length===2){ const d=(pcs[1]-pcs[0]+12)%12; return 'interval: '+['unison','m2','M2','m3','M3','P4','tritone','P5','m6','M6','m7','M7'][d]+' (or its inversion)'; }
-  const ids=T.identify(pcs); const bass=Math.min(...midis)%12; if(!ids.length) return 'pc set '+ '('+T.primeForm(pcs).map(T.pcLabel).join('')+')'+(T.forte(pcs)?' '+T.forte(pcs):'');
-  const best=ids.find(x=>x.rootPc===bass)||ids[0]; const nm=T.PC_NAMES_SHARP[best.rootPc]+T.CHORDS[best.type].sym; return nm+(best.rootPc!==bass?'/'+T.PC_NAMES_SHARP[bass]:'')+(ids.length>1?'  (also '+ids.filter(x=>x!==best).map(x=>T.PC_NAMES_SHARP[x.rootPc]+T.CHORDS[x.type].sym).join(', ')+')':''); }
+function chordId(midis){ const pcs=[...new Set(midis.map(m=>m%12))]; if(pcs.length<3) return null; const ids=T.identify(pcs); if(!ids.length) return null; const bass=Math.min(...midis)%12; return {ids,best:ids.find(x=>x.rootPc===bass)||ids[0],bass}; }
+function chordName(midis){ const pcs=[...new Set(midis.map(m=>m%12))]; if(pcs.length<2) return pcs.length?T.spell.pc(pcs[0]):''; if(pcs.length===2){ const d=(pcs[1]-pcs[0]+12)%12; return 'interval: '+['unison','m2','M2','m3','M3','P4','tritone','P5','m6','M6','m7','M7'][d]+' (or its inversion)'; }
+  const ci=chordId(midis); if(!ci) return 'pc set '+ '('+T.primeForm(pcs).map(T.pcLabel).join('')+')'+(T.forte(pcs)?' '+T.forte(pcs):''); const {ids,best,bass}=ci;
+  const nmOf=x=>T.spell.root(x.rootPc,x.type)+T.CHORDS[x.type].sym; const bn=T.spell.chordNotes([bass],best.rootPc,best.type)[0];
+  return nmOf(best)+(best.rootPc!==bass?'/'+bn:'')+(ids.length>1?'  (also '+ids.filter(x=>x!==best).map(nmOf).join(', ')+')':''); }
+function spellMidis(ms){ const ci=chordId(ms); const names=ci?T.spell.chordNotes(ms,ci.best.rootPc,ci.best.type):ms.map(m=>T.spell.pc(m%12)); return ms.map((m,i)=>T.spell.midiName(m,names[i])); }
 routes.tools = v => { v.innerHTML = `<h2>Tools</h2><div class="grid">
   <a class="tile" href="#piano"><b>🎹 Piano + MIDI</b><span>play, name chords, MIDI keyboard input</span></a><a class="tile" href="#fretboard"><b>🎸 Fretboard</b><span>scales & chords on guitar/bass</span></a>
   <a class="tile" href="#staffview"><b>𝄞 Staff viewer</b><span>see any scale or chord notated</span></a><a class="tile" href="#viz"><b>〰️ Waveform & spectrum</b><span>see the overtones of any note</span></a>
@@ -11,20 +14,20 @@ routes.piano = v => {
   v.innerHTML = `<a class="back" href="#tools">← Tools</a><h2>Piano</h2><div class="card"><div class="chordname" id="cn">Play some notes</div><div id="pz"></div><p class="muted" id="midistat">Tap keys, or connect a MIDI keyboard (Chrome/Edge on desktop; iOS Safari doesn’t support Web MIDI).</p>
    <p><button class="btn ghost sm" id="midi">Connect MIDI</button> <button class="btn ghost sm" id="clr">Clear</button> <label class="muted"><input type="checkbox" id="hold" checked> collect notes for chord naming</label></p></div>`;
   let held=new Set(); const pz=UI.piano($('#pz'),{from:48,to:84,onNote:m=>{ if($('#hold').checked){ held.has(m)?held.delete(m):held.add(m); } else held=new Set([m]); upd(); }});
-  const upd=()=>{ pz.highlight(held); const ms=[...held].sort((a,b)=>a-b); $('#cn').textContent = ms.length? ms.map(m=>T.PC_NAMES_SHARP[m%12]+(Math.floor(m/12)-1)).join(' ')+'  →  '+chordName(ms) : 'Play some notes'; };
+  const upd=()=>{ pz.highlight(held); const ms=[...held].sort((a,b)=>a-b); $('#cn').textContent = ms.length? spellMidis(ms).join(' ')+'  →  '+chordName(ms) : 'Play some notes'; };
   $('#clr').onclick=()=>{ held.clear(); upd(); };
   const live=new Set(); const fn=(n,on)=>{ if(!document.body.contains($('#pz'))) return MIDI_IN.listeners.delete(fn); if(on){ Audio.playMidi(n,0,1); live.add(n);} else live.delete(n); held=new Set(live.size?live:held); upd(); };
   $('#midi').onclick=async()=>{ const ok=await MIDI_IN.init(); $('#midistat').textContent = ok? `MIDI ready (${MIDI_IN.count} input${MIDI_IN.count===1?'':'s'}). Play your keyboard.` : 'Web MIDI not available in this browser.'; if(ok) MIDI_IN.listeners.add(fn); };
 };
 const FB_SETS = Object.assign({}, Object.fromEntries(Object.entries(T.SCALES).map(([k,s])=>['scale:'+k,s.name])), Object.fromEntries(Object.entries(T.CHORDS).map(([k,c])=>['chord:'+k,c.name])));
 routes.fretboard = v => {
-  v.innerHTML = `<a class="back" href="#tools">← Tools</a><h2>Fretboard</h2><div class="card"><p><select id="fr">${T.PC_NAMES_SHARP.map((n,i)=>`<option value="${i}" ${i===0?'selected':''}>${n}</option>`).join('')}</select>
+  v.innerHTML = `<a class="back" href="#tools">← Tools</a><h2>Fretboard</h2><div class="card"><p><select id="fr">${['C','C♯/D♭','D','E♭/D♯','E','F','F♯/G♭','G','A♭/G♯','A','B♭/A♯','B'].map((n,i)=>`<option value="${i}" ${i===0?'selected':''}>${n}</option>`).join('')}</select>
    <select id="fs">${Object.entries(FB_SETS).map(([k,n])=>`<option value="${k}" ${k==='scale:major'?'selected':''}>${n}</option>`).join('')}</select>
    <select id="ft"><option value="40,45,50,55,59,64">Guitar (EADGBE)</option><option value="28,33,38,43">Bass (EADG)</option><option value="55,62,69,76">Violin (GDAE)</option><option value="67,60,64,69">Ukulele (gCEA)</option></select></p>
    <div class="fretwrap" id="fb"></div><p class="muted" id="fnotes"></p><div id="fstaff"></div></div>`;
-  const draw=()=>{ const r=+$('#fr').value; const [kind,k]=$('#fs').value.split(':'); const root=T.parse(['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'][r]+'4');
+  const draw=()=>{ const r=+$('#fr').value; const [kind,k]=$('#fs').value.split(':'); const minorish=kind==='chord'?T.spell.root(1,k)==='C♯':T.scale(T.parse('C4'),k).some(n=>T.name(n)==='E♭'); const root=T.parse((minorish?T.spell.MIN:T.spell.MAJ)[r]+'4');
     const ns= kind==='scale'?T.scale(root,k):T.chord(root,k); const pcs=new Set(ns.map(T.pc)); const names=[]; ns.forEach(n=>names[T.pc(n)]=T.name(n));
-    UI.fretboard($('#fb'),{pcs,root:r,tuning:$('#ft').value.split(',').map(Number),names:T.PC_NAMES_SHARP.map((x,i)=>names[i]||x)}); $('#fnotes').textContent=ns.map(n=>T.name(n)).join(' – ');
+    UI.fretboard($('#fb'),{pcs,root:r,tuning:$('#ft').value.split(',').map(Number),names:T.spell.MAJ.map((x,i)=>names[i]||x)}); $('#fnotes').textContent=ns.map(n=>T.name(n)).join(' – ');
     $('#fstaff').innerHTML=UI.staff(kind==='scale'?ns.map(n=>({notes:[n]})):[{notes:ns}],{evW:kind==='scale'?36:56}); };
   ['fr','fs','ft'].forEach(id=>$('#'+id).onchange=draw); draw();
 };

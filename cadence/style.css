@@ -90,3 +90,7 @@ a.locked{opacity:.78}em.lk{font-style:normal;font-size:12px;margin-left:6px}
 .acchip{margin-left:8px;font-size:13px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);color:var(--fg)}.acchip.out{background:var(--acc);color:#0b0f19;border-color:var(--acc);font-weight:600}
 .pplans{display:grid;gap:8px}.pplan{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:12px;cursor:pointer}
 .pplan input{grid-row:span 2;width:20px;height:20px;accent-color:var(--acc)}.pplan span{font-size:13px;color:var(--mut)}
+
+/* knowledge graph labels (Cadence 1.2): fixed on-screen size, dark halo, zoom buttons */
+.gwrap{position:relative}.gzoom{position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:6px}.gzoom .btn{background:rgba(13,17,23,.85);min-width:40px;margin:0;font-size:18px;line-height:1}
+#graph .gl{fill:#e6edf3;font-weight:600;paint-order:stroke;stroke:#0b0e14;stroke-linejoin:round;pointer-events:none;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif}

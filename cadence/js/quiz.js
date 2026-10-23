@@ -12,7 +12,8 @@ const Q = (() => {
   const IV_NAME = c => T.intervalName(T.intervalBetween(N('C4'),T.up(N('C4'),c)));
   const ALL_IV_NAMES = IV_CODES.map(IV_NAME);
   const fitTreble = n => { while(T.midi(n)<60) n={...n,o:n.o+1}; while(T.midi(n)>79) n={...n,o:n.o-1}; return n; };
-  const pcName = p => T.PC_NAMES_SHARP[p];
+  const pcName = p => T.spell.pc(p);
+  const spellSet=(pcs,rootPc,type)=>{ const tn=T.spell.tones(T.spell.root(rootPc,type),type), by={}; tn.forEach(t=>by[T.pc(T.parse(t))]=t); return pcs.map(p=>by[p]||T.spell.pc(p)); };
   const G = {};
   // ---------- beginner ----------
   G['note-freq']=()=>{ const o=pick([2,3,5,6]); const f=440*Math.pow(2,o-4); return {key:'nf'+o, prompt:`A4 = 440 Hz. What is the frequency of <b>A${o}</b>?`, choices:mc(f+' Hz',[f*2+' Hz',f/2+' Hz',(f+110)+' Hz',(440*o)+' Hz']), answer:f+' Hz', explain:'Each octave doubles (up) or halves (down) the frequency.'}; };
@@ -104,7 +105,7 @@ const Q = (() => {
   G['tritone-sub']=()=>{ const r=N(pick(ROOTS)+'4'); const s=T.up(r,'d5'); const alt=T.up(r,'A4'); const a=[s,alt].sort((x,y)=>Math.abs(x.a)-Math.abs(y.a))[0]; return {key:'ts7'+nm(r), prompt:`Tritone substitute for <b>${nm(r)}7</b>?`, choices:mc(nm(a)+'7',[nm(T.up(r,'P4'))+'7',nm(T.up(r,'m2'))+'7',nm(T.up(r,'P5'))+'7',nm(T.up(r,'m3'))+'7']), answer:nm(a)+'7', explain:`${nm(r)}7 and ${nm(a)}7 share the same tritone.`}; };
   G['coltrane-cycle']=()=>{ const k=N(pick(['B','C','Eb','G','E','Ab','D'])+'4'); const a=T.up(k,'M3'), b=T.up(a,'M3'); const fix = n => Math.abs(n.a)>1? T.parse(pcName(T.pc(n)).replace('♯','#').replace('♭','b')+'4') : n; const ans=[k,b,a].map(n=>nm(fix(n))).join(' → ');
     return {key:'cc'+nm(k), prompt:`Coltrane cycle descending in major 3rds from <b>${nm(k)}</b>: which key centers?`, choices:mc(ans,[[k,T.up(k,'m3'),T.up(k,'d5')],[k,T.up(k,'P4'),T.up(k,'m7')],[k,T.up(k,'M2'),T.up(k,'M3')]].map(x=>x.map(n=>nm(fix(n))).join(' → '))), answer:ans, explain:'Three tonal centers a M3 apart divide the octave equally (like B → G → E♭ in "Giant Steps").'}; };
-  G['negative']=()=>{ const r=pick([7,2,5,9,4,11]); const t=pick(['maj','min','dom7']); const iv={maj:[0,4,7],min:[0,3,7],dom7:[0,4,7,10]}[t]; const pcs=iv.map(x=>(r+x)%12); const neg=pcs.map(p=>T.mod(7-p,12)); const ans=neg.map(pcName).join(' '); const nm0=pcs.map(pcName).join(' ');
+  G['negative']=()=>{ const r=pick([7,2,5,9,4,11]); const t=pick(['maj','min','dom7']); const iv={maj:[0,4,7],min:[0,3,7],dom7:[0,4,7,10]}[t]; const pcs=iv.map(x=>(r+x)%12); const neg=pcs.map(p=>T.mod(7-p,12)); const nt={maj:['min',T.mod(-r,12)],min:['maj',T.mod(-r,12)],dom7:['hdim7',T.mod(-3-r,12)]}[t]; const ans=spellSet(neg,nt[1],nt[0]).join(' '); const nm0=spellSet(pcs,r,t).join(' ');
     return {key:'ng'+r+t, prompt:`Key of C, negative harmony: reflect <b>${nm0}</b> around the E/E♭ axis. Result?`, choices:mc(ans,[pcs.map(p=>pcName(T.mod(5-p,12))).join(' '),pcs.map(p=>pcName(T.mod(9-p,12))).join(' '),pcs.map(p=>pcName(T.mod(p+6,12))).join(' ')]), answer:ans, explain:`Each pc p → 7−p (mod 12): ${nm0} → ${ans}.`}; };
   // ---------- post-tonal / math ----------
   const randSet = n => { const s=new Set(); while(s.size<n) s.add(R(12)); return [...s]; };
