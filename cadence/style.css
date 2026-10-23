@@ -217,3 +217,4 @@ details.fold .mtset{padding-top:2px}
 p.center{margin:14px 0}
 .rpstat div{background:var(--card2)}
 .mtbar .lnk{font-size:14px}
+#mtgo{position:sticky;bottom:calc(66px + var(--bpad));z-index:4;box-shadow:0 8px 24px rgba(0,0,0,.55)}
