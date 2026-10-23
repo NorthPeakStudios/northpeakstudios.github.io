@@ -63,4 +63,4 @@ routes.tonnetz = v => {
   draw();
 };
 window.MORE_TILES=(window.MORE_TILES||[]).concat([['#graph','🕸️ Knowledge graph','every concept linked, searchable wiki']]);
-window.EXTRA_TOOLS=(window.EXTRA_TOOLS||[]).concat([['#tonnetz','🔺 Tonnetz','neo-Riemannian P / L / R explorer'],['#check','✍️ Voice-leading checker','SATB & counterpoint'],['#analyze','🔬 Analyze a score','MIDI / MusicXML']]);
+window.EXTRA_TOOLS=(window.EXTRA_TOOLS||[]).concat([['#tonnetz','🔺 Tonnetz','neo-Riemannian P / L / R explorer'],['#check','✍️ Voice-leading checker','SATB and counterpoint'],['#analyze','🔬 Analyze a score','MIDI or MusicXML']]);

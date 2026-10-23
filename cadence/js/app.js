@@ -40,7 +40,7 @@ function checkAch(){ const s=S.get(); for(const [id,name,f] of ACH){ if(!s.ach.i
 function grantAch(id){ const s=S.get(); if(!s.ach.includes(id)){ s.ach.push(id); S.save(); const a=ACH.find(x=>x[0]===id); toast('🏆 Achievement: '+(a?a[1]:id)); } }
 const level = xp => Math.floor(Math.sqrt(xp/50))+1;
 function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.classList.add('show'),10); setTimeout(()=>{t.classList.remove('show'); setTimeout(()=>t.remove(),400);},2600); }
-function renderHud(){ const s=S.get(); $('#hud').innerHTML=`<span title="level">Lv ${level(s.xp)}</span><span>⚡ ${s.xp} XP</span><span>🔥 ${s.streak}</span>`; }
+function renderHud(){ const s=S.get(); $('#hud').innerHTML=`<span class="streak" title="day streak">🔥 ${s.streak}</span>`; }
 
 // ---------------- notation helper ----------------
 function exHtml(ex){ const events=ex.ev.split(' ').filter(Boolean).map(tok=>{ const [body,label]=tok.split(':'); const bar=body.endsWith('|'); const notes=body.replace('|','').split('+').map(T.parse); return {notes,label:label?T.pretty(label):'',bar}; });
@@ -61,34 +61,47 @@ function areaStats(){ const st=S.get(); return Object.entries(st.area).filter(([
 function nextConcepts(){ const st=S.get(); return CONCEPTS.filter(c=>mastery(c.id).s<0.6).sort((a,b)=>{ const ra=c=>c.pre.every(p=>mastery(p).s>=0.6)?0:1; return ra(a)-ra(b) || a.tier-b.tier; }); }
 routes.today = v => {
   const st=S.get(); const stats=areaStats().sort((a,b)=>b.s-a.s);
-  let plan='';
-  if(!st.placed){ plan=`<div class="card hero"><h2>Welcome 🎺</h2><p>Start with a ~24-question adaptive diagnostic across notation, rhythm, intervals, chords, keys, harmony, ear and post-tonal theory. It places you on the skill tree so you don’t waste time on stuff you already know.</p><a class="btn big" href="#diagnostic">Take the diagnostic</a> <a class="btn ghost" href="#learn">Skip, just browse</a></div>`; }
   const ORDER=['notation','rhythm','intervals','chords','keys','harmony','ear','counterpoint','form','jazz','orchestration','post-tonal','analysis','math','musicology'];
   const strong=stats[0]; const shaky=stats.filter(x=>x.acc<0.7).sort((a,b)=>ORDER.indexOf(a.a)-ORDER.indexOf(b.a)); const weak=stats.length>1?(shaky[0]||stats[stats.length-1]):null;
   const errs=Object.entries(st.errors).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  const AL=a=>AREA_LABEL[a]||a;
   let msg='';
-  if(strong && weak && strong.a!==weak.a) msg=`You’re strong in <b>${AREA_LABEL[strong.a]||strong.a}</b> (${Math.round(strong.acc*100)}% correct) but weaker in <b>${AREA_LABEL[weak.a]||weak.a}</b> (${Math.round(weak.acc*100)}%), so today we’re focusing there.`;
-  else if(stats.length) msg=`Good start in <b>${AREA_LABEL[stats[0].a]||stats[0].a}</b>. Let’s widen out.`;
+  if(strong && weak && strong.a!==weak.a) msg=`Focusing on <b>${AL(weak.a)}</b> (${Math.round(weak.acc*100)}%). Strongest: ${AL(strong.a)} (${Math.round(strong.acc*100)}%).`;
+  else if(stats.length) msg=`Good start in <b>${AL(stats[0].a)}</b>. Let’s widen out.`;
   const focusArea = weak? weak.a : null;
   const nxt = nextConcepts(); const focusConcept = (focusArea && nxt.find(c=>c.area===focusArea)) || nxt[0];
   const earGen = focusArea==='ear' ? (errs.find(e=>e[0].startsWith('ear-'))||['ear-interval'])[0] : 'ear-interval';
-  const errLine = errs.length? `<p class="muted">Most-missed question types: ${errs.map(([g,n])=>`<a href="#practice/${g}">${g.replace(/-/g,' ')}</a> (${n})`).join(', ')}</p>`:'';
-  v.innerHTML = plan + `<div class="card"><h2>Today</h2>${msg?`<p class="big-msg">${msg}</p>`:'<p>Answer some questions and I’ll start tailoring your plan.</p>'}${errLine}
-   <div class="plan">${focusConcept?`<a class="tile" href="#lesson/${focusConcept.id}"><small>1 · Learn</small><b>${focusConcept.title}</b><span>${TIERS[focusConcept.tier]}</span></a>`:''}
-   <a class="tile" href="#practice/${focusArea?areaGens(focusArea).join(','):'mix'}"><small>2 · Practice</small><b>${focusArea?'Drill '+(AREA_LABEL[focusArea]||focusArea):'Mixed practice'}</b><span>infinite, never repeats</span></a>
-   <a class="tile" href="#ear/${earGen}"><small>3 · Ear</small><b>${earGen.replace('ear-','').replace(/^\w/,c=>c.toUpperCase())} ear training</b><span>5 minutes</span></a></div></div>
-   <div class="card"><h3>Progress</h3>${tierBars()}<p class="muted">Time studied: ${Math.round(Object.values(st.time).reduce((a,b)=>a+b,0)/60)} min · ${st.answered} answers · best run ${st.bestRun}</p></div>`;
+  const earName = earGen.replace('ear-','').replace(/^\w/,c=>c.toUpperCase());
+  const drillHref = '#practice/'+(focusArea?areaGens(focusArea).join(','):'mix');
+  const drillName = focusArea?'Drill '+AL(focusArea):'Mixed practice';
+  let hero, rows=[];
+  if(!st.placed){
+    hero=`<div class="card hero"><small class="eyebrow">Start here</small><h2>Find your level</h2><p>A quick adaptive quiz (about 24 questions) places you on the skill tree.</p><a class="btn big block" href="#diagnostic">Take the diagnostic</a><a class="sublink" href="#learn">Skip, just browse</a></div>`;
+    if(focusConcept) rows.push([`#lesson/${focusConcept.id}`,'📖',focusConcept.title,'Learn · '+TIERS[focusConcept.tier]]);
+  } else if(focusConcept){
+    hero=`<div class="card hero"><small class="eyebrow">Up next · ${TIERS[focusConcept.tier]}</small><h2>${focusConcept.title}</h2>${msg?`<p class="hmsg">${msg}</p>`:''}<a class="btn big block" href="#lesson/${focusConcept.id}">Continue</a></div>`;
+  } else {
+    hero=`<div class="card hero"><small class="eyebrow">Everything mastered</small><h2>Keep it sharp</h2><a class="btn big block" href="#practice/mix">Mixed practice</a></div>`;
+  }
+  rows.push([drillHref,'♾️',drillName,'Practice · never repeats'],[`#ear/${earGen}`,'🎧',earName+' ear training','Ear · 5 minutes']);
+  const mins=Math.round(Object.values(st.time).reduce((a,b)=>a+b,0)/60);
+  v.innerHTML = hero + `<h3 class="sec">Today’s plan</h3><div class="grid">${rows.map(([h,i,t,d])=>`<a class="tile" href="${h}"><b>${i} ${t}</b><span>${d}</span></a>`).join('')}</div>
+   <h3 class="sec">Progress</h3><div class="card stats"><div><b>${level(st.xp)}</b><span>level</span></div><div><b>${st.xp}</b><span>XP</span></div><div><b>${st.streak}</b><span>streak</span></div><div><b>${st.answered}</b><span>answers</span></div></div>
+   <details class="fold"><summary>Skill tree progress</summary>${tierBars()}<p class="muted">${mins} min studied · best run ${st.bestRun}</p>${errs.length?`<p class="muted">Most missed: ${errs.map(([g,n])=>`<a href="#practice/${g}">${g.replace(/-/g,' ')}</a> (${n})`).join(', ')}</p>`:''}</details>`;
 };
 function areaGens(area){ const all=Object.keys(Q.G); const g=all.filter(x=>GEN_AREA(x)===area && !['tap-note','ear-melody'].includes(x)); return g.length?g:['interval-id']; }
 function tierBars(){ return [1,2,3,4,5].map(t=>{ const cs=CONCEPTS.filter(c=>c.tier===t); const m=cs.reduce((a,c)=>a+Math.min(1,mastery(c.id).s/0.6),0)/cs.length; return `<div class="bar"><span>${TIERS[t]}</span><b class="trk"><i style="width:${Math.round(m*100)}%"></i></b><em>${Math.round(m*100)}%</em></div>`; }).join(''); }
 
 // ---------------- Learn (skill tree) ----------------
 routes.learn = v => {
-  v.innerHTML = `<h2>Skill tree</h2><p class="muted">Five tiers from “what is a note” to PhD. Rings show mastery; ✓ = mastered (60%+ recent accuracy). Prereqs are suggestions. ${window.CadPro&&window.CadPro.pro()?'':'Beginner, Intermediate and Ear are free; 🔒 Conservatory + PhD are <a href="#pro">Pro</a>.'}</p>` +
-   [1,2,3,4,5].map(t=>`<section class="tier"><h3>${t}. ${TIERS[t]}</h3><div class="nodes">${CONCEPTS.filter(c=>c.tier===t).map(node).join('')}</div></section>`).join('');
+  const pro=window.CadPro&&window.CadPro.pro();
+  const tierInfo=t=>{ const cs=CONCEPTS.filter(c=>c.tier===t); return {cs, done:cs.filter(c=>mastery(c.id).s>=0.6).length}; };
+  let openT=[1,2,3,4,5].find(t=>{ const x=tierInfo(t); return x.done<x.cs.length; })||1;
+  v.innerHTML = `<h2>Learn</h2><h3 class="sec">Skill tree</h3><p class="muted intro">Five tiers, from “what is a note” to PhD. Rings show mastery.${pro?'':' Conservatory and PhD tiers are <a href="#pro">Pro</a>.'}</p>` +
+   [1,2,3,4,5].map(t=>{ const x=tierInfo(t); return `<details class="fold tier"${t===openT?' open':''}><summary><span>${t}. ${TIERS[t]}</span><em>${x.done}/${x.cs.length}</em></summary><div class="nodes">${x.cs.map(node).join('')}</div></details>`; }).join('');
 };
 function node(c){ const m=mastery(c.id).s; const ready=c.pre.every(p=>mastery(p).s>=0.6); const pct=Math.round(Math.min(1,m/0.6)*100);
-  return `<a class="node ${m>=0.6?'done':ready?'ready':'later'}" href="#lesson/${c.id}"><svg viewBox="0 0 36 36" class="ring"><circle cx="18" cy="18" r="15" class="rbg"/><circle cx="18" cy="18" r="15" class="rfg" stroke-dasharray="${pct*0.942} 100"/></svg><span>${m>=0.6?'✓ ':''}${c.title}</span></a>`; }
+  return `<a class="node ${m>=0.6?'done':ready?'ready':'later'}" href="#lesson/${c.id}"><svg viewBox="0 0 36 36" class="ring"><circle cx="18" cy="18" r="15" class="rbg"/><circle cx="18" cy="18" r="15" class="rfg" stroke-dasharray="${pct*0.942} 100"/></svg><span>${c.title}</span></a>`; }
 
 // ---------------- Lesson ----------------
 const EXPL = [['std','Standard'],['kid','I’m 10'],['berklee','Berklee student'],['jazz','Jazz musician'],['phd','PhD theorist'],['math','Mathematically']];
@@ -158,10 +171,10 @@ const PRACTICE_GROUPS = [
   ['Post-tonal',['prime-form','forte','ic-vector','tn','row-transform']],['Neo-Riemannian',['plr','plr-chain']],['Math of music',['clock-math','overtone','cents','nyquist','info-bits']]];
 routes.practice = (v,preset) => {
   if(preset){ const gens = preset==='mix'? PRACTICE_GROUPS.flatMap(g=>g[1]) : preset.split(','); return runQuiz(v, i=>Q.make(Q.pick(gens), 3+(i>10?1:0)+(i>25?1:0)), {title:'Practice', back:'#practice'}); }
-  v.innerHTML = `<h2>Infinite practice</h2><p class="muted">Procedurally generated — every question is new (seen questions are tracked so they don’t repeat). Pick topics, then go.</p>
-   <div class="card"><div class="chips" id="pg">${PRACTICE_GROUPS.map(([n,g],k)=>`<button class="chip" data-k="${k}">${n}</button>`).join('')}</div>
-   <p><button class="btn big" id="pgo">Start</button> <a class="btn ghost" href="#practice/mix">Mix everything</a></p></div>
-   <div class="card"><h3>Or a single skill</h3><div class="chips">${PRACTICE_GROUPS.flatMap(g=>g[1]).map(g=>`<a class="chip" href="#practice/${g}">${g.replace(/-/g,' ')}</a>`).join('')}</div></div>`;
+  v.innerHTML = `<h2>Practice</h2><h3 class="sec">Quick practice</h3>
+   <div class="card"><p class="muted" style="margin:0 0 6px">Pick topics. Every question is new.</p><div class="chips" id="pg">${PRACTICE_GROUPS.map(([n,g],k)=>`<button class="chip" data-k="${k}">${n}</button>`).join('')}</div>
+   <button class="btn big block" id="pgo">Start</button><a class="sublink" href="#practice/mix">or mix everything</a></div>
+   <details class="fold"><summary>Practice a single skill</summary><div class="chips">${PRACTICE_GROUPS.flatMap(g=>g[1]).map(g=>`<a class="chip" href="#practice/${g}">${g.replace(/-/g,' ')}</a>`).join('')}</div></details>`;
   $('#pg').onclick=e=>{ const b=e.target.closest('.chip'); if(b) b.classList.toggle('on'); };
   $('#pgo').onclick=()=>{ const ks=$$('#pg .chip.on').map(b=>+b.dataset.k); if(!ks.length) return toast('Pick at least one topic'); go('practice/'+ks.flatMap(k=>PRACTICE_GROUPS[k][1]).join(',')); };
 };
@@ -170,8 +183,8 @@ routes.practice = (v,preset) => {
 const EAR = [['ear-interval','Intervals'],['ear-chord','Triads'],['ear-seventh','Seventh chords'],['ear-progression','Progressions'],['ear-cadence','Cadences'],['ear-mode','Modes & scales'],['ear-rhythm','Rhythmic dictation'],['ear-melody','Melodic dictation'],['ear-micro','Microtones']];
 routes.ear = (v,gen) => {
   if(gen){ const lv={}; return runQuiz(v, i=>Q.make(gen, 2+Math.min(3,Math.floor(i/6))), {title:(EAR.find(e=>e[0]===gen)||[0,'Ear'])[1]+' (ear)', back:'#ear'}); }
-  v.innerHTML = `<h2>Ear training</h2><p class="muted">Headphones help. Questions auto-play; tap ▶︎ to replay. Difficulty rises as you go.</p>
-   <div class="grid">${EAR.map(([g,n])=>`<a class="tile" href="#ear/${g}"><b>${n}</b><span>${((S.get().area.ear||{}).n?'':'')}</span></a>`).join('')}<a class="tile" href="#sing"><b>🎤 Sing it</b><span>pitch detection, cents sharp/flat</span></a></div>`;
+  v.innerHTML = `<h2>Ear training</h2><h3 class="sec">Drills</h3><p class="muted intro">Headphones help. Gets harder as you go.</p>
+   <div class="grid">${EAR.map(([g,n])=>`<a class="tile" href="#ear/${g}"><b>${n}</b></a>`).join('')}<a class="tile" href="#sing"><b>Sing it</b><span>pitch detection with a tuner</span></a></div>`;
 };
 routes.sing = v => {
   v.innerHTML = `<a class="back" href="#ear">← Ear</a><h2>🎤 Sing / play the note</h2><p class="muted">Uses your microphone (stays on your device). Works for voice or trumpet. Hold the note steady.</p>
@@ -222,7 +235,15 @@ routes.me = v => { const st=S.get();
   $('#exp').onclick=()=>{ const b=new Blob([JSON.stringify(S.get())],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='music-theory-progress.json'; a.click(); };
   $('#imp').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ const d=JSON.parse(await f.text()); localStorage.setItem('mt_state_v1',JSON.stringify(d)); location.reload(); }catch(err){ toast('Not a valid progress file'); } };
 };
-routes.more = v => { v.innerHTML = `<h2>More</h2><div class="grid">${(window.MORE_TILES||[]).map(([h,t,d])=>`<a class="tile" href="${h}"><b>${t}</b><span>${d}</span></a>`).join('')}<a class="tile" href="#me"><b>👤 Profile</b><span>XP, streak, achievements, stats</span></a><a class="tile" href="#about"><b>ℹ️ About</b><span>what’s in here, what’s coming</span></a></div>`; };
-routes.about = v => { v.innerHTML = `<h2>About</h2><div class="card"><p>${CONCEPTS.length} concepts across 5 tiers, ${Object.keys(Q.G).length} procedural question generators, ${window.lessonCount?lessonCount():0} step-through lessons, ${window.MT?MT.ORDER.length:0} customizable exercises (with shareable links), a relative pitch trainer, ear training and tools.</p><p><b>Coming soon (not built yet, so not faked):</b> PDF score and audio-recording analysis, a notation editor / piano roll with MIDI export, citation manager.</p><p class="muted">Piano samples: Salamander Grand Piano (CC-BY, Alexander Holm), loaded when online; a built-in synth is used otherwise. Notation glyphs: Noto Music.</p></div>`; };
+routes.more = v => { const T_=window.MORE_TILES||[]; const acct=T_.filter(x=>x[0]==='#account'||x[0]==='#pro'), adv=T_.filter(x=>!acct.includes(x));
+  const L=xs=>`<div class="grid">${xs.map(([h,t,d])=>`<a class="tile" href="${h}"><b>${t}</b><span>${d}</span></a>`).join('')}</div>`;
+  v.innerHTML = `<h2>More</h2><h3 class="sec">Account</h3>${L(acct)}<h3 class="sec">Advanced</h3>${L(adv)}<h3 class="sec">You</h3>${L([['#me','📊 Profile','level, streak, achievements'],['#about','ℹ️ About','what’s in Cadence']])}`; };
+routes.about = v => { v.innerHTML = `<h2>About</h2><div class="card"><p><b>Cadence 1.4</b> · Northpeak Studios</p><p>${CONCEPTS.length} concepts across 5 tiers, ${Object.keys(Q.G).length} procedural question generators, ${window.lessonCount?lessonCount():0} step-through lessons, ${window.MT?MT.ORDER.length:0} customizable exercises (with shareable links), a relative pitch trainer, ear training and tools.</p><p><b>Coming soon (not built yet, so not faked):</b> PDF score and audio-recording analysis, a notation editor / piano roll with MIDI export, citation manager.</p><p class="muted">Piano samples: Salamander Grand Piano (CC-BY, Alexander Holm), loaded when online; a built-in synth is used otherwise. Notation glyphs: Noto Music.</p></div>`; };
 
+// ---- 1.4 polish: leading emoji in list titles become an aligned icon; chevrons; header account button state
+function polish(root){ $$('.tile:not([data-p])',root).forEach(t=>{ t.dataset.p=1; const b=t.querySelector('b'); if(!b) return; const m=b.innerHTML.match(/^([^A-Za-z0-9<“"'(&#\s][^\s]*)\s+/u);
+  if(m && !/^[A-Za-z]/.test(m[1])){ b.innerHTML=b.innerHTML.slice(m[0].length); t.insertAdjacentHTML('afterbegin',`<i class="ti">${m[1]}</i>`); } else t.classList.add('noi'); }); }
+(()=>{ const mo=new MutationObserver(()=>polish(document.getElementById('view'))); window.addEventListener('DOMContentLoaded',()=>{ mo.observe(document.getElementById('view'),{childList:true,subtree:true}); });
+  const meOn=()=>{ const n=(location.hash.slice(1)||'today').split('/')[0]; const b=document.getElementById('meBtn'); if(b) b.classList.toggle('on',['more','me','about','account','pro'].includes(n)); };
+  window.addEventListener('hashchange',meOn); window.addEventListener('DOMContentLoaded',meOn); })();
 window.addEventListener('DOMContentLoaded', ()=>{ renderHud(); route(); if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{}); });

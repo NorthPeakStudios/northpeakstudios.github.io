@@ -6,10 +6,10 @@ function chordName(midis){ const pcs=[...new Set(midis.map(m=>m%12))]; if(pcs.le
   const nmOf=x=>T.spell.root(x.rootPc,x.type)+T.CHORDS[x.type].sym; const bn=T.spell.chordNotes([bass],best.rootPc,best.type)[0];
   return nmOf(best)+(best.rootPc!==bass?'/'+bn:'')+(ids.length>1?'  (also '+ids.filter(x=>x!==best).map(nmOf).join(', ')+')':''); }
 function spellMidis(ms){ const ci=chordId(ms); const names=ci?T.spell.chordNotes(ms,ci.best.rootPc,ci.best.type):ms.map(m=>T.spell.pc(m%12)); return ms.map((m,i)=>T.spell.midiName(m,names[i])); }
-routes.tools = v => { v.innerHTML = `<h2>Tools</h2><div class="grid">
-  <a class="tile" href="#piano"><b>🎹 Piano + MIDI</b><span>play, name chords, MIDI keyboard input</span></a><a class="tile" href="#fretboard"><b>🎸 Fretboard</b><span>scales & chords on guitar/bass</span></a>
-  <a class="tile" href="#staffview"><b>𝄞 Staff viewer</b><span>see any scale or chord notated</span></a><a class="tile" href="#viz"><b>〰️ Waveform & spectrum</b><span>see the overtones of any note</span></a>
-  <a class="tile" href="#sing"><b>🎤 Tuner / sing</b><span>cents sharp or flat</span></a><a class="tile" href="#transposer"><b>🎺 Transposer</b><span>concert ↔ trumpet, sax, horn…</span></a>${(window.EXTRA_TOOLS||[]).map(([h,t,d])=>`<a class="tile" href="${h}"><b>${t}</b><span>${d}</span></a>`).join('')}</div>`; };
+routes.tools = v => { const X=(window.EXTRA_TOOLS||[]).filter(x=>x[0]!=='#mt');
+  const L=xs=>`<div class="grid">${xs.map(([h,t,d])=>`<a class="tile" href="${h}"><b>${t}</b><span>${d}</span></a>`).join('')}</div>`;
+  v.innerHTML = `<h2>Tools</h2><h3 class="sec">Instruments</h3>${L([['#piano','🎹 Piano','play, name chords, MIDI'],['#fretboard','🎸 Fretboard','scales and chords on guitar/bass'],['#sing','🎤 Tuner','cents sharp or flat'],['#transposer','🎺 Transposer','concert ↔ trumpet, sax, horn']])}
+  <h3 class="sec">Theory</h3>${L([['#staffview','𝄞 Staff viewer','any scale or chord, notated'],['#viz','〰️ Waveform & spectrum','see a note’s overtones']].concat(X))}`; };
 routes.piano = v => {
   v.innerHTML = `<a class="back" href="#tools">← Tools</a><h2>Piano</h2><div class="card"><div class="chordname" id="cn">Play some notes</div><div id="pz"></div><p class="muted" id="midistat">Tap keys, or connect a MIDI keyboard (Chrome/Edge on desktop; iOS Safari doesn’t support Web MIDI).</p>
    <p><button class="btn ghost sm" id="midi">Connect MIDI</button> <button class="btn ghost sm" id="clr">Clear</button> <label class="muted"><input type="checkbox" id="hold" checked> collect notes for chord naming</label></p></div>`;
