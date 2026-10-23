@@ -106,6 +106,7 @@ const MT = (() => {
   function stats(){ const st=S.get(); st.xstats=st.xstats||{}; return st.xstats; }
   function run(v, id, code){
     const ex=EX[id]; if(!ex) return go('mt');
+    if(ex.pro && !(window.CadPro&&CadPro.pro()) && CadPro.locked) return CadPro.locked(v, ex.title, ex.proWhy||'Trumpet is free; the other brass instruments are part of Cadence Pro.');
     let custom=false, c; if(code){ c=decode(ex,code); custom=!!c; } if(!c) c=saved(ex);
     let i=0, right=0, streak=0, t0=Date.now(), deadline=c.timed?Date.now()+c.timed*1000:0, timer=null, over=false;
     v.innerHTML=`<a class="back" href="#mt">← exercises</a><h2>${ex.title}</h2>${custom?`<div class="muted">🔗 Custom exercise · <a href="#exs/${id}" id="mtadopt">use these as my settings</a></div>`:''}

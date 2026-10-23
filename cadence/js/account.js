@@ -19,6 +19,8 @@ function merge(a,b){
   for(const k of ['mastery','area']){ m[k]=Object.assign({},O[k]||{},P[k]||{}); for(const id in (O[k]||{})){ const x=(P[k]||{})[id], y=O[k][id]; if(!x||((y.n||0)>(x.n||0))) m[k][id]=y; } }
   for(const k of ['time','errors']){ m[k]=Object.assign({},O[k]||{},P[k]||{}); for(const id in (O[k]||{})) m[k][id]=Math.max(+((P[k]||{})[id])||0,+O[k][id]||0); }
   const la=a.lastDay||'', lb=b.lastDay||''; const L=la>lb?a:lb>la?b:((a.streak||0)>=(b.streak||0)?a:b); m.lastDay=L.lastDay||null; m.streak=L.streak||0;
+  m.xstats=Object.assign({},O.xstats||{},P.xstats||{}); for(const id in (O.xstats||{})){ const x=(P.xstats||{})[id], y=O.xstats[id]; if(!x||(y.n||0)>(x.n||0)) m.xstats[id]=y; }
+  const rn=r=>(r&&r.total&&r.total.n)||0; if(rn(O.rp)>rn(m.rp)) m.rp=O.rp;
   return m;
 }
 const same=(x,y)=>JSON.stringify(x)===JSON.stringify(y);
@@ -48,9 +50,10 @@ window.CadSync=syncNow;
 /* ---------- locked screen ---------- */
 function locked(v,what,detail){
   v.innerHTML=`<div class="card lockcard"><div class="lockic">🔒</div><h2>${esc(what)}</h2><p class="muted">${esc(detail||'')}</p>
-   <p>This is part of <b>Cadence Pro</b>: the conservatory and PhD tiers, the voice-leading checker, MIDI/MusicXML analysis, the knowledge graph and Tonnetz, and advanced ear training.</p>
+   <p>This is part of <b>Cadence Pro</b>: the conservatory and PhD tiers, the voice-leading checker, MIDI/MusicXML analysis, the knowledge graph and Tonnetz, advanced ear training, horn/trombone/baritone/tuba fingerings, the advanced relative-pitch levels and the 12-tone matrix.</p>
    <p><a class="btn big" href="#pro">Get Pro — $35</a></p><p class="muted small">Or $100 Northpeak All-Access: Cadence, Synapse, Axon and Liminal, forever.${C()&&C().signedIn()?'':' Already have Pro or All-Access? <a href="#account">Sign in</a>.'}</p></div>`;
 }
+window.CadPro.locked=locked;
 function gate(name,check){ const f=routes[name]; if(!f) return; routes[name]=(v,...a)=>{ const r=check(...a); if(r&&!pro()) return locked(v,r[0],r[1]); return f(v,...a); }; }
 gate('lesson',id=>{ const c=CONCEPT[id]; return conceptPro(c)?[c.title,'Tier '+c.tier+' lesson']:null; });
 gate('quiz',id=>{ const c=CONCEPT[id]; return conceptPro(c)?[c.title+' quiz','Tier '+c.tier]:null; });
@@ -97,7 +100,7 @@ routes.pro=v=>{
   const a=C()&&C().acct, req=a&&a.request;
   v.innerHTML=`<h2>Cadence Pro</h2>
    <div class="card"><p><b>Free forever:</b> the diagnostic, Beginner + Intermediate tiers (${CONCEPTS.filter(c=>c.tier<=2).length} concepts), practice for notation, rhythm, intervals, chords, scales/keys and harmony, ear training for intervals, triads and rhythm, the tuner, piano, fretboard, staff, visualizer and transposer, XP and streaks.</p>
-   <p><b>Pro adds:</b> the Conservatory + PhD tiers (${CONCEPTS.filter(c=>PRO_TIERS.includes(c.tier)).length} concepts: counterpoint, fugue, form, orchestration, jazz, set theory, Schenker, Neo-Riemannian, math of music), the SATB voice-leading checker, MIDI/MusicXML analysis, the knowledge graph + Tonnetz, advanced ear training (7ths, progressions, cadences, modes, melodic dictation, microtones) and every advanced practice generator.</p></div>
+   <p><b>Pro adds:</b> the Conservatory + PhD tiers (${CONCEPTS.filter(c=>PRO_TIERS.includes(c.tier)).length} concepts: counterpoint, fugue, form, orchestration, jazz, set theory, Schenker, Neo-Riemannian, math of music), the SATB voice-leading checker, MIDI/MusicXML analysis, the knowledge graph + Tonnetz, advanced ear training (7ths, progressions, cadences, modes, melodic dictation, microtones), every advanced practice generator, fingering trainers for horn, trombone, baritone/euphonium and tuba (trumpet is free), relative-pitch levels 4–8 (chromatic degrees, wide intervals, melodies, sing-back) and the 12-tone matrix.</p></div>
    ${pro()&&!C().onTrial()?'<div class="card"><p>⭐ You have Pro. Thanks for supporting Northpeak!</p></div>':
    !(C()&&C().signedIn())?'<div class="card"><p>Sign in first so Pro is tied to your account (and works on every device).</p><p><a class="btn big" href="#account">Sign in / create account</a></p></div>':
    req&&req.status==='new'?`<div class="card"><p>✅ Request sent (${esc(req.price||'')}). You’ll get an Apple Cash request at <b>${esc(req.phone||'')}</b>. Pay it and Pro turns on here by itself.</p><p><button class="btn ghost" id="chk">Check now</button></p></div>`:
@@ -116,6 +119,6 @@ if(typeof renderHud==='function'){ const orig=renderHud; renderHud=function(){ o
 function boot(){ C().onAccountChange(()=>{ try{ renderHud(); }catch(e){} chip(); }); chip(); if(C().signedIn()){ C().refresh(true).then(()=>{ chip(); }); syncNow(); }
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&C().signedIn()){ C().refresh().then(chip); syncNow(); } });
   setInterval(()=>{ if(C().signedIn()&&!document.hidden) syncNow(); },120000);
-  const h=location.hash.slice(1).split('/')[0]; if(['account','pro'].includes(h)||Object.keys(PRO_ROUTES).includes(h)||['lesson','quiz','ear','practice'].includes(h)) route(); }
+  const h=location.hash.slice(1).split('/')[0]; if(['account','pro'].includes(h)||Object.keys(PRO_ROUTES).includes(h)||['lesson','quiz','ear','practice','ex','rp','mttools','mt'].includes(h)) route(); }
 if(window.Cloud) boot(); else window.addEventListener('cloud-ready',boot,{once:true});
 })();

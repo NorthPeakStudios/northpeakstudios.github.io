@@ -118,3 +118,4 @@ table.mx{border-collapse:collapse;font-size:13px;margin:6px auto}table.mx td,tab
 .tapbig{width:100%;height:120px;font-size:22px;border-radius:18px}
 .rpdeg{grid-template-columns:repeat(4,1fr)}.rpstat{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;font-size:12px}.rpstat div{background:#1c2330;border-radius:8px;padding:6px;text-align:center}
 .mtbanner{display:block;margin:0 0 12px;border-color:var(--acc)}
+.hlc{fill:#ff8a3d!important;stroke:#ff8a3d!important}
