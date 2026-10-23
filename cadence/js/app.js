@@ -84,7 +84,7 @@ function tierBars(){ return [1,2,3,4,5].map(t=>{ const cs=CONCEPTS.filter(c=>c.t
 
 // ---------------- Learn (skill tree) ----------------
 routes.learn = v => {
-  v.innerHTML = `<h2>Skill tree</h2><p class="muted">Five tiers from “what is a note” to PhD. Rings show mastery; ✓ = mastered (60%+ recent accuracy). Prereqs are suggestions, everything is open.</p>` +
+  v.innerHTML = `<h2>Skill tree</h2><p class="muted">Five tiers from “what is a note” to PhD. Rings show mastery; ✓ = mastered (60%+ recent accuracy). Prereqs are suggestions. ${window.CadPro&&window.CadPro.pro()?'':'Beginner, Intermediate and Ear are free; 🔒 Conservatory + PhD are <a href="#pro">Pro</a>.'}</p>` +
    [1,2,3,4,5].map(t=>`<section class="tier"><h3>${t}. ${TIERS[t]}</h3><div class="nodes">${CONCEPTS.filter(c=>c.tier===t).map(node).join('')}</div></section>`).join('');
 };
 function node(c){ const m=mastery(c.id).s; const ready=c.pre.every(p=>mastery(p).s>=0.6); const pct=Math.round(Math.min(1,m/0.6)*100);
