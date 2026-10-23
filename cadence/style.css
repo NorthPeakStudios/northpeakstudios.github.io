@@ -208,3 +208,12 @@ details.fold>.chips:first-of-type{margin-top:0}
 .mtgo .lk{float:right;margin-top:-20px}
 .inp,select,#view label input{background:#0f131b;border:1px solid var(--line)}
 @media(max-width:560px){h2{font-size:26px}.bar{grid-template-columns:96px 1fr 40px}}
+
+#view>h3{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);margin:22px 4px 8px}
+.mtset .mtl{font-size:14px;font-weight:600;color:var(--fg)}.mtset .mtf{margin:4px 0 16px}.mtset .mtf:last-child{margin-bottom:2px}
+details.fold .mtset{padding-top:2px}
+.lesson{font-size:16px;line-height:1.55}.lesson h3{font-size:18px}
+#explbox p{margin:6px 0 0}
+p.center{margin:14px 0}
+.rpstat div{background:var(--card2)}
+.mtbar .lnk{font-size:14px}

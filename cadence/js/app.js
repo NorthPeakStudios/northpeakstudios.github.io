@@ -107,14 +107,13 @@ function node(c){ const m=mastery(c.id).s; const ready=c.pre.every(p=>mastery(p)
 const EXPL = [['std','Standard'],['kid','I’m 10'],['berklee','Berklee student'],['jazz','Jazz musician'],['phd','PhD theorist'],['math','Mathematically']];
 routes.lesson = (v,id) => { const c=CONCEPT[id]; if(!c) return go('learn'); const st=S.get(); const t0=Date.now();
   const mode=st.explain||'std';
-  v.innerHTML = `<a class="back" href="#learn">← Skill tree</a><h2>${c.title}</h2><p class="muted">${TIERS[c.tier]} · ${AREA_LABEL[c.area]||c.area} · mastery ${Math.round(Math.min(1,mastery(c.id).s/0.6)*100)}%</p>
-  <div class="chips" id="expl">${EXPL.map(([k,l])=>`<button class="chip ${k===mode?'on':''}" data-k="${k}">${l}</button>`).join('')}</div>
-  <div class="card" id="explbox"></div>
+  v.innerHTML = `<a class="back" href="#learn">← Skill tree</a><h2>${c.title}</h2><p class="muted intro">${TIERS[c.tier]} · ${AREA_LABEL[c.area]||c.area} · ${Math.round(Math.min(1,mastery(c.id).s/0.6)*100)}% mastered</p>
   <div class="card lesson">${c.lesson}${(c.ex||[]).map(exHtml).join('')}${c.rhythm?c.rhythm.map(g=>`<figure class="ex">${UI.rhythm(g)}</figure>`).join(''):''}</div>
-  ${c.examples&&c.examples.length?`<div class="card"><h3>Real examples</h3><ul class="exlist">${c.examples.map(([k,t])=>`<li><b>${k}:</b> ${t}</li>`).join('')}</ul></div>`:''}
-  <div class="card"><h3>Connected concepts</h3><div class="chips">${c.links.map(l=>CONCEPT[l]?`<a class="chip" href="#lesson/${l}">${CONCEPT[l].title}</a>`:'').join('')}</div>${c.pre.length?`<p class="muted">Builds on: ${c.pre.map(p=>`<a href="#lesson/${p}">${CONCEPT[p].title}</a>`).join(', ')}</p>`:''}</div>
-  <a class="btn big" href="#quiz/${c.id}">Quiz me on this</a>`;
-  const showExpl = k => { $('#explbox').innerHTML = k==='std'? `<p class="muted">Pick a teacher above to hear this explained a different way.</p>` : `<p><b>${EXPL.find(e=>e[0]===k)[1]}:</b> ${c.explain[k]}</p>`; };
+  <a class="btn big block" href="#quiz/${c.id}">Quiz me on this</a>
+  <details class="fold"${mode!=='std'?' open':''}><summary>Explain it differently</summary><div class="chips" id="expl">${EXPL.map(([k,l])=>`<button class="chip ${k===mode?'on':''}" data-k="${k}">${l}</button>`).join('')}</div><div id="explbox"></div></details>
+  ${c.examples&&c.examples.length?`<details class="fold"><summary>Real examples</summary><ul class="exlist">${c.examples.map(([k,t])=>`<li><b>${k}:</b> ${t}</li>`).join('')}</ul></details>`:''}
+  <details class="fold"><summary>Connected concepts</summary><div class="chips">${c.links.map(l=>CONCEPT[l]?`<a class="chip" href="#lesson/${l}">${CONCEPT[l].title}</a>`:'').join('')}</div>${c.pre.length?`<p class="muted">Builds on: ${c.pre.map(p=>`<a href="#lesson/${p}">${CONCEPT[p].title}</a>`).join(', ')}</p>`:''}</details>`;
+  const showExpl = k => { $('#explbox').innerHTML = k==='std'? `<p class="muted">Pick a voice to hear this explained another way.</p>` : `<p><b>${EXPL.find(e=>e[0]===k)[1]}:</b> ${c.explain[k]}</p>`; };
   showExpl(mode);
   $('#expl').onclick = e => { const b=e.target.closest('.chip'); if(!b) return; st.explain=b.dataset.k; S.save(); $$('#expl .chip').forEach(x=>x.classList.toggle('on',x===b)); showExpl(b.dataset.k); };
   window._leave=()=>{ const st2=S.get(); st2.time[c.area]=(st2.time[c.area]||0)+Math.min(600,(Date.now()-t0)/1000); S.save(); };
@@ -241,7 +240,7 @@ routes.more = v => { const T_=window.MORE_TILES||[]; const acct=T_.filter(x=>x[0
 routes.about = v => { v.innerHTML = `<h2>About</h2><div class="card"><p><b>Cadence 1.4</b> · Northpeak Studios</p><p>${CONCEPTS.length} concepts across 5 tiers, ${Object.keys(Q.G).length} procedural question generators, ${window.lessonCount?lessonCount():0} step-through lessons, ${window.MT?MT.ORDER.length:0} customizable exercises (with shareable links), a relative pitch trainer, ear training and tools.</p><p><b>Coming soon (not built yet, so not faked):</b> PDF score and audio-recording analysis, a notation editor / piano roll with MIDI export, citation manager.</p><p class="muted">Piano samples: Salamander Grand Piano (CC-BY, Alexander Holm), loaded when online; a built-in synth is used otherwise. Notation glyphs: Noto Music.</p></div>`; };
 
 // ---- 1.4 polish: leading emoji in list titles become an aligned icon; chevrons; header account button state
-function polish(root){ $$('.tile:not([data-p])',root).forEach(t=>{ t.dataset.p=1; const b=t.querySelector('b'); if(!b) return; const m=b.innerHTML.match(/^([^A-Za-z0-9<“"'(&#\s][^\s]*)\s+/u);
+function polish(root){ $$('h2:not([data-p])',root).forEach(h=>{ h.dataset.p=1; const m=h.innerHTML.match(/^([^A-Za-z0-9<“"'(&#\s][^\s]*)\s+(?=[A-Z])/u); if(m) h.innerHTML=h.innerHTML.slice(m[0].length); }); $$('.tile:not([data-p])',root).forEach(t=>{ t.dataset.p=1; const b=t.querySelector('b'); if(!b) return; const m=b.innerHTML.match(/^([^A-Za-z0-9<“"'(&#\s][^\s]*)\s+/u);
   if(m && !/^[A-Za-z]/.test(m[1])){ b.innerHTML=b.innerHTML.slice(m[0].length); t.insertAdjacentHTML('afterbegin',`<i class="ti">${m[1]}</i>`); } else t.classList.add('noi'); }); }
 (()=>{ const mo=new MutationObserver(()=>polish(document.getElementById('view'))); window.addEventListener('DOMContentLoaded',()=>{ mo.observe(document.getElementById('view'),{childList:true,subtree:true}); });
   const meOn=()=>{ const n=(location.hash.slice(1)||'today').split('/')[0]; const b=document.getElementById('meBtn'); if(b) b.classList.toggle('on',['more','me','about','account','pro'].includes(n)); };

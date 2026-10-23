@@ -49,11 +49,13 @@ const MT = (() => {
   function settingsPage(v, id){
     const ex=EX[id]; if(!ex) return go('mt'); let c=saved(ex);
     const draw=()=>{
-      v.innerHTML=`<a class="back" href="#mt">← exercises</a><h2>⚙︎ ${ex.title}</h2><p class="muted">${ex.desc}</p><div class="card mtset">${ex.fields.filter(f=>!COMMON.includes(f)).map(f=>fieldHtml(f,c[f.k],c)).join('')}</div>
-      <div class="card mtset"><h3>Session</h3>${ex.fields.filter(f=>COMMON.includes(f)).map(f=>fieldHtml(f,c[f.k],c)).join('')}</div>
-      <div class="card"><button class="btn big" id="mtgo">Start ▶︎</button> <button class="btn ghost" id="mtdef">Reset to defaults</button>
-      <h3>Custom exercise link</h3><p class="muted">These exact settings, in a link. Send it to a friend or your band — it opens this exercise set up the same way.</p>
-      <input class="inp" id="mtlink" readonly value="${esc(link(ex,c))}"><button class="btn sm" id="mtcopy">Copy link</button> <span id="mtcm" class="muted"></span></div>`;
+      const op=v._mto||{}; v.innerHTML=`<a class="back" href="#mt">← Exercises</a><h2>${ex.title}</h2><p class="muted intro">${ex.desc}</p><div class="card mtset">${ex.fields.filter(f=>!COMMON.includes(f)).map(f=>fieldHtml(f,c[f.k],c)).join('')}</div>
+      <button class="btn big block" id="mtgo">Start</button>
+      <details class="fold" data-o="sess"${op.sess?' open':''}><summary>Session options</summary><div class="mtset">${ex.fields.filter(f=>COMMON.includes(f)).map(f=>fieldHtml(f,c[f.k],c)).join('')}</div></details>
+      <details class="fold" data-o="share"${op.share?' open':''}><summary>Share these settings</summary><p class="muted" style="margin-top:0">A link that opens this exercise set up exactly like this.</p>
+      <input class="inp" id="mtlink" readonly value="${esc(link(ex,c))}"><button class="btn sm" id="mtcopy">Copy link</button> <span id="mtcm" class="muted"></span></details>
+      <p class="center"><button class="lnk" id="mtdef">Reset to defaults</button></p>`;
+      $$('details[data-o]',v).forEach(d=>d.ontoggle=()=>{ v._mto=Object.assign(v._mto||{},{[d.dataset.o]:d.open}); });
       $$('.mtf',v).forEach(el=>{ const f=ex.fields.find(x=>x.k===el.dataset.k);
         $$('.chip',el).forEach(b=>b.onclick=()=>{ const val=JSON.parse(b.dataset.v);
           if(f.type==='multi'){ const s=new Set(c[f.k]); s.has(val)?s.delete(val):s.add(val); if(!s.size) return toast('Pick at least one'); c[f.k]=f.opts.map(o=>o[0]).filter(x=>s.has(x)); }
@@ -109,15 +111,15 @@ const MT = (() => {
     if(ex.pro && !(window.CadPro&&CadPro.pro()) && CadPro.locked) return CadPro.locked(v, ex.title, ex.proWhy||'Trumpet is free; the other brass instruments are part of Cadence Pro.');
     let custom=false, c; if(code){ c=decode(ex,code); custom=!!c; } if(!c) c=saved(ex);
     let i=0, right=0, streak=0, t0=Date.now(), deadline=c.timed?Date.now()+c.timed*1000:0, timer=null, over=false;
-    v.innerHTML=`<a class="back" href="#mt">← exercises</a><h2>${ex.title}</h2>${custom?`<div class="muted">🔗 Custom exercise · <a href="#exs/${id}" id="mtadopt">use these as my settings</a></div>`:''}
-      <div class="mtbar"><span id="mtprog"></span><a class="lnk" href="#exs/${id}">⚙︎ settings</a></div><div class="card q mtq" id="mtq"></div>`;
+    v.innerHTML=`<a class="back" href="#mt">← Exercises</a><h2>${ex.title}</h2>${custom?`<div class="muted">Custom exercise · <a href="#exs/${id}" id="mtadopt">use as my settings</a></div>`:''}
+      <div class="mtbar"><span id="mtprog"></span><a class="lnk" href="#exs/${id}">Settings</a></div><div class="card q mtq" id="mtq"></div>`;
     if(custom){ $('#mtadopt').onclick=()=>save(ex,c); }
     const prog=()=>{ const el=$('#mtprog'); if(!el) return; if(!c.prog && !c.timed){ el.textContent=''; return; }
       const left=deadline?Math.max(0,Math.ceil((deadline-Date.now())/1000)):0;
       el.textContent=(deadline?`⏱ ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')} · `:'')+(c.prog?`${right}/${i} correct`+(c.n&&!deadline?` · ${Math.min(i+1,c.n)} of ${c.n}`:'')+(streak>2?` · 🔥${streak}`:''):''); };
     if(deadline){ timer=setInterval(()=>{ if(!document.getElementById('mtprog')){ clearInterval(timer); return; } prog(); if(Date.now()>=deadline){ clearInterval(timer); finish(); } },250); }
     function finish(){ if(over) return; over=true; clearInterval(timer); const pct=i?Math.round(right/i*100):0; const xs=stats(); const r=xs[id]||{n:0,c:0,best:0,bestTimed:{}}; r.n+=i; r.c+=right; r.best=Math.max(r.best||0,pct); if(c.timed){ r.bestTimed=r.bestTimed||{}; r.bestTimed[c.timed]=Math.max(r.bestTimed[c.timed]||0,right); } xs[id]=r; S.save();
-      $('#mtq').innerHTML=`<h3>${right}/${i} correct (${pct}%)</h3>${c.timed?`<p>${right} right in ${c.timed/60} min${r.bestTimed[c.timed]===right&&right?' — new best 🏆':''} (best ${r.bestTimed[c.timed]}).</p>`:''}<p>${pct>=90?'Locked in. Try a harder setting? 🔥':pct>=70?'Solid. A few more rounds and it’s automatic.':'Keep going — reps are how this sticks.'}</p><button class="btn" id="mtagain">Again</button> <a class="btn ghost" href="#exs/${id}">Change settings</a>`;
+      $('#mtq').innerHTML=`<h3>${right}/${i} correct (${pct}%)</h3>${c.timed?`<p>${right} right in ${c.timed/60} min${r.bestTimed[c.timed]===right&&right?' — new best 🏆':''} (best ${r.bestTimed[c.timed]}).</p>`:''}<p>${pct>=90?'Locked in. Try a harder setting? 🔥':pct>=70?'Solid. A few more rounds and it’s automatic.':'Keep going — reps are how this sticks.'}</p><button class="btn big block" id="mtagain">Again</button><a class="sublink" href="#exs/${id}">Change settings</a>`;
       $('#mtagain').onclick=()=>route(); }
     function next(){
       if(over) return; if(c.n && !deadline && i>=c.n) return finish();

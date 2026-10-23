@@ -33,25 +33,25 @@
   function resolveTo(t,deg){ const s=SEMI[deg]; const path= s===0?[0]: s<=5? [s, ...[0,2,4,5].filter(x=>x<s).reverse()] : [s, ...[7,9,11,12].filter(x=>x>s)]; if(path[path.length-1]!==0&&path[path.length-1]!==12) path.push(s<=5?0:12); return path.map(x=>t+x); }
   // ---- views ----
   routes.rp = v => { const c=cfg(), r=stats(); const lvl=Math.min(r.level||1, pro()?8:3);
-    v.innerHTML=`<a class="back" href="#ear">← ear</a><h2>🎯 Relative pitch</h2><p class="muted">Hear everything in relation to a key. A cadence (or drone) sets the key, then you name scale degrees, intervals and short melodies. Adaptive: it levels you up at 85%+ and back down under 50%.</p>
-     <div class="card"><div class="row" style="justify-content:space-between"><b>Level ${lvl}: ${LEVELS[lvl].n}</b><a class="lnk" href="#rps">⚙︎ settings</a></div><p class="muted">${LEVELS[lvl].d}</p><button class="btn big" id="rpgo">Start ▶︎</button>
+    v.innerHTML=`<a class="back" href="#ear">← ear</a><h2>Relative pitch</h2><p class="muted intro">A cadence sets the key, then you name what you hear. Levels up at 85%.</p>
+     <div class="card"><div class="row" style="justify-content:space-between"><b>Level ${lvl}: ${LEVELS[lvl].n}</b><a class="lnk" href="#rps">Settings</a></div><p class="muted">${LEVELS[lvl].d}</p><button class="btn big block" id="rpgo">Start</button>
      <p class="muted">${r.total.n} answered · ${pctOf(r.total)??'–'}% · best streak ${r.best||0}</p></div>
-     <h3>Levels</h3><div class="mtlist">${LEVELS.slice(1).map((L,i)=>`<div class="mtrow"><a class="mtgo${L.pro&&!pro()?' locked':''}" href="#rp/go/${i+1}"><b>${i+1}. ${L.n}${L.pro&&!pro()?' <em class="lk">🔒</em>':''}</b><span>${L.d}</span></a></div>`).join('')}</div>
+     <h3 class="sec">Levels</h3><div class="mtlist">${LEVELS.slice(1).map((L,i)=>`<div class="mtrow"><a class="mtgo${L.pro&&!pro()?' locked':''}" href="#rp/go/${i+1}"><b>${i+1}. ${L.n}${L.pro&&!pro()?' <em class="lk">🔒</em>':''}</b><span>${L.d}</span></a></div>`).join('')}</div>
      <h3>Scale degrees</h3><div class="rpstat">${DEG.map(([d])=>{ const o=r.deg[d]; return `<div><b>${d}</b><br>${o&&o.n?pctOf(o)+'%':'–'}<br><span class="muted">${o?o.n:0}</span></div>`; }).join('')}</div>
      <h3>Intervals</h3><div class="rpstat">${IVN.slice(1).map((n,i)=>{ const o=r.iv[n]; return `<div><b>${n}</b><br>${o&&o.n?pctOf(o)+'%':'–'}</div>`; }).join('')}</div>
      <p class="muted">Melodies: ${pctOf(r.frag)??'–'}% of ${r.frag.n} · Sing-back: ${pctOf(r.sing)??'–'}% of ${r.sing.n}</p>`;
     $('#rpgo').onclick=()=>go('rp/go/'+lvl); };
   routes.rps = v => { const c=cfg(); const row=(k,label,opts)=>`<div class="mtf"><div class="mtl">${label}</div><div class="chips">${opts.map(([val,l])=>`<button class="chip${c[k]===val?' on':''}" data-k="${k}" data-v='${JSON.stringify(val)}'>${l}</button>`).join('')}</div></div>`;
-    v.innerHTML=`<a class="back" href="#rp">← relative pitch</a><h2>⚙︎ Relative pitch settings</h2><div class="card mtset">
+    v.innerHTML=`<a class="back" href="#rp">← relative pitch</a><h2>Settings</h2><div class="card mtset">
       ${row('cad','Set the key with',[['iv','I–IV–V–I'],['v','I–V–I'],['scale','scale + chord'],['drone','drone']])}
       ${row('fixedKey','Key',KEYS.map(k=>[k,k==='random'?'random':k]))}
       ${row('newKey','New key every',[[1,'question'],[4,'4 q'],[8,'8 q'],[16,'16 q'],[0,'never']])}
-      ${row('replay','Replay the cadence before every question',[[true,'On'],[false,'Off']])}
+      </div><details class="fold" id="rpmore"${v._rpo?' open':''}><summary>More options</summary><div class="mtset">${row('replay','Replay the cadence before every question',[[true,'On'],[false,'Off']])}
       ${row('adaptive','Adaptive difficulty',[[true,'On'],[false,'Off (stay on the level I pick)']])}
       ${row('labels','Answer labels',[['num','numbers'],['sol','solfège (movable do)'],['both','both']])}
       ${row('resolve','Resolve to the tonic after each answer',[[true,'On'],[false,'Off']])}
       ${row('sing','Sing-back with the mic (degrees)',[[true,'On'],[false,'Off']])}
-      </div><p class="muted">Sing-back uses the tuner: after you answer, sing the note (any octave) and hold it — within ±30 cents counts.${pro()?'':' Sing-back is part of Pro.'}</p>`;
+      </div><p class="muted">Sing-back uses the tuner: after you answer, sing the note (any octave) and hold it — within ±30 cents counts.${pro()?'':' Sing-back is part of Pro.'}</p></details>`; $('#rpmore').ontoggle=e=>{ v._rpo=e.target.open; };
     $$('.chip',v).forEach(b=>b.onclick=()=>{ c[b.dataset.k]=JSON.parse(b.dataset.v); saveCfg(c); routes.rps(v); }); };
   const _rp=routes.rp; routes.rp=(v,a,b)=>{ if(a==='go') return session(v,+b||1); return _rp(v); };
   function session(v, level){
