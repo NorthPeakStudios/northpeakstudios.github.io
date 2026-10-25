@@ -7,7 +7,7 @@
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var Q = null, D = null, S = window.MPScore;
   var TAGS = { 'Big Five (OCEAN)': 'About you', 'Attachment': 'You and your people', 'Conflict style (Thomas-Kilmann)': 'When things clash', 'Values (Schwartz)': 'What matters to you', 'Stress & coping': 'Under pressure', 'Social energy': 'Social battery', 'Decision-making (GDMS-style)': 'How you decide', 'Scenarios (mixed)': 'What would you do?' };
-  var PRIV = 'Your answers are saved to your account so you can see your results. Not a diagnosis \u2014 for fun and self-reflection.';
+  var PRIV = 'Your answers are saved to your account and to Northpeak Studios, and may be reviewed to improve Mindprint.', DISC = 'Not a diagnosis \u2014 for fun and self-reflection.';
   var C = function () { return window.Cloud || null; };
   var signed = function () { return !!(C() && C().signedIn()); };
   var pro = function () { return !!(C() && C().isPro()); };
@@ -25,10 +25,37 @@
   function rid() { var a = 'abcdefghjkmnpqrstuvwxyz23456789', b = crypto.getRandomValues(new Uint8Array(10)), s = ''; for (var i = 0; i < b.length; i++) s += a[b[i] % a.length]; return 'r:' + s; }
   var syncing = false;
   function sync() { if (!signed() || syncing) return Promise.resolve(); syncing = true; return C().sync(DB).catch(function () {}).then(function () { syncing = false; }); }
-  function done(kind) { try { if (C()) C().api('/api/mp/done', { kind: kind }).catch(function () {}); } catch (e) {} }
+  /* every finished quiz goes to the person's account and to Northpeak's database (they consented on screen first) */
+  function submit(r, extra) {
+    var rich = r.answers.map(function (x) { if (r.kind === 'main') { var q = Q.questions.find(function (z) { return z.id === x.q; }); return { q: x.q, a: x.a, question: q ? q.text : '', answer: q && q.options[x.a] ? q.options[x.a].t : '' }; }
+      var dq = D && D.questions.find(function (z) { return z.id === x.q; }); return { q: x.q, v: x.v, question: x.t || (dq && dq.text) || '', answer: dq && window.MPReport ? window.MPReport.fmtV(dq, x.v) : String(x.v) }; });
+    var b = { id: r.id, kind: r.kind, name: r.name || '', answers: rich, consent: true, secs: r.secs || 0, qv: r.qv || 1 };
+    for (var k in (extra || {})) b[k] = extra[k];
+    var pend = LS.get('pending', []).filter(function (x) { return x.id !== r.id; }); pend.push(b); LS.set('pending', pend);
+    return flush();
+  }
+  function flush() {
+    var pend = LS.get('pending', []); if (!pend.length) return Promise.resolve();
+    var send = function (b) { var h = { 'content-type': 'application/json' }; if (signed()) h.authorization = 'Bearer ' + C().acct.token;
+      return fetch('https://mindprint.sites.tab.bot/api/mp/submit', { method: 'POST', headers: h, body: JSON.stringify(b), cache: 'no-store', credentials: 'omit' }).then(function (x) { return x.json(); }).then(function (j) { if (j && (j.ok || j.error === 'bad_answers' || j.error === 'consent_required')) LS.set('pending', LS.get('pending', []).filter(function (y) { return y.id !== b.id; })); }); };
+    return pend.reduce(function (p, b) { return p.then(function () { return send(b).catch(function () {}); }); }, Promise.resolve());
+  }
+  function compact(sc) { var o = { scales: {} }; for (var k in sc.scales) o.scales[k] = sc.scales[k].pct; o.attachment = sc.attachment.style;
+    o.conflict = (S.top(sc.conflict, 2) || []).map(function (x) { return x.key; }); o.values = S.top(sc.values, 3).map(function (x) { return x.key; }); o.coping = S.top(sc.coping, 2).map(function (x) { return x.key; }); o.decision = S.top(sc.decision, 1).map(function (x) { return x.key; });
+    o.headlines = S.headlines(sc).map(function (h) { return h.title; }); return o; }
 
-  function loadQ() { return Q ? Promise.resolve(Q) : fetch('data/questions.json?v=1').then(function (r) { return r.json(); }).then(function (j) { Q = j; S.setNames(j.scales); return Q; }); }
-  function loadD() { return D ? Promise.resolve(D) : fetch('data/deep.json?v=1').then(function (r) { return r.json(); }).then(function (j) { D = j; return D; }); }
+  /* results the owner attached to this account's email (from an earlier quiz): saved once into this account, encrypted */
+  function imports() {
+    if (!signed()) return Promise.resolve(0);
+    return C().api('/api/mp/imports').then(function (j) {
+      var got = [], n = 0;
+      (j.imports || []).forEach(function (im) { (im.results || []).forEach(function (r) { if (r && r.id && /^r:[\w.-]{4,60}$/.test(r.id) && (r.kind === 'main' || r.kind === 'deep') && Array.isArray(r.answers)) { if (!byId(r.id)) { DB.put(r); n++; } } }); got.push(im.id); });
+      if (!got.length) return 0;
+      return C().sync(DB).then(function () { return C().api('/api/mp/imports/claim', { ids: got }); }).then(function () { if (n) toast(n === 1 ? 'A saved result was added to your history' : n + ' saved results were added to your history'); return n; });
+    }).catch(function () { return 0; });
+  }
+  function loadQ() { return Q ? Promise.resolve(Q) : fetch('data/questions.json?v=2').then(function (r) { return r.json(); }).then(function (j) { Q = j; S.setNames(j.scales); return Q; }); }
+  function loadD() { return D ? Promise.resolve(D) : fetch('data/deep.json?v=2').then(function (r) { return r.json(); }).then(function (j) { D = j; return D; }); }
   function scoreOf(r) { return S.score(Q, r.answers); }
   function fmtDate(t) { return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
   function toast(msg) { var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(function () { t.remove(); }, 2600); }
@@ -50,7 +77,7 @@
     V.innerHTML = '<section class="hero"><p class="eyebrow">Mindprint</p><h1>What do your answers say about <span class="grad">you</span>?</h1>' +
       '<p class="lede">77 quick questions built on real psychology: the Big Five, attachment, conflict style, values, stress and how you decide. About 10 minutes.</p>' +
       (prog && prog.i > 0 ? '<a class="btn big block" href="#quiz">Continue the quiz (' + Math.min(prog.i + 1, Q.questions.length) + ' of ' + Q.questions.length + ')</a>' : '<a class="btn big block" href="#start">' + (last ? 'Take it again' : 'Start the quiz') + '</a>') +
-      (last ? '<a class="btn ghost block" href="#results/' + encodeURIComponent(last.id) + '">See your latest results</a>' : '') + '<p class="muted small">' + esc(PRIV) + '</p></section>' +
+      (last ? '<a class="btn ghost block" href="#results/' + encodeURIComponent(last.id) + '">See your latest results</a>' : '') + '<p class="muted small">' + DISC + '</p></section>' +
       '<div class="card deepcard"><p class="tag">Pro</p><h2>Deep Dive: Childhood &amp; Family</h2><p>50 more questions about where you come from, written around your own results. Mostly typed answers, and you can skip any of them. Unlocks a full written report, a spreadsheet of your answers and a printable PDF.</p>' +
       (dprog && dprog.i > 0 ? '<a class="btn block" href="#deepq">Continue your Deep Dive</a>' : '<a class="btn block" href="#deep">' + (pro() ? 'Open the Deep Dive' : 'See what\u2019s in Pro') + '</a>') + '</div>' +
       '<div class="card"><h2>How it works</h2><ol class="steps"><li>Answer honestly. There are no right or wrong answers.</li><li>See your results right away: your scores and what they mean, in plain English.</li><li>Sign in to keep every result in your account and retake it any time.</li></ol></div>';
@@ -60,9 +87,10 @@
   function start() {
     var nm = LS.get('name', '') || '';
     V.innerHTML = '<div class="card"><h2>Before you start</h2><label>What should we call you?<input id="nm" maxlength="40" autocomplete="given-name" placeholder="First name or nickname" value="' + esc(nm) + '"></label>' +
-      '<p class="muted small">' + esc(PRIV) + (signed() ? '' : ' You can take it without an account, and sign in afterwards to save your results.') + '</p>' +
-      '<button class="btn big block" id="go">Start</button></div>';
-    $('#go').onclick = function () { var n = $('#nm').value.trim().slice(0, 40); LS.set('name', n); LS.set('quiz', { name: n, i: 0, answers: {}, t: Date.now() }); location.hash = '#quiz'; };
+      '<label class="ck"><input type="checkbox" id="ok"><span>' + esc(PRIV) + '</span></label><p class="muted small">' + DISC + '</p>' + (signed() ? '' : '<p class="muted small">You can take it without an account and sign in afterwards to keep your results in your history.</p>') +
+      '<button class="btn big block" id="go" disabled>Start</button></div>';
+    $('#ok').onchange = function () { $('#go').disabled = !this.checked; };
+    $('#go').onclick = function () { if (!$('#ok').checked) return; var n = $('#nm').value.trim().slice(0, 40); LS.set('name', n); LS.set('quiz', { name: n, i: 0, answers: {}, t: Date.now() }); location.hash = '#quiz'; };
   }
   function quiz() {
     var st = LS.get('quiz', null); if (!st) { location.hash = '#start'; return; }
@@ -82,7 +110,7 @@
   function finishQuiz(st) {
     var ans = Q.questions.filter(function (q) { return st.answers[q.id] != null; }).map(function (q) { return { q: q.id, a: st.answers[q.id] }; });
     var r = { id: rid(), kind: 'main', at: Date.now(), name: st.name || '', answers: ans, qv: Q.version || 1, secs: Math.round((Date.now() - (st.t || Date.now())) / 1000) };
-    DB.put(r); LS.set('quiz', null); done('main'); sync();
+    DB.put(r); LS.set('quiz', null); submit(r, { scores: compact(scoreOf(r)) }); sync();
     location.hash = '#results/' + encodeURIComponent(r.id);
   }
 
@@ -104,7 +132,7 @@
     });
     html += '<div class="card deepcard"><p class="tag">Pro</p><h2>Go deeper</h2><p>Get the full written report: what your results say about your strengths, blind spots, relationships, stress and school or work fit, plus the Deep Dive into your childhood and family, a spreadsheet of every answer and a printable PDF.</p>' +
       (pro() ? '<a class="btn block" href="#report/' + encodeURIComponent(r.id) + '">Open your full report</a><a class="btn ghost block" href="#deep">Deep Dive</a>' : '<a class="btn block" href="#pro">Unlock Mindprint Pro \u00b7 $35</a>') + '</div>';
-    html += signed() ? '<p class="muted small center">Saved to your account.</p>' : '<div class="card"><p><b>Keep these results.</b> Sign in or create a free Northpeak account and they\u2019re saved to it, encrypted so only you can read them.</p><a class="btn ghost block" href="#account">Sign in to save</a></div>';
+    html += signed() ? '<p class="muted small center">Saved to your account.</p>' : '<div class="card"><p><b>Keep these results.</b> Sign in or create a free Northpeak account to keep them in your history on any device.</p><a class="btn ghost block" href="#account">Sign in to save</a></div>';
     html += '<div class="row2"><a class="btn ghost" href="#start">Retake</a><a class="btn ghost" href="#history">History</a></div><p class="muted small center">Not a diagnosis \u2014 for fun and self-reflection.</p>';
     V.innerHTML = html;
   }
@@ -125,10 +153,11 @@
     V.innerHTML = '<div class="card"><p class="tag">Deep Dive</p><h1 class="pt">Childhood &amp; Family</h1><p>50 questions about where you come from: early memories, home, your family, growing up and how it shaped who you are now. Most are typed answers.</p>' +
       '<ul class="care"><li><b>Every question is optional.</b> Tap Skip on anything you don\u2019t want to answer.</li><li>It works for any kind of family. Answer for whoever raised you.</li><li>Don\u2019t include names, addresses or anything that identifies someone.</li></ul>' +
       (main ? (fl.length ? '<p class="muted small">Some questions are written around your results: ' + esc(fl.map(function (f) { return D.flags[f]; }).join('; ').toLowerCase()) + '.</p>' : '') : '<p class="muted small">Tip: take the main quiz first and some questions will be tailored to your results.</p>') +
-      '<p class="muted small">' + esc(PRIV) + '</p>' +
+      '<label class="ck"><input type="checkbox" id="ok"><span>' + esc(PRIV) + '</span></label><p class="muted small">' + DISC + '</p>' +
       (prog && prog.i > 0 ? '<button class="btn big block" id="cont">Continue (' + (prog.i + 1) + ' of 50)</button><button class="btn ghost block" id="go">Start over</button>' : '<button class="btn big block" id="go">Start the Deep Dive</button>') + '</div>';
-    $('#go').onclick = function () { LS.set('deepq', { i: 0, answers: {}, flags: fl, main: main ? main.id : null, t: Date.now() }); location.hash = '#deepq'; };
-    if ($('#cont')) $('#cont').onclick = function () { location.hash = '#deepq'; };
+    var gate = function () { var ok = $('#ok').checked; V.querySelectorAll('#go,#cont').forEach(function (b) { b.disabled = !ok; }); }; $('#ok').onchange = gate; gate();
+    $('#go').onclick = function () { if (!$('#ok').checked) return; LS.set('deepq', { i: 0, answers: {}, flags: fl, main: main ? main.id : null, t: Date.now(), ok: true }); location.hash = '#deepq'; };
+    if ($('#cont')) $('#cont').onclick = function () { if (!$('#ok').checked) return; location.hash = '#deepq'; };
   }
   function deepView(q, fl) { var a = q.alt && fl.indexOf(q.alt.flag) >= 0 ? q.alt : null; return { intro: a && a.intro, text: (a && a.text) || q.text }; }
   function deepQ() {
@@ -158,12 +187,13 @@
     var n = Object.keys(st.answers).filter(function (k) { return st.answers[k] != null; }).length;
     V.innerHTML = '<div class="card"><h1 class="pt">That\u2019s all 50.</h1><p>You answered ' + n + ' and skipped ' + (50 - n) + '. Thanks for sharing as much as you did.</p>' +
       '<p class="soft">If any of these questions brought up hard feelings, it can really help to talk to someone you trust, like a friend, a family member, a teacher or a school counselor.</p>' +
-      '<p class="muted small">' + esc(PRIV) + '</p><button class="btn big block" id="save">Save and see my report</button><button class="btn ghost block" id="rev">Go back and review</button></div>';
+      '<label class="ck"><input type="checkbox" id="ok" checked><span>' + esc(PRIV) + '</span></label><button class="btn big block" id="save">Save and see my report</button><button class="btn ghost block" id="rev">Go back and review</button></div>';
     $('#rev').onclick = function () { st.i = 0; LS.set('deepq', st); deepQ(); };
-    $('#save').onclick = function () {
+    $('#ok').onchange = function () { $('#save').disabled = !this.checked; };
+    $('#save').onclick = function () { if (!$('#ok').checked) return;
       var ans = D.questions.filter(function (q) { return st.answers[q.id] != null; }).map(function (q) { return { q: q.id, v: st.answers[q.id], t: deepView(q, st.flags || []).text }; });
       var r = { id: rid(), kind: 'deep', at: Date.now(), name: LS.get('name', ''), answers: ans, flags: st.flags || [], main: st.main || null, qv: D.version || 1 };
-      DB.put(r); LS.set('deepq', null); done('deep'); sync();
+      DB.put(r); LS.set('deepq', null); submit(r, { flags: r.flags, main_id: r.main }); sync();
       var m = st.main && byId(st.main) ? st.main : (results('main')[0] || {}).id;
       location.hash = m ? '#report/' + encodeURIComponent(m) : '#history';
     };
@@ -192,10 +222,10 @@
       V.innerHTML = '<div class="card"><h1 class="pt">Sign in</h1><p class="muted">One Northpeak account works in every Northpeak app: Synapse, Axon, Liminal, Cadence and Mindprint. All-Access carries over.</p>' +
         '<label>Email<input id="ae" type="email" autocomplete="username" autocapitalize="none" spellcheck="false"></label><label>Password<input id="ap" type="password" autocomplete="current-password"></label>' +
         '<button class="btn big block" id="li">Sign in</button><button class="btn ghost block" id="su">Create account</button><p id="am" class="muted"></p>' +
-        '<p class="muted small">Your results are encrypted on your device with a key made from your password before they\u2019re saved, so only you can read them.</p></div>';
+        '<p class="muted small">Your password never leaves this device. Your answers are saved to your account and to Northpeak Studios.</p></div>';
       var go = function (kind) { var e = $('#ae').value.trim(), p = $('#ap').value; if (!e || !p) return $('#am').textContent = 'Add your email and password.'; if (kind === 'signup' && p.length < 8) return $('#am').textContent = ERR.short;
         $('#am').textContent = kind === 'signup' ? 'Creating your account\u2026' : 'Signing in\u2026'; $('#li').disabled = $('#su').disabled = true;
-        C().auth(kind, e, p).then(function (j) { return C().linkNorthpeak(e, p, j.northpeak).then(function () { return C().refresh(true); }); }).then(function () { return sync(); })
+        C().auth(kind, e, p).then(function (j) { return C().linkNorthpeak(e, p, j.northpeak).then(function () { return C().refresh(true); }); }).then(function () { return sync(); }).then(imports)
           .then(function () { toast('Signed in'); account(); }).catch(function (x) { $('#am').textContent = em(x); $('#li').disabled = $('#su').disabled = false; }); };
       $('#li').onclick = function () { go('login'); }; $('#su').onclick = function () { go('signup'); };
       return;
@@ -235,8 +265,9 @@
   /* ---------- boot ---------- */
   function onCloud() {
     C().onAccountChange(function () { var h = location.hash; if (/^#(account|pro|home|history)?$/.test(h) || h === '') route(); });
-    if (signed()) C().refresh(true).then(function () { return sync(); }).then(function () { var h = location.hash; if (/^#(home|history|pro)?$/.test(h)) route(); });
+    if (signed()) C().refresh(true).then(function () { return sync(); }).then(imports).then(function () { var h = location.hash; if (/^#(home|history|pro)?$/.test(h)) route(); });
   }
+  flush();
   if (C()) onCloud(); else window.addEventListener('cloud-ready', onCloud, { once: true });
   document.addEventListener('visibilitychange', function () { if (!document.hidden && signed()) C().refresh(false); });
   route();

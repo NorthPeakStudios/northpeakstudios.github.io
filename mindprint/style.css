@@ -72,3 +72,4 @@ foot,.foot{display:block;text-align:center;color:var(--mute);font-size:13px;marg
   .bt{background:#eee;-webkit-print-color-adjust:exact;print-color-adjust:exact}.bt i{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .grad{color:#5b3fd1;-webkit-text-fill-color:#5b3fd1;background:none}.eyebrow,.tag{color:#7a4bd8}.rep td{border-color:#ddd}
 }
+.ck{display:flex;gap:10px;align-items:flex-start;margin:14px 0 4px;color:var(--mute);font-size:14px;line-height:1.4;cursor:pointer}.ck input{width:20px;height:20px;flex:0 0 20px;margin:1px 0 0;accent-color:#b39dff}

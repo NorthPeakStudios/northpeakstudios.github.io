@@ -62,7 +62,7 @@
     fearful: { name: 'Mixed (wants closeness, guards it)', text: 'You want close relationships, and part of you also protects yourself from getting hurt. You might go back and forth between reaching out and pulling back.' }
   };
   var CF = { cf_competing: 'you stand up for your side and aim to win the argument', cf_collaborating: 'you try to work things out so both people get what they need', cf_compromising: 'you look for a fair middle ground quickly', cf_accommodating: 'you often give way to keep the peace', cf_avoiding: 'you step back and let things cool off instead of arguing' };
-  var VAL = { v_self_direction: 'freedom and doing things your own way', v_stimulation: 'excitement, novelty and adventure', v_hedonism: 'fun and enjoying life', v_achievement: 'success and being good at what you do', v_power: 'status and having influence', v_security: 'safety and stability', v_conformity: 'following the rules and doing what is expected', v_tradition: 'tradition and family customs', v_benevolence: 'taking care of the people close to you', v_universalism: 'fairness and caring about the world' };
+  var VAL = { v_self_direction: 'freedom to do things your way', v_stimulation: 'new experiences', v_hedonism: 'enjoying life', v_achievement: 'success', v_power: 'influence', v_security: 'feeling safe', v_conformity: 'following the rules', v_tradition: 'tradition', v_benevolence: 'taking care of your people', v_universalism: 'fairness for everyone' };
   var COPE = { cope_tackle: 'tackle the problem head-on', cope_support: 'reach out to someone you trust', cope_distract: 'distract yourself with something else', cope_reframe: 'look for the bright side or a new way to see it', cope_express: 'let your feelings out', cope_withdraw: 'go quiet and handle it on your own' };
   var DM = { dm_rational: 'think it through and weigh the options', dm_intuitive: 'go with your gut', dm_dependent: 'ask people you trust what they think', dm_spontaneous: 'decide fast and figure it out as you go', dm_avoidant: 'put the decision off until you have to make it' };
 
@@ -77,7 +77,7 @@
     out.push({ id: 'big5', title: 'Big Five personality', keys: ['O', 'C', 'E', 'A', 'N'], text: 'The Big Five is the most widely used model of personality in psychology. Here is where you landed on each trait.' ,
       items: ['O', 'C', 'E', 'A', 'N'].filter(function (k) { return s[k]; }).map(function (k) { return { key: k, name: nm(k), pct: s[k].pct, band: band(s[k].pct), text: (few(sc, k) ? 'Leaning: ' : '') + BIG[k][lvl(s[k].pct)] }; }) });
     var at = ATT[sc.attachment.style], fewA = few(sc, 'att_anxiety') || few(sc, 'att_avoidance');
-    out.push({ id: 'attach', title: 'Attachment style', keys: ['att_anxiety', 'att_avoidance'], text: (fewA ? 'You lean toward ' : 'Your style looks ') + at.name.toLowerCase() + '. ' + at.text });
+    out.push({ id: 'attach', title: 'Attachment style', keys: ['att_anxiety', 'att_avoidance'], text: (fewA ? 'Your attachment style leans ' : 'Your attachment style looks ') + at.name.toLowerCase() + '. ' + at.text });
     var c = top(sc.conflict, 2);
     if (c.length) out.push({ id: 'conflict', title: 'Conflict style', keys: sc.conflict.map(function (x) { return x.key; }), text: 'When things clash, ' + CF[c[0].key] + '.' + (c[1] ? ' Your backup style: ' + CF[c[1].key] + '.' : '') });
     var v = top(sc.values, 3);
@@ -95,10 +95,10 @@
     var cand = [], s = sc.scales;
     var H = { O: ['The curious one', 'The practical one'], C: ['The planner', 'The free spirit'], E: ['The people person', 'The recharger'], A: ['The peacekeeper', 'The straight shooter'], N: ['The deep feeler', 'The steady one'],
       O_fantasy: ['Big imagination', 'Feet on the ground'], A_empathy: ['Big heart', 'Cool head'], E_excitement: ['Thrill seeker', 'Calm over chaos'], N_anxiety: ['The overthinker', 'The low-worry type'], A_trust: ['Trusts easily', 'Trust is earned'], C_order: ['Everything in its place', 'Organized chaos'] };
-    Object.keys(H).forEach(function (k) { if (s[k] && s[k].n >= 2) { var d = s[k].pct - 50; if (Math.abs(d) >= 15) cand.push({ key: k, d: Math.abs(d) + (k.length === 1 ? 4 : 0), title: H[k][d > 0 ? 0 : 1], pct: s[k].pct }); } });
+    Object.keys(H).forEach(function (k) { if (s[k] && s[k].n >= 2) { var d = s[k].pct - 50; if (Math.abs(d) >= 12) cand.push({ key: k, d: Math.abs(d) + (k.length === 1 ? 4 : 0), title: H[k][d > 0 ? 0 : 1], pct: s[k].pct }); } });
     cand.sort(function (a, b) { return b.d - a.d; });
     var seen = {}, out = [];
-    cand.forEach(function (c) { var g = c.key[0]; if (out.length < 4 && !seen[c.title] && !(seen[g] > 1)) { seen[c.title] = 1; seen[g] = (seen[g] || 0) + 1; out.push(c); } });
+    cand.forEach(function (c) { var g = c.key[0]; if (out.length < 4 && !seen[c.title] && !seen[g]) { seen[c.title] = 1; seen[g] = (seen[g] || 0) + 1; out.push(c); } });
     return out;
   }
   /* Deep Dive personalization flags, from main-quiz scores */
