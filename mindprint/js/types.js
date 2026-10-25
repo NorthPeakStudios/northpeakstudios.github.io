@@ -1,4 +1,4 @@
-/* Mindprint "Your types" hub (Northpeak Studios), v2. Every result here is INFERRED from answers you already gave:
+/* Mindprint "Your types" hub (Northpeak Studios), v3 (1.1.3: overrides, retake banks, Socionics-style, lenses). Every result here is INFERRED from answers you already gave:
    the main quiz's 0-100 trait scores, a few Deep Dive answers (childhood and family), and any optional "sharpen" questions (data/addon.json).
    None of these is an official test (not the MBTI, not a licensed Enneagram or DISC assessment). Fun, rough labels with an honest confidence.
    all(p, style, opt): p = { scaleKey: 0-100 }, style = attachment word, opt = { n: {scaleKey: questions}, deep: [{q, v}], addon: [{q, a}], AQ: addon questions }.
@@ -33,19 +33,20 @@
   }
   /* ---- Sharpen questions: each option votes on trait axes (signed) and/or system categories. "Other" answers count as answered, unscored. ---- */
   function addonTally(addon, AQ) {
-    var byId = {}, ax = {}, axMax = {}, cat = {}, catMax = {}, per = {};
+    var byId = {}, ax = {}, axMax = {}, cat = {}, catMax = {}, per = {}, rt = {};
     ((AQ && AQ.questions) || []).forEach(function (q) { byId[q.id] = q; });
-    (addon || []).forEach(function (a) { var q = byId[a.q]; if (!q) return; per[q.sys] = (per[q.sys] || 0) + 1;
-      var o = a.a != null && a.a >= 0 ? q.options[a.a] : null, keys = {};
+    (addon || []).forEach(function (a) { var q = byId[a.q]; if (!q || a.a == null) return; per[q.sys] = (per[q.sys] || 0) + 1;
+      var o = a.a >= 0 ? q.options[a.a] : null, keys = {}, wt = a.r || q.bank === 'B' ? 2 : 1; // retake answers count double: a retake is a correction
+      if (a.r || q.bank === 'B') rt[q.sys] = (rt[q.sys] || 0) + 1;
       q.options.forEach(function (op) { for (var k in (op.v || {})) keys[k] = 1; });
       for (var k in keys) { var mx = Math.max.apply(null, q.options.map(function (op) { return Math.abs((op.v || {})[k] || 0); })) || 1, w = o && o.v ? (o.v[k] || 0) : null;
         if (w == null) continue; // Other: unscored
-        if (/^(e\d|ar_|ds_|cg_|ls_)/.test(k)) { cat[k] = (cat[k] || 0) + Math.max(0, w); catMax[k] = (catMax[k] || 0) + mx; }
-        else { ax[k] = (ax[k] || 0) + w; axMax[k] = (axMax[k] || 0) + mx; } } });
+        if (/^(e\d|ar_|ds_|cg_|ls_)/.test(k)) { cat[k] = (cat[k] || 0) + wt * Math.max(0, w); catMax[k] = (catMax[k] || 0) + wt * mx; }
+        else { ax[k] = (ax[k] || 0) + wt * w; axMax[k] = (axMax[k] || 0) + wt * mx; } } });
     var axis = {}, cats = {};
     for (var a in ax) axis[a] = { pct: clamp(50 + 50 * ax[a] / axMax[a], 0, 100), n: axMax[a] };
     for (var c in cat) cats[c] = { pct: 100 * cat[c] / catMax[c], n: catMax[c] };
-    return { axis: axis, cat: cats, per: per };
+    return { axis: axis, cat: cats, per: per, rt: rt };
   }
   var K = 3; // the main-quiz estimate counts like K extra answers when blended with sharpen answers
   function blend(base, add) { if (!add) return base; var m = Math.min(12, add.n); return Math.round((base * K + add.pct * m) / (K + m)); }
@@ -201,6 +202,151 @@
       { level: 'Type', name: t.four.code + ' \u00b7 ' + t.four.name, note: 'MBTI-style' }, { level: 'Subtype', name: (p.N >= 50 ? 'Sensitive' : 'Steady') + ' \u00b7 ' + t.ennea.code, note: (p.N >= 50 ? 'feels stress strongly' : 'stays calm under stress') + ', Enneagram-style ' + t.ennea.name.replace(/^The /, '').toLowerCase() }];
   }
 
+  /* ---- 14. Lenses: Odin's list of categorization ideas, as ways of looking at the same answers (Oct 25 2026). Pure functions of the scores above. ---- */
+  /* Dendrogram: average-linkage merge of the 8 cluster profiles (computed here from the profiles, so the tree is real for these profiles) */
+  var TREE = (function () {
+    var nodes = CL.map(function (c) { return { keys: [c[0]], v: c[4], h: 0, kids: null }; });
+    function dist(a, b) { var s = 0, n = 0; a.keys.forEach(function (x) { b.keys.forEach(function (y) { var u = CL.filter(function (c) { return c[0] === x; })[0][4], w = CL.filter(function (c) { return c[0] === y; })[0][4]; s += Math.sqrt(u.reduce(function (t, q, i) { return t + Math.pow(q - w[i], 2); }, 0) / 5); n++; }); }); return s / n; }
+    while (nodes.length > 1) { var bi = 0, bj = 1, bd = 1e9; for (var i = 0; i < nodes.length; i++) for (var j = i + 1; j < nodes.length; j++) { var d = dist(nodes[i], nodes[j]); if (d < bd) { bd = d; bi = i; bj = j; } }
+      var m = { keys: nodes[bi].keys.concat(nodes[bj].keys), h: Math.round(bd), kids: [nodes[bi], nodes[bj]] }; nodes = nodes.filter(function (x, k) { return k !== bi && k !== bj; }); nodes.push(m); }
+    return nodes[0];
+  })();
+  function clName(k) { var c = CL.filter(function (x) { return x[0] === k; })[0]; return c ? c[2] + ' ' + c[1] : k; }
+  function treeRows(node, mine, depth, out) { out = out || []; depth = depth || 0;
+    out.push({ depth: depth, leaf: !node.kids, label: node.kids ? 'Branch (' + node.keys.length + ' clusters, joined at distance ' + node.h + ')' : clName(node.keys[0]), mine: node.keys.indexOf(mine) >= 0 });
+    if (node.kids) node.kids.forEach(function (c) { treeRows(c, mine, depth + 1, out); }); return out; }
+  function clade(mine) { var path = [], n = TREE; while (n && n.kids) { var nx = n.kids.filter(function (c) { return c.keys.indexOf(mine) >= 0; })[0]; if (!nx) break; if (nx.kids) path.push(nx.keys.map(clName)); n = nx; } return path; }
+  var LAT = { curious: 'curiosus', practical: 'practicus', organized: 'ordinatus', spontaneous: 'spontaneus', social: 'socialis', lowkey: 'quietus', kind: 'benignus', blunt: 'directus', sensitive: 'sensibilis', unbothered: 'tranquillus',
+    daydreamer: 'somnians', grounded: 'terrestris', adventurous: 'audax', homebody: 'domesticus', ambitious: 'ambitiosus', chill: 'placidus', disciplined: 'disciplinatus', lastminute: 'serotinus', thrillseeker: 'periculosus', calm: 'serenus',
+    leader: 'dux', backseat: 'modestus', trusting: 'fidens', skeptical: 'scepticus', empath: 'empathicus', logical: 'logicus', overthinker: 'cogitabundus', carefree: 'securus', fiery: 'igneus', patient: 'patiens', justice: 'iustus', loyal: 'fidelis',
+    noveltyseeker: 'novator', traditional: 'traditionalis', driven: 'impigrus', perfectionist: 'perfectus', goodenough: 'contentus', risktaker: 'audens', cautious: 'cautus' };
+  var FAM = { trailblazer: 'Pioneeridae', dreamer: 'Somniidae', thinker: 'Cogitidae', anchor: 'Ancoridae', spark: 'Scintillidae', harmonizer: 'Concordidae', competitor: 'Certamidae', deepfeeler: 'Profundidae' };
+  var CLASSN = { NT: 'Cogitantes', NF: 'Idealistae', SJ: 'Custodes', SP: 'Artifices' };
+  var GENRE = { trailblazer: 'Adventure', dreamer: 'Fantasy', thinker: 'Sci-fi mystery', anchor: 'Slice of life', spark: 'Comedy', harmonizer: 'Feel-good ensemble', competitor: 'Sports drama', deepfeeler: 'Coming-of-age drama' };
+  var GUILD = { D: ['Vanguard Guild', 'leaders and doers who push things forward'], I: ['Herald Guild', 'connectors who rally people'], S: ['Hearth Guild', 'supporters who keep the group steady'], C: ['Scholar Guild', 'precise thinkers who get it right'] };
+  var SCHOOL = { v_self_direction: ['School of Freedom', 'thinking for yourself'], v_stimulation: ['School of Adventure', 'new experiences'], v_hedonism: ['School of Joy', 'enjoying life'], v_achievement: ['School of Ambition', 'being great at things'],
+    v_power: ['School of Influence', 'having a say'], v_security: ['School of Stability', 'safety and order'], v_conformity: ['School of Tradition', 'respecting how things are done'], v_tradition: ['School of Tradition', 'respecting how things are done'],
+    v_benevolence: ['School of Kindness', 'looking after your people'], v_universalism: ['School of Fairness', 'fairness for everyone'] };
+  var SYN = { curious: ['inquisitive', 'open-minded'], practical: ['down-to-earth', 'realistic'], organized: ['orderly', 'methodical'], spontaneous: ['flexible', 'impulsive'], social: ['outgoing', 'sociable'], lowkey: ['reserved', 'quiet'],
+    kind: ['warm', 'gentle'], blunt: ['direct', 'frank'], sensitive: ['intense', 'deep-feeling'], unbothered: ['calm', 'easygoing'], daydreamer: ['imaginative', 'dreamy'], grounded: ['realistic', 'level-headed'], adventurous: ['bold', 'daring'],
+    homebody: ['cozy', 'settled'], ambitious: ['driven', 'goal-oriented'], chill: ['relaxed', 'laid-back'], disciplined: ['steady', 'self-controlled'], lastminute: ['deadline-powered', 'crammer'], thrillseeker: ['adrenaline-lover', 'daring'],
+    calm: ['peaceful', 'mellow'], leader: ['take-charge', 'assertive'], backseat: ['easygoing', 'low-key'], trusting: ['open', 'good-faith'], skeptical: ['cautious', 'questioning'], empath: ['caring', 'compassionate'], logical: ['rational', 'analytical'],
+    overthinker: ['ruminator', 'reflective'], carefree: ['relaxed', 'unworried'], fiery: ['passionate', 'hot-headed'], patient: ['even-tempered', 'tolerant'], justice: ['fair-minded', 'principled'], loyal: ['devoted', 'faithful'],
+    noveltyseeker: ['restless', 'explorer'], traditional: ['classic', 'old-school'], driven: ['motivated', 'determined'], perfectionist: ['high-standards', 'meticulous'], goodenough: ['satisficer', 'easy to please'], risktaker: ['bold', 'gambler'], cautious: ['careful', 'safe'] };
+  var STEREO = { E: ['loud and attention-seeking', 'E_assertiveness'], I: ['shy and awkward', 'N_selfcon'], N: ['head in the clouds and disorganized', 'C_order', true], S: ['boring and predictable', 'E_excitement', true],
+    T: ['cold and unfeeling', 'A_empathy', true], F: ['too emotional', 'N'], J: ['rigid and controlling', 'O_adventure', true], P: ['lazy and messy', 'C_discipline', true] };
+  var ROLES = [['Leader', 'takes charge and sets direction', ['E_assertiveness', 'v_power', 'cf_competing']], ['Idea generator', 'throws out new ideas', ['O_ideas', 'O_fantasy', 'O']], ['Organizer', 'makes the plan and keeps track', ['C_order', 'C_discipline', 'C']],
+    ['Peacekeeper', 'smooths things over', ['A_cooperation', 'cf_accommodating', 'cf_compromising']], ['Hype person', 'keeps the energy up', ['E_sociability', 'E_excitement', 'v_hedonism']], ['Researcher', 'digs into the details', ['O_ideas', 'dm_rational', '-E_sociability']],
+    ['Critic', 'spots the flaws others miss', ['-A_trust', 'dm_rational', '-A_cooperation']], ['Supporter', 'looks after everyone', ['A_empathy', 'v_benevolence', 'cope_support']]];
+  function val(p, k) { return k[0] === '-' ? 100 - p[k.slice(1)] : p[k]; }
+  function lenses(t, p, opt) {
+    var bf = BF.map(function (x) { return Math.round(p[x]); }), L = {};
+    /* traits & dimensions: a 2D map (Big Five "higher-order" axes, a published but debated idea) + bins */
+    var plas = Math.round((p.E + p.O) / 2), stab = Math.round((p.A + p.C + (100 - p.N)) / 3);
+    var Q4 = plas >= 50 ? (stab >= 50 ? ['Grounded Explorer', 'curious and outgoing, and steady with it'] : ['Restless Explorer', 'curious and outgoing, with big feelings']) : (stab >= 50 ? ['Steady Anchor', 'reserved and calm, the reliable one'] : ['Inner World', 'reserved, with a lot going on inside']);
+    L.map = { x: plas, y: stab, quadrant: Q4[0], quadrantText: Q4[1], vector: BF.map(function (x, i) { return { key: x, v: bf[i] }; }),
+      points: CL.map(function (c) { return { key: c[0], emoji: c[2], name: c[1], color: c[3], x: Math.round((c[4][2] + c[4][0]) / 2), y: Math.round((c[4][3] + c[4][1] + 100 - c[4][4]) / 3) }; }) };
+    var BIN = ['Very low', 'Low', 'Middle', 'High', 'Very high'];
+    L.bins = BF.map(function (x, i) { var v = bf[i], b = v >= 80 ? 4 : v >= 60 ? 3 : v >= 41 ? 2 : v >= 21 ? 1 : 0; return { key: x, v: v, bin: b, name: BIN[b] }; });
+    var sd = Math.sqrt(bf.reduce(function (s, v) { var m = bf.reduce(function (a, b) { return a + b; }, 0) / 5; return s + Math.pow(v - m, 2); }, 0) / 5);
+    L.shape = sd < 9 ? ['Flat', 'your five traits sit close together, a balanced profile'] : sd < 18 ? ['Rolling', 'a few traits stand out, the rest are close to the middle'] : ['Spiky', 'big peaks and dips, your traits pull in strong directions'];
+    /* clusters & groups: soft membership (like a mixture model), sets, tribe/guild/school, roles, niche */
+    var ws = CL.map(function (c) { var d2 = c[4].reduce(function (s, x, i) { return s + Math.pow(x - bf[i], 2); }, 0) / 5; return { key: c[0], emoji: c[2], name: c[1], color: c[3], w: Math.exp(-d2 / (2 * 15 * 15)) }; }), wt = ws.reduce(function (s, x) { return s + x.w; }, 0) || 1;
+    L.mixture = ws.map(function (x) { return { key: x.key, emoji: x.emoji, name: x.name, color: x.color, pct: Math.round(100 * x.w / wt) }; }).sort(function (a, b) { return b.pct - a.pct; });
+    L.sets = t.four.letters.map(function (l) { return l.word + ' (' + l.letter + ')'; }).concat([t.temper.name, t.attach.name.replace(/ \(.*\)$/, ''), t.four.group]);
+    L.equiv = t.four.code + ' \u00b7 ' + t.temper.name;
+    L.tribe = { name: 'The ' + t.four.group, text: t.four.groupText };
+    L.guild = { name: GUILD[t.disc.key][0], text: GUILD[t.disc.key][1] };
+    var topv = ['v_self_direction', 'v_stimulation', 'v_hedonism', 'v_achievement', 'v_power', 'v_security', 'v_conformity', 'v_benevolence', 'v_universalism'].map(function (k) { return { key: k, v: p[k] }; }).sort(function (a, b) { return b.v - a.v; });
+    L.school = { name: SCHOOL[topv[0].key][0], text: SCHOOL[topv[0].key][1] }; L.priorities = topv.slice(0, 3).map(function (x) { return x.key; });
+    var roles = ROLES.map(function (r) { return { name: r[0], text: r[1], s: Math.round(r[2].reduce(function (s, k) { return s + val(p, k); }, 0) / r[2].length) }; }).sort(function (a, b) { return b.s - a.s; });
+    L.roles = roles.slice(0, 3);
+    L.niche = [p.E >= 55 ? 'a big, busy group' : p.E < 45 ? 'a small team or on your own' : 'a small group', p.C >= 55 ? 'with a clear plan' : p.C < 45 ? 'with room to improvise' : 'with some structure', p.O >= 55 ? 'on new, open-ended problems' : p.O < 45 ? 'on practical, hands-on work' : 'on a mix of ideas and doing'];
+    L.affinity = [t.cluster].concat(t.cluster.similar || []).map(function (c) { return c.emoji + ' ' + c.name; });
+    /* hierarchy & taxonomy: a playful Linnaean-style tree + the real dendrogram of the 8 profiles */
+    var genus = t.four.name.replace(/^The /, '').replace(/[^A-Za-z]/g, ''); genus = genus.replace(/(er|or|ist)$/, '$1') + (/[aeiou]$/.test(genus) ? '' : 'a');
+    var epi = (t.tags || []).map(function (x) { return LAT[x]; }).filter(Boolean)[0] || 'medius';
+    L.taxon = [['Domain', 'Personalia', 'every person'], ['Kingdom', p.E >= 50 ? 'Extraverta' : 'Introverta', p.E >= 50 ? 'gets energy from people' : 'recharges alone'], ['Phylum', p.N >= 50 ? 'Sensibilia' : 'Stabilia', p.N >= 50 ? 'feels things strongly' : 'stays steady'],
+      ['Class', CLASSN[t.four.groupCode] || t.four.group, 'the ' + t.four.group], ['Order', t.temper.name + 'ales', t.temper.name.toLowerCase() + ' temperament'], ['Family', FAM[t.cluster.key] || t.cluster.name, t.cluster.name],
+      ['Genus', genus, t.four.code + ' \u00b7 ' + t.four.name], ['Species', genus + ' ' + epi, 'named for your strongest tag'], ['Variant', t.ennea.code + ' \u00b7 ' + t.sloan.code, 'Enneagram-style + Big Five code']];
+    L.tree = treeRows(TREE, t.cluster.key); L.clade = clade(t.cluster.key);
+    L.supertype = t.four.group; L.subtype = t.four.code + (p.N >= 50 ? ' (sensitive variant)' : ' (steady variant)');
+    /* relations & networks */
+    L.graph = { traits: BF.map(function (x, i) { return { key: x, v: bf[i] }; }), results: [['four', t.four.code, ['E', 'O', 'A', 'C']], ['temper', t.temper.name, ['E', 'N']], ['cluster', t.cluster.emoji + ' ' + t.cluster.name.replace(/^The /, ''), BF], ['socionics', t.socionics.code, ['E', 'O', 'A', 'C']], ['disc', 'DISC ' + t.disc.key, ['E', 'A', 'C']], ['sloan', t.sloan.code, BF]] };
+    L.triples = [['You', 'are a', t.four.code + ' (' + t.four.name + ')'], [t.four.code, 'belongs to', 'the ' + t.four.group], ['You', 'sit in', t.cluster.name], [t.cluster.name, 'is near', (t.cluster.similar || []).map(function (c) { return c.name; }).join(' and ')],
+      ['You', 'Socionics-style', t.socionics.code + ' (' + t.socionics.letters + ')'], [t.socionics.code, 'has dual', t.socionics.dual + ' (' + t.socionics.dualLetters + ')'], ['You', 'lead with', 'Enneagram-style ' + t.ennea.code], ['You', 'work like', t.disc.name + ' (' + t.disc.color + ')'], ['You', 'value most', L.school.text]];
+    /* tiers & levels: how strongly each trait shows (not how good it is) */
+    var TK = ['O', 'C', 'E', 'A', 'N', 'O_fantasy', 'O_ideas', 'O_adventure', 'C_order', 'C_discipline', 'C_achievement', 'E_sociability', 'E_assertiveness', 'E_excitement', 'A_trust', 'A_empathy', 'A_cooperation', 'N_anxiety', 'N_anger', 'N_selfcon'];
+    var tiers = { S: [], A: [], B: [], C: [], D: [] }; TK.forEach(function (k) { var v = Math.round(p[k]), tr = v >= 85 ? 'S' : v >= 70 ? 'A' : v >= 55 ? 'B' : v >= 40 ? 'C' : 'D'; tiers[tr].push({ key: k, v: v }); });
+    for (var tk in tiers) tiers[tk].sort(function (a, b) { return b.v - a.v; }); L.tiers = tiers;
+    /* labels & tags */
+    L.facets = [['Energy', p.E >= 50 ? 'Outgoing' : 'Reserved'], ['Focus', p.O >= 50 ? 'Big-picture' : 'Hands-on'], ['Deciding', p.A >= 50 ? 'Heart-led' : 'Head-led'], ['Structure', p.C >= 50 ? 'Planner' : 'Flexible'], ['Stress', p.N >= 50 ? 'Feels it strongly' : 'Rolls off'], ['Closeness', t.attach.name], ['Work style', t.disc.name], ['Decisions', t.cognitive.name]];
+    L.thesaurus = (t.tags || []).map(function (x) { return { tag: x, syn: SYN[x] || [] }; });
+    L.genre = GENRE[t.cluster.key] || 'Drama'; L.comm = p.A < 45 ? 'Direct' : p.A > 55 ? 'Diplomatic' : 'Balanced'; L.modality = p.E >= 55 ? 'Group' : p.E < 45 ? 'One-on-one' : 'Both';
+    L.code = [t.four.code, t.ennea.code, t.temper.name.slice(0, 3).toUpperCase(), t.sloan.code, t.socionics.code, 'DISC-' + t.disc.key].join('-');
+    var adj = (t.tags && t.tags[0]) ? t.tags[0].replace(/^./, function (c) { return c.toUpperCase(); }) : 'Balanced';
+    L.persona = { name: 'The ' + adj + ' ' + t.arche.name.replace(/^The /, ''), emoji: t.arche.emoji, wants: t.ennea.text, work: t.disc.text, people: t.attach.name + ' with people, ' + (p.E >= 50 ? 'charged by company' : 'recharged by alone time') + '.', stress: p.N >= 55 ? 'Feels stress hard; needs a reset.' : p.N <= 45 ? 'Stays steady when things go wrong.' : 'Handles stress okay, with some off days.' };
+    /* patterns & forms */
+    var hi = BF.map(function (x, i) { return { k: x, d: bf[i] - 50 }; }).sort(function (a, b) { return b.d - a.d; }), TGW = { O: ['curious', 'practical'], C: ['organized', 'spontaneous'], E: ['social', 'lowkey'], A: ['kind', 'blunt'], N: ['sensitive', 'unbothered'] };
+    L.pattern = { hi: hi[0].k, lo: hi[4].k, name: (hi[0].d > 0 ? TGW[hi[0].k][0] : 'balanced') + ' + ' + (hi[4].d < 0 ? TGW[hi[4].k][1] : 'balanced'), text: 'Your highest trait is ' + hi[0].k + ' (' + (50 + hi[0].d) + ') and your lowest is ' + hi[4].k + ' (' + (50 + hi[4].d) + '). That pairing is the core of your configuration.' };
+    L.phenotype = (t.tags || []).slice(0, 3);
+    /* philosophy-ish: prototype, stereotype, natural kind, predicates */
+    var proto = t.four.clarity; L.prototype = { pct: proto, name: proto >= 60 ? 'Textbook member' : proto >= 35 ? 'Clear member' : proto >= 15 ? 'Typical-ish member' : 'Borderline member',
+      neighbor: (function () { var w = t.four.letters.slice().sort(function (a, b) { return a.clarity - b.clarity; })[0], i = t.four.letters.indexOf(w), pr = [['E', 'I'], ['N', 'S'], ['F', 'T'], ['J', 'P']][i], c = t.four.code.split(''); c[i] = c[i] === pr[0] ? pr[1] : pr[0]; return c.join(''); })() };
+    L.stereo = t.four.code.split('').map(function (l) { var s = STEREO[l], v = Math.round(s[2] ? 100 - p[s[1]] : p[s[1]]); return { letter: l, claim: s[0], fits: v >= 55 ? 'fits you' : v <= 45 ? 'doesn\u2019t fit you' : 'half true', v: v }; });
+    L.boxiness = Math.round(bf.reduce(function (s, v) { return s + Math.abs(v - 50) * 2; }, 0) / 5);
+    L.predicates = [['is curious', p.O >= 50], ['plans ahead', p.C >= 50], ['gets energy from people', p.E >= 50], ['puts others first', p.A >= 50], ['feels stress strongly', p.N >= 50], ['trusts easily', p.A_trust >= 50], ['likes a thrill', p.E_excitement >= 50], ['worries about closeness', p.att_anxiety >= 50]];
+    return L;
+  }
+  /* ---- 13. Socionics-style type (from the 4-letter type; MBTI <-> Socionics matching is debated, this uses the common rule: introverts swap j/p) ---- */
+  var SOC = { // code: [socionics letters, name, quadra]
+    ILE: ['ENTp', 'The Idea Spinner', 'Alpha'], SEI: ['ISFp', 'The Comfort Maker', 'Alpha'], ESE: ['ESFj', 'The Warm Host', 'Alpha'], LII: ['INTj', 'The System Builder', 'Alpha'],
+    EIE: ['ENFj', 'The Storyteller', 'Beta'], LSI: ['ISTj', 'The Enforcer', 'Beta'], SLE: ['ESTp', 'The Conqueror', 'Beta'], IEI: ['INFp', 'The Visionary', 'Beta'],
+    SEE: ['ESFp', 'The Persuader', 'Gamma'], ILI: ['INTp', 'The Forecaster', 'Gamma'], LIE: ['ENTj', 'The Entrepreneur', 'Gamma'], ESI: ['ISFj', 'The Guardian', 'Gamma'],
+    LSE: ['ESTj', 'The Manager', 'Delta'], EII: ['INFj', 'The Humanist', 'Delta'], IEE: ['ENFp', 'The Motivator', 'Delta'], SLI: ['ISTp', 'The Craftsperson', 'Delta'] };
+  var QUADRA = { Alpha: 'ideas, fun and easygoing equality', Beta: 'passion, loyalty and a strong group', Gamma: 'independence, results and honesty', Delta: 'calm, practical help and steady growth' };
+  var DUAL = { ILE: 'SEI', SEI: 'ILE', ESE: 'LII', LII: 'ESE', EIE: 'LSI', LSI: 'EIE', SLE: 'IEI', IEI: 'SLE', SEE: 'ILI', ILI: 'SEE', LIE: 'ESI', ESI: 'LIE', LSE: 'EII', EII: 'LSE', IEE: 'SLI', SLI: 'IEE' };
+  function mbtiToSoc(m) { var l = m.slice(0, 3), last = m[3].toLowerCase(); if (m[0] === 'I') last = last === 'j' ? 'p' : 'j'; var s = l + last; for (var k in SOC) if (SOC[k][0] === s) return k; return null; }
+  function socToMbti(k) { var s = SOC[k] && SOC[k][0]; if (!s) return null; var last = s[3]; if (s[0] === 'I') last = last === 'j' ? 'p' : 'j'; return s.slice(0, 3) + last.toUpperCase(); }
+  function socionics(f) { var k = mbtiToSoc(f.code) || 'ILE', s = SOC[k], d = DUAL[k];
+    return { code: k, letters: s[0], name: s[1], quadra: s[2], quadraText: QUADRA[s[2]], dual: d, dualLetters: SOC[d][0], dualName: SOC[d][1], conf: { pct: Math.max(5, f.conf.pct - 8), word: confWord(f.conf.pct - 8), why: 'follows your 4-letter type' } }; }
+
+  /* ---- "Not me?" overrides: the person picks their real type. Saved as self-identified; the inferred one is kept. Some picks nudge the trait scores
+     they come from (so related results move too): 4-letter / Socionics -> E, O, A, C; temperament -> E, N; attachment -> anxiety, avoidance. ---- */
+  var OVSYS = ['four', 'socionics', 'ennea', 'temper', 'arche', 'disc', 'attach', 'cognitive', 'learning', 'cluster'];
+  function okOv(sys, v) { v = String(v == null ? '' : v);
+    if (sys === 'four') return FOUR[v] ? v : null; if (sys === 'socionics') return SOC[v] ? v : null;
+    if (sys === 'ennea') { var m = /^([1-9])(?:w([1-9]))?$/.exec(v); if (!m) return null; if (m[2] && [((+m[1] + 7) % 9) + 1, (+m[1] % 9) + 1].indexOf(+m[2]) < 0) return m[1]; return v; }
+    if (sys === 'temper') return TEMP[v] ? v : null; if (sys === 'arche') return AR.some(function (a) { return a[0] === v; }) ? v : null; if (sys === 'disc') return DISC[v] ? v : null;
+    if (sys === 'attach') return ATTN[v] ? v : null; if (sys === 'cognitive') return CG[v] ? v : null; if (sys === 'learning') return LS[v] ? v : null;
+    if (sys === 'cluster') return CL.some(function (c) { return c[0] === v; }) ? v : null; return null; }
+  function cleanOv(ov) { var o = {}, n = 0; OVSYS.forEach(function (s) { var v = okOv(s, ov && ov[s]); if (v) { o[s] = v; n++; } }); return n ? o : null; }
+  function side(p, k, up) { if (up && p[k] < 58) p[k] = 58; if (!up && p[k] > 42) p[k] = 42; }
+  function nudge(p, ov) {
+    var f = ov.four || (ov.socionics && socToMbti(ov.socionics));
+    if (f) { side(p, 'E', f[0] === 'E'); side(p, 'O', f[1] === 'N'); side(p, 'A', f[2] === 'F'); side(p, 'C', f[3] === 'J'); }
+    if (ov.temper) { var tc = { sanguine: [1, 0], choleric: [1, 1], melancholic: [0, 1], phlegmatic: [0, 0] }[ov.temper]; if (!f) side(p, 'E', !!tc[0]); side(p, 'N', !!tc[1]); }
+    if (ov.attach) { var ac = { secure: [0, 0], anxious: [1, 0], avoidant: [0, 1], fearful: [1, 1] }[ov.attach]; side(p, 'att_anxiety', !!ac[0]); side(p, 'att_avoidance', !!ac[1]); }
+  }
+  function selfMark(t, t0, sys, ov) {
+    var r = t[sys], r0 = t0[sys], code = function (x) { return x ? (x.code || x.key || '') : ''; };
+    if (sys === 'ennea') { var m = /^([1-9])(?:w([1-9]))?$/.exec(ov), n = +m[1], e = EN[n - 1], wn = m[2] ? +m[2] : null;
+      if (!wn) { var wl = r.ranked.filter(function (x) { return x.n === ((n + 7) % 9) + 1; })[0], wr = r.ranked.filter(function (x) { return x.n === (n % 9) + 1; })[0]; wn = wl.score >= wr.score ? wl.n : wr.n; }
+      r = Object.assign({}, r, { type: n, name: e[1], text: e[2], code: n + 'w' + wn, wing: wn, wingName: EN[wn - 1][1], match: (r.ranked.filter(function (x) { return x.n === n; })[0] || {}).score }); }
+    else if (sys === 'arche') { var a = AR.filter(function (x) { return x[0] === ov; })[0]; r = Object.assign({}, r, { key: a[0], name: a[1], emoji: a[2], text: a[3] }); }
+    else if (sys === 'disc') r = Object.assign({}, r, { key: ov, code: ov, name: DISC[ov][0], color: DISC[ov][1], hex: DISC[ov][2], text: DISC[ov][3] });
+    else if (sys === 'cognitive') r = Object.assign({}, r, { key: ov, name: CG[ov][0], emoji: CG[ov][1], text: CG[ov][2] });
+    else if (sys === 'learning') r = Object.assign({}, r, { key: ov, name: LS[ov][0], emoji: LS[ov][1], text: LS[ov][2] });
+    else if (sys === 'temper') r = Object.assign({}, r, { key: ov, name: TEMP[ov][0], emoji: TEMP[ov][1], text: TEMP[ov][2] });
+    else if (sys === 'attach') r = Object.assign({}, r, { key: ov, name: ATTN[ov][0], emoji: ATTN[ov][1] });
+    else if (sys === 'cluster') { var c = r.ranked.filter(function (x) { return x.key === ov; })[0]; r = Object.assign({}, r, { key: c.key, name: c.name, emoji: c.emoji, color: c.color, text: c.text, match: c.match, similar: r.ranked.filter(function (x) { return x.key !== ov; }).slice(0, 2) }); }
+    r.self = true; r.inferred = { code: code(r0), name: r0.name, conf: r0.conf }; r.same = code(r0) === code(r); t[sys] = r;
+  }
+  function core(p, style, ev, tl, deepUsed) {
+    var t = { four: four(p, ev), ennea: ennea(p, ev, tl.cat), temper: temper(p, ev), arche: arche(p, ev, tl.cat), disc: disc(p, ev, tl.cat), attach: attach(p, ev), cognitive: cognitive(p, ev, tl.cat), learning: learning(p, ev, tl.cat), sloan: sloan(p, ev), cluster: cluster(p, ev) };
+    if (style && ATTN[style] && !tl.per.attach && !deepUsed) { t.attach.key = style; t.attach.name = ATTN[style][0]; t.attach.emoji = ATTN[style][1]; }
+    t.socionics = socionics(t.four); return t;
+  }
   function all(p0, style, opt) {
     opt = opt || {}; var p = {}, k;
     for (k in (p0 || {})) if (num(p0[k])) p[k] = p0[k];
@@ -211,21 +357,24 @@
     var deepUsed = deepNudge(p, opt.deep), tl = addonTally(opt.addon, opt.AQ);
     for (k in tl.axis) if (num(p[k])) p[k] = blend(p[k], tl.axis[k]);
     if (!num(p.v_tradition)) p.v_tradition = p.v_conformity;
-    var mainN = 0; for (k in (opt.n || {})) mainN += opt.n[k] > 0 ? 1 : 0;
-    var ev = function (sys) { return (deepUsed ? 4 : 0) + Math.min(30, 5 * (tl.per[sys] || 0)) - (missing > 20 ? 15 : 0); };
-    var t = { four: four(p, ev), ennea: ennea(p, ev, tl.cat), temper: temper(p, ev), arche: arche(p, ev, tl.cat), disc: disc(p, ev, tl.cat), attach: attach(p, ev), cognitive: cognitive(p, ev, tl.cat), learning: learning(p, ev, tl.cat), sloan: sloan(p, ev), cluster: cluster(p, ev) };
-    if (style && ATTN[style] && !tl.per.attach && !deepUsed) { t.attach.key = style; t.attach.name = ATTN[style][0]; t.attach.emoji = ATTN[style][1]; }
-    t.tags = tags(p); t.taxonomy = taxonomy(t, p);
-    t.big5 = BF.map(function (x) { return { key: x, score: Math.round(p[x]) }; });
-    t.used = { main: true, deep: deepUsed, addon: Object.keys(tl.per).reduce(function (s, x) { return s + tl.per[x]; }, 0), addonPer: tl.per };
+    var ev = function (sys) { return (deepUsed ? 4 : 0) + Math.min(30, 5 * (tl.per[sys] || 0)) - (missing > 20 ? 15 : missing > 8 ? 6 : 0); };
+    var t0 = core(p, style, ev, tl, deepUsed), ov = cleanOv(opt.ov), t = t0, pp = p;
+    if (ov) { pp = {}; for (k in p) pp[k] = p[k]; nudge(pp, ov); t = core(pp, style, ev, tl, deepUsed);
+      if (ov.four || ov.socionics) { t.four.self = true; t.four.inferred = { code: t0.four.code, name: t0.four.name, conf: t0.four.conf }; t.four.same = t0.four.code === t.four.code;
+        t.socionics = socionics(t.four); t.socionics.self = true; t.socionics.inferred = { code: t0.socionics.code, name: t0.socionics.name, conf: t0.socionics.conf }; t.socionics.same = t0.socionics.code === t.socionics.code; }
+      ['ennea', 'temper', 'arche', 'disc', 'attach', 'cognitive', 'learning', 'cluster'].forEach(function (s) { if (ov[s]) selfMark(t, t0, s, ov[s]); }); }
+    t.tags = tags(pp); t.taxonomy = taxonomy(t, pp);
+    t.big5 = BF.map(function (x) { return { key: x, score: Math.round(pp[x]) }; });
+    t.used = { main: true, deep: deepUsed, addon: Object.keys(tl.per).reduce(function (s, x) { return s + tl.per[x]; }, 0), addonPer: tl.per, retake: tl.rt, missing: missing };
+    t.ov = ov; t.p = pp; t.lenses = lenses(t, pp, opt);
     return t;
   }
   function fromScore(sc, opt) { var p = {}, n = {}; for (var k in (sc && sc.scales || {})) { p[k] = sc.scales[k].pct; n[k] = sc.scales[k].n; } opt = opt || {}; opt.n = n; return all(p, sc && sc.attachment && sc.attachment.style, opt); }
   function fromCompact(c, opt) { return all(c && c.scales || {}, c && c.attachment, opt); }
   function brief(t) {
-    return { four: t.four.code, fourName: t.four.name, ennea: t.ennea.code, enneaName: t.ennea.name, temper: t.temper.name, arche: t.arche.name, sloan: t.sloan.code, attach: t.attach.name,
+    return { four: t.four.code, fourName: t.four.name, socionics: t.socionics ? t.socionics.code : '', self: t.ov || null, inferredFour: t.four.self ? t.four.inferred.code : null, ennea: t.ennea.code, enneaName: t.ennea.name, temper: t.temper.name, arche: t.arche.name, sloan: t.sloan.code, attach: t.attach.name,
       disc: t.disc.code + ' (' + t.disc.color + ')', cognitive: t.cognitive.name, learning: t.learning.name, cluster: t.cluster.name, clusterEmoji: t.cluster.emoji, clusterMatch: t.cluster.match, family: t.four.group, tags: t.tags };
   }
   function line(b) { return b ? [b.four + ' ' + b.fourName, b.clusterEmoji + ' ' + b.cluster + ' ' + b.clusterMatch + '%', 'Enneagram ' + b.ennea, b.temper, b.arche, b.sloan, b.attach, 'DISC ' + b.disc].join(' \u00b7 ') : ''; }
-  window.MPTypes = { all: all, fromScore: fromScore, fromCompact: fromCompact, brief: brief, line: line, CLUSTERS: CL, FOUR: FOUR, DEEP: DEEP };
+  window.MPTypes = { all: all, fromScore: fromScore, fromCompact: fromCompact, brief: brief, line: line, CLUSTERS: CL, FOUR: FOUR, DEEP: DEEP, SOC: SOC, EN: EN, AR: AR, DISC: DISC, TEMP: TEMP, ATTN: ATTN, CG: CG, LS: LS, OVSYS: OVSYS, cleanOv: cleanOv, socToMbti: socToMbti, mbtiToSoc: mbtiToSoc };
 })();
