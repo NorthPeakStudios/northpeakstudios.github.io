@@ -9,7 +9,7 @@
   function hi(sc, k, t) { var p = pct(sc, k); return p != null && p >= (t || 60); }
   function lo(sc, k, t) { var p = pct(sc, k); return p != null && p <= (t || 40); }
   function lean(sc, k) { return S().few(sc, k) ? 'lean toward being' : 'are'; }
-  function ansText(Q, r, id) { var q = Q.questions.find(function (x) { return x.id === id; }), a = r.answers.find(function (x) { return x.q === id; }); return q && a ? q.options[a.a].t : null; }
+  function ansText(Q, r, id) { var q = Q.questions.find(function (x) { return x.id === id; }), a = r.answers.find(function (x) { return x.q === id; }); return q && a ? (a.a === -1 ? 'Other: ' + (a.o || '') : q.options[a.a] ? q.options[a.a].t : null) : null; }
 
   var FACET = {
     O_fantasy: ['You have a vivid imagination and probably drift into daydreams, stories or "what if" thinking.', 'You keep your feet on the ground and prefer real things to daydreams.'],
@@ -112,7 +112,7 @@
 
   /* ---- Deep Dive ---- */
   function deepAns(D, deep, id) { var a = deep.answers.find(function (x) { return x.q === id; }); if (!a) return null; var q = D.questions.find(function (x) { return x.id === id; }); return { q: q, v: a.v, t: a.t || (q && q.text) }; }
-  function fmtV(q, v) { if (v == null) return null; if (q.type === 'choice') return q.options[v]; if (q.type === 'multi') return v.slice().sort(function (a, b) { return a - b; }).map(function (k) { return q.options[k]; }).join(', '); if (q.type === 'scale') return v + ' of 5 (1 = ' + q.scale[0].toLowerCase() + ', 5 = ' + q.scale[1].toLowerCase() + ')'; return String(v); }
+  function fmtV(q, v) { if (v == null) return null; if (q.type === 'choice') return typeof v === 'string' ? v : q.options[v]; if (q.type === 'multi') return [].concat(v).sort(function (a, b) { return (typeof a === 'string') - (typeof b === 'string') || a - b; }).map(function (k) { return typeof k === 'string' ? k : q.options[k]; }).join(', '); if (q.type === 'scale') return v + ' of 5 (1 = ' + q.scale[0].toLowerCase() + ', 5 = ' + q.scale[1].toLowerCase() + ')'; return String(v); }
   function quote(s) { return '<div class="quote">\u201c' + esc(s) + '\u201d</div>'; }
   function deepSection(Q, D, sc, deep) {
     var out = '<h2 class="pb">Where it comes from: your Deep Dive</h2>' + P('Based on your Deep Dive from ' + new Date(deep.at).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) + '. You answered ' + deep.answers.length + ' of 50 questions. Childhood is only one part of the story, and none of this is a diagnosis. It is a chance to notice patterns.');
@@ -150,13 +150,27 @@
     return o;
   }
 
-  function html(Q, D, r, sc, deep) {
+  function html(Q, D, r, sc, deep, opt) {
     var hl = S().headlines(sc), sm = S().summaries(sc), name = r.name ? esc(r.name) : '';
     var o = '<article class="rep">';
     o += '<div class="cover"><p class="eyebrow">Mindprint full report</p><h1>' + (name || 'Your Mindprint') + '</h1><p class="muted">Quiz taken ' + new Date(r.at).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) + (deep ? ' \u00b7 with Deep Dive' : '') + '<br>Mindprint by Northpeak Studios</p></div>';
     o += '<p class="muted small">This report is for fun and self-reflection. It is not a psychological test or a diagnosis, and it can\u2019t tell you who you have to be. People change, and a quiz only sees what you told it on one day.</p>';
     o += '<h2>The short version</h2>';
     if (hl.length) o += hl.map(function (h) { return P('<b>' + esc(h.title) + '.</b> ' + esc(headLine(h, sc))); }).join(''); else o += P('Your answers are balanced: you sit near the middle on most traits, which usually means you adapt to the situation rather than having one fixed style.');
+    var T = window.MPTypes ? window.MPTypes.fromScore(sc, opt || {}) : null;
+    if (T) { var cf = function (c) { return ' <span class="muted">(' + c.word + ' confidence, ' + c.pct + '%)</span>'; };
+      o += '<h2>Your types</h2>' + P('<span class="muted">Inferred from your answers, for fun. Rough labels built from your quiz scores, not the official MBTI, Enneagram or DISC tests.</span>');
+      o += P('<b>Cluster: ' + esc(T.cluster.emoji + ' ' + T.cluster.name) + '</b> (' + T.cluster.match + '% match). ' + esc(T.cluster.text) + ' Similar to: ' + esc(T.cluster.similar.map(function (c) { return c.name + ' ' + c.match + '%'; }).join(', ')) + '.' + cf(T.cluster.conf));
+      o += P('<b>4-letter type (MBTI-style): ' + esc(T.four.code + ', ' + T.four.name) + '.</b> ' + esc(T.four.text) + ' ' + esc(T.four.letters.map(function (l) { return l.letter + ' ' + l.word.toLowerCase() + ' (' + l.strength + ')'; }).join(', ')) + '.' + cf(T.four.conf));
+      o += P('<b>Enneagram-style: type ' + esc(T.ennea.code + ', ' + T.ennea.name) + '.</b> ' + esc(T.ennea.text) + ' Wing: ' + esc(T.ennea.wingName) + '.' + cf(T.ennea.conf));
+      o += P('<b>Temperament: ' + esc(T.temper.name) + '.</b> ' + esc(T.temper.text) + cf(T.temper.conf));
+      o += P('<b>Archetype: ' + esc(T.arche.name) + '.</b> ' + esc(T.arche.text) + cf(T.arche.conf));
+      o += P('<b>DISC-style: ' + esc(T.disc.name + ' (' + T.disc.color + ')') + '.</b> ' + esc(T.disc.text) + cf(T.disc.conf));
+      o += P('<b>Attachment: ' + esc(T.attach.name) + '.</b>' + cf(T.attach.conf));
+      o += P('<b>Big Five code (SLOAN-style): ' + esc(T.sloan.code) + '.</b> ' + esc(T.sloan.parts.map(function (x) { return x.word + (x.soft ? ' (leaning)' : ''); }).join(', ')) + '.');
+      o += P('<b>Decision style: ' + esc(T.cognitive.name) + '.</b> ' + esc(T.cognitive.text) + ' <b>Learning style preference: ' + esc(T.learning.name) + '</b> <span class="muted">(learning styles are popular but not backed by research as a way to learn better)</span>.');
+      o += P('<b>Your path:</b> ' + esc(T.taxonomy.map(function (x) { return x.level + ': ' + x.name; }).join(' \u2192 ')) + '.');
+      if (T.tags.length) o += P('<b>Tags:</b> ' + esc(T.tags.map(function (t) { return '#' + t; }).join(' '))); }
     o += '<h2>Your Big Five</h2>' + P('The Big Five is the most widely used model of personality. Scores run from 0 to 100, where 50 is the middle of what the questions could measure.') + bigFive(sc);
     var at = S().ATT[sc.attachment.style];
     o += '<h2>Attachment: you and your people</h2>' + P(esc((S().few(sc, 'att_anxiety') ? 'Your attachment style leans ' : 'Your attachment style looks ') + at.name.toLowerCase() + '. ' + at.text)) + P('Attachment anxiety ' + sc.attachment.anxiety + '/100 (how much you worry about closeness), attachment avoidance ' + sc.attachment.avoidance + '/100 (how much you guard your independence).');
@@ -171,7 +185,7 @@
     o += '<h2>School and work</h2>' + fit(sc).map(function (x) { return P(esc(x)); }).join('');
     if (deep && D) o += deepSection(Q, D, sc, deep);
     o += '<h2>Summary</h2>' + P(esc(summaryLine(hl, sc)));
-    o += '<h2 class="pb">Every answer</h2><table>' + r.answers.map(function (a, i) { var q = Q.questions.find(function (x) { return x.id === a.q; }); return q ? '<tr><td>' + (i + 1) + '. ' + esc(q.text) + '</td><td>' + esc(q.options[a.a].t) + '</td></tr>' : ''; }).join('') + '</table>';
+    o += '<h2 class="pb">Every answer</h2><table>' + r.answers.map(function (a, i) { var q = Q.questions.find(function (x) { return x.id === a.q; }); return q ? '<tr><td>' + (i + 1) + '. ' + esc(q.text) + '</td><td>' + esc(a.a === -1 ? 'Other: ' + (a.o || '') : (q.options[a.a] || {}).t || '') + '</td></tr>' : ''; }).join('') + '</table>';
     o += '<p class="muted small" style="margin-top:20px">Mindprint by Northpeak Studios. For fun and self-reflection \u2014 not a diagnosis.</p></article>';
     return o;
   }

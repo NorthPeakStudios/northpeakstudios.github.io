@@ -97,3 +97,29 @@ svg.lk{width:16px;height:16px;fill:var(--lav);flex:none;vertical-align:-2px}
 .spin{width:34px;height:34px;margin:6px auto 12px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--lav);animation:mpspin 0.9s linear infinite}
 @keyframes mpspin{to{transform:rotate(360deg)}}
 .center{text-align:center}
+
+/* Your types hub (1.1.2) */
+.types .tag{margin-bottom:10px}
+.tyhero{display:flex;align-items:center;gap:14px;padding:14px;border-radius:16px;background:#262040;background:linear-gradient(135deg,color-mix(in srgb,var(--c) 38%,#1d1830),#1d1830 75%);border:1px solid #4a3c78;border:1px solid color-mix(in srgb,var(--c) 55%,#342b52)}
+.tyemo{font-size:40px;line-height:1;width:58px;height:58px;display:grid;place-items:center;border-radius:16px;background:rgba(0,0,0,.25);flex:none}
+.tyhero h2{margin:0;font-size:24px}.tyk{margin:0;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}.tym{margin:2px 0 0;font-weight:700;color:var(--teal)}
+.tyt{margin:10px 0 14px;color:#ddd5f0}
+.ty4{display:flex;align-items:center;gap:14px}.ty4c{font:800 26px/1 ui-rounded,-apple-system,system-ui;letter-spacing:.06em;padding:12px 14px;border-radius:14px;background:var(--card2);border:1px solid var(--line);color:var(--lav)}
+.ty4 h3,.tyx h3{margin:2px 0 0;font-size:19px}
+.tyr{display:flex;gap:12px;padding:14px 0;border-top:1px solid var(--line)}.types .tyr:first-of-type{border-top:0}
+.tyb{flex:none;min-width:46px;height:46px;padding:0 8px;border-radius:13px;display:grid;place-items:center;background:var(--card2);border:1px solid var(--line);font-weight:800;font-size:15px;letter-spacing:.03em;color:var(--ink)}
+.tyx{flex:1;min-width:0}.tyx p{margin:6px 0 0;color:#ddd5f0;font-size:16px}.tyx p.tyk{margin:0;color:var(--mute);font-size:11px}
+.tymeta{color:var(--mute)!important;font-size:13.5px!important;margin:6px 0 0}
+.cf{display:inline-block;margin-top:8px;font-size:12px;font-weight:700;padding:3px 9px;border-radius:99px;background:rgba(179,157,255,.14);color:var(--lav)}.cf-high{background:rgba(51,225,210,.14);color:var(--teal)}.cf-low{background:rgba(255,138,101,.14);color:var(--peach)}
+.tyacts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.tyact{font-size:14px;font-weight:650;padding:8px 12px;border-radius:12px;border:1px solid var(--line);color:var(--ink);text-decoration:none}.tyact.pri{background:linear-gradient(90deg,var(--lav),#d3b8ff);color:#17112a;border:0}
+.tyl{display:flex;align-items:center;gap:10px;margin-top:12px}.tyl span{width:72px;font-size:13px;color:var(--mute);font-weight:600}.tyl span:last-child{text-align:right}.tyl span.on{color:var(--ink)}
+.tyline{position:relative;flex:1;height:6px;border-radius:9px;background:linear-gradient(90deg,var(--peach),var(--card2) 50%,var(--lav))}.tyline i{position:absolute;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px rgba(0,0,0,.35)}
+.tydisc{display:flex;height:10px;border-radius:9px;overflow:hidden;margin-top:10px;gap:2px}
+.tytree{list-style:none;margin:6px 0 0;padding:0 0 0 14px;border-left:2px solid var(--line)}.tytree li{position:relative;padding:8px 0 8px 12px}.tytree li::before{content:"";position:absolute;left:-21px;top:16px;width:12px;height:12px;border-radius:50%;background:var(--lav);box-shadow:0 0 0 3px var(--card)}
+.tytree b{display:block;font-size:17px}.tytree small{color:var(--mute);font-size:13px}
+.tyh{font-size:16px;margin:16px 0 0}.tychips{margin:6px 0 4px}
+.opt.oth{border-style:dashed;color:var(--mute)}.opt.oth.sel{color:var(--ink)}
+.othbox{margin-top:8px}.othbox .btn{margin-top:8px}
+@media print{.tyacts,#tyshare{display:none!important}}
+.tyhome{display:block;text-decoration:none;color:var(--ink)}.tyhome p.muted{margin:0}
+.tyb.emo{font-size:25px;font-weight:400}

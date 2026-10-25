@@ -42,23 +42,38 @@
     sheets.forEach(function (s, i) { enc('xl/worksheets/sheet' + (i + 1) + '.xml', sheet(s.rows, s.widths)); });
     return zip(f);
   }
-  function sheetsFor(Q, D, r, sc, deep) {
+  function sheetsFor(Q, D, r, sc, deep, opt) {
     var S = window.MPScore, TAG = function (k) { return S.nm(k); };
     var a = [['#', 'Section', 'Question', 'Your answer', 'Traits it scored']];
     r.answers.forEach(function (an, i) { var q = Q.questions.find(function (z) { return z.id === an.q; }); if (!q) return; var o = q.options[an.a] || {}; var s = o.s || {};
-      a.push([i + 1, q.framework, q.text, o.t || '', Object.keys(s).map(function (k) { return TAG(k) + ' ' + (s[k] > 0 ? '+' : '') + s[k]; }).join(', ')]); });
+      a.push([i + 1, q.framework, q.text, an.a === -1 ? 'Other: ' + (an.o || '') : o.t || '', Object.keys(s).map(function (k) { return TAG(k) + ' ' + (s[k] > 0 ? '+' : '') + s[k]; }).join(', ')]); });
     var groups = [['Big Five', function (k) { return /^[OCEAN]$/.test(k); }], ['Big Five facets', function (k) { return /^[OCEAN]_/.test(k); }], ['Attachment', function (k) { return /^att_/.test(k); }], ['Conflict style', function (k) { return /^cf_/.test(k); }], ['Values', function (k) { return /^v_/.test(k); }], ['Stress and coping', function (k) { return /^cope_/.test(k); }], ['Decision-making', function (k) { return /^dm_/.test(k); }]];
     var b = [['Framework', 'Trait', 'Score (0-100)', 'Band', 'Questions behind it', 'Note']];
     groups.forEach(function (g) { Object.keys(sc.scales).filter(g[1]).forEach(function (k) { var v = sc.scales[k]; b.push([g[0], S.nm(k), v.pct, S.band(v.pct), v.n, v.n < 4 ? 'Few questions: read as "leans toward"' : '']); }); });
     b.push(['Attachment', 'Overall style', '', S.ATT[sc.attachment.style].name, '', '']);
     var out = [{ name: 'Answers', rows: a, widths: [5, 22, 60, 34, 40] }, { name: 'Trait scores', rows: b, widths: [18, 30, 14, 12, 18, 36] }];
+    var T = window.MPTypes ? window.MPTypes.fromScore(sc, opt || {}) : null;
+    if (T) { var t = [['System (inferred, for fun)', 'Your result', 'What it means', 'Confidence']];
+      t.push(['Cluster', T.cluster.emoji + ' ' + T.cluster.name + ' (' + T.cluster.match + '% match)', T.cluster.text, T.cluster.conf.pct + '% ' + T.cluster.conf.word]);
+      t.push(['4-letter type (MBTI-style)', T.four.code + ' ' + T.four.name, T.four.text, T.four.conf.pct + '% ' + T.four.conf.word]);
+      t.push(['Enneagram-style', T.ennea.code + ' ' + T.ennea.name, T.ennea.text, T.ennea.conf.pct + '% ' + T.ennea.conf.word]);
+      t.push(['Temperament', T.temper.name, T.temper.text, T.temper.conf.pct + '% ' + T.temper.conf.word]);
+      t.push(['Archetype (Jungian-style)', T.arche.name, T.arche.text, T.arche.conf.pct + '% ' + T.arche.conf.word]);
+      t.push(['DISC-style', T.disc.name + ' (' + T.disc.color + ')', T.disc.text, T.disc.conf.pct + '% ' + T.disc.conf.word]);
+      t.push(['Attachment', T.attach.name, '', T.attach.conf.pct + '% ' + T.attach.conf.word]);
+      t.push(['Big Five code (SLOAN-style)', T.sloan.code, T.sloan.parts.map(function (x) { return x.word; }).join(', '), T.sloan.conf.pct + '% ' + T.sloan.conf.word]);
+      t.push(['Decision style', T.cognitive.name, T.cognitive.text, T.cognitive.conf.pct + '% ' + T.cognitive.conf.word]);
+      t.push(['Learning style (contested)', T.learning.name, T.learning.text, T.learning.conf.pct + '% ' + T.learning.conf.word]);
+      t.push(['Hierarchy', T.taxonomy.map(function (x) { return x.name; }).join(' > '), '', '']);
+      t.push(['Tags', T.tags.map(function (x) { return '#' + x; }).join(' '), '', '']);
+      out.push({ name: 'Types', rows: t, widths: [28, 34, 60, 16] }); }
     if (deep && D) { var c = [['#', 'Section', 'Question', 'Your answer']];
       deep.answers.forEach(function (an) { var q = D.questions.find(function (z) { return z.id === an.q; }); if (!q) return; c.push([q.n, q.section, an.t || q.text, window.MPReport.fmtV(q, an.v) || '']); });
       out.push({ name: 'Deep Dive', rows: c, widths: [5, 24, 60, 60] }); }
     return out;
   }
-  function download(Q, D, r, sc, deep) {
-    var blob = build(sheetsFor(Q, D, r, sc, deep)), nm = 'Mindprint' + (r.name ? '-' + r.name.replace(/[^\w-]+/g, '') : '') + '-' + new Date(r.at).toISOString().slice(0, 10) + '.xlsx';
+  function download(Q, D, r, sc, deep, opt) {
+    var blob = build(sheetsFor(Q, D, r, sc, deep, opt)), nm = 'Mindprint' + (r.name ? '-' + r.name.replace(/[^\w-]+/g, '') : '') + '-' + new Date(r.at).toISOString().slice(0, 10) + '.xlsx';
     var url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = nm; document.body.appendChild(a); a.click(); setTimeout(function () { a.remove(); URL.revokeObjectURL(url); }, 4000);
   }
   window.MPXlsx = { build: build, sheetsFor: sheetsFor, download: download };

@@ -9,7 +9,7 @@
     var raw = {}, lo = {}, hi = {}, n = {}, byId = {};
     Q.questions.forEach(function (q) { byId[q.id] = q; });
     answers.forEach(function (a) {
-      var q = byId[a.q]; if (!q || a.a == null) return;
+      var q = byId[a.q]; if (!q || a.a == null || a.a < 0 || !q.options[a.a]) return; // "Other" (typed) answers are unscored
       var cs = q.options.map(function (o) { return contrib(o.s); }), keys = {};
       cs.forEach(function (c) { for (var k in c) keys[k] = 1; });
       for (var k in keys) {
