@@ -69,8 +69,8 @@
     }).catch(function () {});
   }
   function full() { return KEYED && pro(); }
-  function loadQ() { return Q ? Promise.resolve(Q) : fetch('data/questions.json?v=6').then(function (r) { return r.json(); }).then(function (j) { Q = j; S.setNames(j.scales); return Q; }); }
-  function loadD() { return D ? Promise.resolve(D) : fetch('data/deep.json?v=6').then(function (r) { return r.json(); }).then(function (j) { D = j; return D; }); }
+  function loadQ() { return Q ? Promise.resolve(Q) : fetch('data/questions.json?v=7').then(function (r) { return r.json(); }).then(function (j) { Q = j; S.setNames(j.scales); return Q; }); }
+  function loadD() { return D ? Promise.resolve(D) : fetch('data/deep.json?v=7').then(function (r) { return r.json(); }).then(function (j) { D = j; return D; }); }
   function scoreOf(r) { return KEYED ? S.score(Q, r.answers) : null; }
   function fmtDate(t) { return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
   function toast(msg) { var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(function () { t.remove(); }, 2600); }
@@ -148,7 +148,7 @@
   var TYNOTE = 'Inferred from your answers, for fun. These are rough labels built from your quiz scores, not the official MBTI, Enneagram or DISC tests.';
   var APPURL = 'https://northpeakstudios.github.io/mindprint/';
   var A = null;
-  function loadA() { return A ? Promise.resolve(A) : fetch('data/addon.json?v=6').then(function (r) { return r.json(); }).then(function (j) { A = j; return A; }).catch(function () { return null; }); }
+  function loadA() { return A ? Promise.resolve(A) : fetch('data/addon.json?v=7').then(function (r) { return r.json(); }).then(function (j) { A = j; return A; }).catch(function () { return null; }); }
   function addonRec() { return results('addon')[0] || null; }
   function tyOpts() { var d = results('deep')[0], ad = addonRec(); return { deep: d ? d.answers : [], addon: ad ? ad.answers : [], AQ: A }; }
   function typesOf(r) { return window.MPTypes ? window.MPTypes.fromScore(scoreOf(r), tyOpts()) : null; }
@@ -281,11 +281,13 @@
     bindOther(function (txt) { go({ a: -1, o: txt }); });
   }
   function sharpenEnd(st) {
-    var ad = addonRec() || { id: rid(), kind: 'addon', at: Date.now(), name: LS.get('name', ''), answers: [], qv: (A && A.version) || 1 };
-    var map = {}; ad.answers.forEach(function (a) { map[a.q] = a; });
+    /* account sync only carries new records and deletes, so each save is a fresh record (old answers merged in) and the old one is removed */
+    var old = results('addon'), map = {};
+    old.slice().reverse().forEach(function (r) { (r.answers || []).forEach(function (a) { map[a.q] = a; }); });
     for (var k in st.answers) { var v = st.answers[k]; map[k] = v.a === -1 ? { q: k, a: -1, o: String(v.o || '').slice(0, 300) } : { q: k, a: v.a }; }
-    ad.answers = Object.keys(map).map(function (k) { return map[k]; }); ad.at = Date.now();
-    DB.put(ad); LS.set('sharpen', null); submit(ad, {}); sync(); busy = false;
+    var ad = { id: rid(), kind: 'addon', at: Date.now(), name: LS.get('name', ''), answers: Object.keys(map).map(function (k) { return map[k]; }), qv: (A && A.version) || 1 };
+    DB.put(ad); old.forEach(function (r) { DB.remove(r.id); try { if (C() && C().markGone) C().markGone(r.id); } catch (e) {} });
+    LS.set('sharpen', null); submit(ad, {}); sync(); busy = false;
     var T1 = typesOf(results('main')[0]), c1 = T1 && T1[st.sys] && T1[st.sys].conf ? T1[st.sys].conf.pct : null, nm = (A.systems[st.sys] || {}).name || 'Your type';
     toast(c1 != null && st.before != null && c1 !== st.before ? nm + ' confidence ' + st.before + '% \u2192 ' + c1 + '%' : nm + ' updated');
     location.hash = '#types#' + st.sys;
