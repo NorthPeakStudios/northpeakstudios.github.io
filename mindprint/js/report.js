@@ -5,7 +5,7 @@
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var P = function (t) { return '<p>' + t + '</p>'; };
   function S() { return window.MPScore; }
-  function pct(sc, k) { return sc.scales[k] ? sc.scales[k].pct : null; }
+  function pct(sc, k) { return sc && sc.scales && sc.scales[k] ? sc.scales[k].pct : null; }
   function hi(sc, k, t) { var p = pct(sc, k); return p != null && p >= (t || 60); }
   function lo(sc, k, t) { var p = pct(sc, k); return p != null && p <= (t || 40); }
   function lean(sc, k) { return S().few(sc, k) ? 'lean toward being' : 'are'; }
@@ -121,12 +121,12 @@
     if (home) links.push('When you picture the home you grew up in, the first feeling is \u201c' + esc(fmtV(home.q, home.v)) + '.\u201d');
     if (adults && hi(sc, 'A_cooperation')) links.push('Your harmony-seeking score is ' + pct(sc, 'A_cooperation') + '/100, and when the adults at home disagreed, what usually happened was \u201c' + esc(fmtV(adults.q, adults.v)) + '.\u201d Kids often learn how to handle conflict by watching how the grown-ups do it.');
     else if (adults) links.push('When the adults at home disagreed: \u201c' + esc(fmtV(adults.q, adults.v)) + '.\u201d How we saw conflict handled as kids often shapes how we handle it now.');
-    if (you) { var c = S().top(sc.conflict, 1)[0]; links.push('As a kid, when you disagreed with a parent or guardian, you usually \u201c' + esc(fmtV(you.q, you.v).toLowerCase()) + '.\u201d' + (c ? ' Today your main conflict style is that ' + S().CF[c.key] + '.' : '')); }
+    if (you) { var c = sc ? S().top(sc.conflict, 1)[0] : null; links.push('As a kid, when you disagreed with a parent or guardian, you usually \u201c' + esc(fmtV(you.q, you.v).toLowerCase()) + '.\u201d' + (c ? ' Today your main conflict style is that ' + S().CF[c.key] + '.' : '')); }
     if (talk) links.push('Your family was a \u201c' + esc(fmtV(talk.q, talk.v).toLowerCase()) + '\u201d kind of family when it came to feelings.' + (hi(sc, 'cope_withdraw', 45) || lo(sc, 'cope_support', 25) ? ' That may connect to how you handle stress now: you tend to keep things to yourself.' : hi(sc, 'cope_support') ? ' Today you reach out to people when you are stressed, which is a real strength.' : ''));
     if (sting && sting.v >= 4 && hi(sc, 'N_selfcon')) links.push('Criticism stung a lot when you were little (' + sting.v + ' of 5), and you still score high on self-consciousness. Being sensitive to criticism often starts early and fades as you learn your own worth.');
     if (mess) links.push('When you messed up as a kid: \u201c' + esc(fmtV(mess.q, mess.v)) + '.\u201d');
     if (go) links.push('When you were upset, you went to ' + esc(fmtV(go.q, go.v).replace(/^(A|Another) /, function (m) { return m.toLowerCase(); })) + ' first.');
-    if (stable) links.push('You rated how stable and predictable your childhood felt as ' + stable.v + ' of 5.' + (stable.v <= 2 && (sc.attachment.style === 'anxious' || sc.attachment.style === 'fearful') ? ' When things change a lot growing up, it makes sense to want more reassurance in relationships later.' : ''));
+    if (stable) links.push('You rated how stable and predictable your childhood felt as ' + stable.v + ' of 5.' + (stable.v <= 2 && sc && (sc.attachment.style === 'anxious' || sc.attachment.style === 'fearful') ? ' When things change a lot growing up, it makes sense to want more reassurance in relationships later.' : ''));
     if (shaped) links.push('And you think your childhood shaped who you are now ' + shaped.v + ' out of 5.');
     if (links.length) out += '<h3>Patterns worth noticing</h3>' + links.map(P).join('');
     var tl = (deep.answers || []).filter(function (a) { var q = D.questions.find(function (x) { return x.id === a.q; }); return q && q.alt && (deep.flags || []).indexOf(q.alt.flag) >= 0 && typeof a.v === 'string'; });
@@ -138,6 +138,16 @@
     var eight = A('d50'); if (eight && typeof eight.v === 'string') out += '<h3>To your eight-year-old self</h3>' + quote(eight.v) + P('That might be worth hearing again now.');
     out += '<p class="soft">If any of this brought up hard feelings, it can really help to talk to someone you trust, like a friend, a family member, a teacher or a school counselor.</p>';
     return out;
+  }
+
+  /* the Deep Dive on its own: shown when there is no main-quiz result to tie it to (or the scoring key isn't loaded) */
+  function deepHtml(Q, D, deep, sc, name) {
+    var o = '<article class="rep">';
+    o += '<div class="cover"><p class="eyebrow">Mindprint Deep Dive</p><h1>' + (name ? esc(name) : 'Your Deep Dive') + '</h1><p class="muted">Childhood &amp; Family \u00b7 ' + new Date(deep.at).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) + '<br>Mindprint by Northpeak Studios</p></div>';
+    o += '<p class="muted small">This is for fun and self-reflection. It is not a psychological test or a diagnosis.</p>';
+    o += deepSection(Q, D, sc, deep);
+    o += '<p class="muted small" style="margin-top:20px">Mindprint by Northpeak Studios. For fun and self-reflection \u2014 not a diagnosis.</p></article>';
+    return o;
   }
 
   function html(Q, D, r, sc, deep) {
@@ -175,5 +185,5 @@
     var at = S().ATT[sc.attachment.style].name.split(' (')[0].toLowerCase();
     return (bits.length ? 'In short: ' + S().list(bits) + '. ' : '') + 'In relationships your style looks ' + at + ', and what you care about most is ' + S().list(S().top(sc.values, 2).map(function (x) { return S().VAL[x.key]; })) + '. Your results describe tendencies, not limits. You can always grow in any direction you choose.';
   }
-  window.MPReport = { html: html, strengths: strengths, blindSpots: blindSpots, fmtV: fmtV };
+  window.MPReport = { html: html, deepHtml: deepHtml, strengths: strengths, blindSpots: blindSpots, fmtV: fmtV };
 })();

@@ -69,20 +69,22 @@
     }).catch(function () {});
   }
   function full() { return KEYED && pro(); }
-  function loadQ() { return Q ? Promise.resolve(Q) : fetch('data/questions.json?v=4').then(function (r) { return r.json(); }).then(function (j) { Q = j; S.setNames(j.scales); return Q; }); }
-  function loadD() { return D ? Promise.resolve(D) : fetch('data/deep.json?v=3').then(function (r) { return r.json(); }).then(function (j) { D = j; return D; }); }
+  function loadQ() { return Q ? Promise.resolve(Q) : fetch('data/questions.json?v=5').then(function (r) { return r.json(); }).then(function (j) { Q = j; S.setNames(j.scales); return Q; }); }
+  function loadD() { return D ? Promise.resolve(D) : fetch('data/deep.json?v=5').then(function (r) { return r.json(); }).then(function (j) { D = j; return D; }); }
   function scoreOf(r) { return KEYED ? S.score(Q, r.answers) : null; }
   function fmtDate(t) { return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
   function toast(msg) { var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(function () { t.remove(); }, 2600); }
   window.npUpdate.toast = function (msg, onTap) { var t = document.createElement('button'); t.className = 'toast'; t.textContent = msg; t.onclick = function () { t.remove(); if (onTap) onTap(); }; document.body.appendChild(t); };
 
+  /* the account module loads as a separate script: wait for it (briefly) so a fresh load on #deep or #report sees a Pro account as Pro */
+  var cloudReady = new Promise(function (ok) { if (C()) return ok(); window.addEventListener('cloud-ready', function () { ok(); }, { once: true }); setTimeout(ok, 4000); });
   /* ---------- router ---------- */
   function route() {
     busy = false; window.scrollTo(0, 0);
     var h = (location.hash || '#home').slice(1).split('/'), r = h[0] || 'home', arg = decodeURIComponent(h.slice(1).join('/'));
     document.querySelectorAll('.tabbar a').forEach(function (a) { var t = a.getAttribute('href').slice(1); a.classList.toggle('on', t === r || (a.dataset.also || '').split(' ').indexOf(r) >= 0); });
-    var f = { home: home, start: start, quiz: quiz, results: resultsPage, history: history, deep: deepIntro, deepq: deepQ, report: report, account: account, pro: proPage }[r] || home;
-    Promise.all([loadQ(), r.indexOf('deep') === 0 || r === 'report' || r === 'history' ? loadD() : null]).then(ensureKey).then(function () { f(arg); }).catch(function () { V.innerHTML = '<div class="card"><p>Couldn\u2019t load Mindprint. Check your connection and try again.</p></div>'; });
+    var f = { home: home, start: start, quiz: quiz, results: resultsPage, history: history, deep: deepIntro, deepq: deepQ, deepres: deepResults, report: report, account: account, pro: proPage }[r] || home;
+    Promise.all([loadQ(), cloudReady, r.indexOf('deep') === 0 || r === 'report' || r === 'history' ? loadD() : null]).then(ensureKey).then(function () { f(arg); }).catch(function () { V.innerHTML = '<div class="card"><p>Couldn\u2019t load Mindprint. Check your connection and try again.</p></div>'; });
   }
   window.addEventListener('hashchange', route);
 
@@ -184,7 +186,7 @@
     var rs = results();
     V.innerHTML = '<h1 class="pt">Your results</h1>' + (rs.length && !full() && results('main').length ? '<div class="card cta"><p>Your answers are saved. Unlock Pro and your full results show up here instantly, no retake.</p><a class="btn block" href="#pro">Unlock your full Mindprint \u2014 $10</a></div>' : '') + (rs.length ? rs.map(function (r) {
       var lk = r.kind === 'main' && !full(), t = r.kind === 'deep' ? 'Deep Dive' : lk ? ((r.teaser && r.teaser.title) || 'Mindprint') : (function () { var h = S.headlines(scoreOf(r)); return h.length ? h[0].title : 'Mindprint'; })();
-      return '<a class="hrow" href="' + (r.kind === 'deep' ? '#report/' + encodeURIComponent((results('main')[0] || {}).id || '') : '#results/' + encodeURIComponent(r.id)) + '"><b>' + esc(t) + (lk ? ' <span class="pill">' + LOCK + ' Full results locked</span>' : '') + '</b><span>' + (r.kind === 'deep' ? 'Childhood & family' : 'Main quiz') + ' \u00b7 ' + fmtDate(r.at) + '</span></a>'; }).join('')
+      return '<a class="hrow" href="' + (r.kind === 'deep' ? deepLink(r) : '#results/' + encodeURIComponent(r.id)) + '"><b>' + esc(t) + (lk ? ' <span class="pill">' + LOCK + ' Full results locked</span>' : '') + '</b><span>' + (r.kind === 'deep' ? 'Childhood & family' : 'Main quiz') + ' \u00b7 ' + fmtDate(r.at) + '</span></a>'; }).join('')
       : '<div class="card"><p>No results yet.</p><a class="btn block" href="#start">Take the quiz</a></div>') +
       (signed() ? '<p class="muted small center">Your history is saved to your account.</p>' : '<p class="muted small center">These are saved on this device only. <a href="#account">Sign in</a> to keep them in your account.</p>');
     if (signed()) sync().then(function () { if (location.hash === '#history' && results().length !== rs.length) history(); });
@@ -194,15 +196,19 @@
   function deepIntro() {
     if (!pro()) { location.hash = '#pro'; return; }
     var main = results('main')[0], fl = main && scoreOf(main) ? S.flags(scoreOf(main)) : [], prog = LS.get('deepq', null);
-    V.innerHTML = '<div class="card"><p class="tag">Deep Dive</p><h1 class="pt">Childhood &amp; Family</h1><p>50 questions about where you come from: early memories, home, your family, growing up and how it shaped who you are now. Most are typed answers.</p>' +
+    var done = results('deep')[0];
+    V.innerHTML = (done ? '<div class="card"><p class="tag">Your Deep Dive</p><h2>Finished ' + esc(fmtDate(done.at)) + '</h2><p>You answered ' + done.answers.length + ' of 50.</p><a class="btn block" id="seed" href="' + deepLink(done) + '">See your Deep Dive results</a></div>' : '') +
+      '<div class="card"><p class="tag">Deep Dive</p><h1 class="pt">Childhood &amp; Family</h1><p>50 questions about where you come from: early memories, home, your family, growing up and how it shaped who you are now. Most are typed answers.</p>' +
       '<ul class="care"><li><b>Every question is optional.</b> Tap Skip on anything you don\u2019t want to answer.</li><li>It works for any kind of family. Answer for whoever raised you.</li><li>Don\u2019t include names, addresses or anything that identifies someone.</li></ul>' +
       (main ? (fl.length ? '<p class="muted small">Some questions are written around your results: ' + esc(fl.map(function (f) { return D.flags[f]; }).join('; ').toLowerCase()) + '.</p>' : '') : '<p class="muted small">Tip: take the main quiz first and some questions will be tailored to your results.</p>') +
       '<label class="ck"><input type="checkbox" id="ok"><span>' + esc(PRIV) + '</span></label><p class="muted small">' + DISC + '</p>' +
-      (prog && prog.i > 0 ? '<button class="btn big block" id="cont">Continue (' + (prog.i + 1) + ' of 50)</button><button class="btn ghost block" id="go">Start over</button>' : '<button class="btn big block" id="go">Start the Deep Dive</button>') + '</div>';
+      (prog && prog.i > 0 ? '<button class="btn big block" id="cont">Continue (' + (prog.i + 1) + ' of 50)</button><button class="btn ghost block" id="go">Start over</button>' : '<button class="btn ' + (done ? 'ghost' : 'big') + ' block" id="go">' + (done ? 'Take it again' : 'Start the Deep Dive') + '</button>') + '</div>';
     var gate = function () { var ok = $('#ok').checked; V.querySelectorAll('#go,#cont').forEach(function (b) { b.disabled = !ok; }); }; $('#ok').onchange = gate; gate();
     $('#go').onclick = function () { if (!$('#ok').checked) return; LS.set('deepq', { i: 0, answers: {}, flags: fl, main: main ? main.id : null, t: Date.now(), ok: true }); location.hash = '#deepq'; };
     if ($('#cont')) $('#cont').onclick = function () { if (!$('#ok').checked) return; location.hash = '#deepq'; };
   }
+  /* where a finished Deep Dive's results show: the full report of its own main quiz (or the latest one), else the Deep Dive on its own */
+  function deepLink(d) { var m = d && d.main && byId(d.main) ? d.main : (results('main')[0] || {}).id; return m ? '#report/' + encodeURIComponent(m) : '#deepres/' + encodeURIComponent(d ? d.id : ''); }
   function deepView(q, fl) { var a = q.alt && fl.indexOf(q.alt.flag) >= 0 ? q.alt : null; return { intro: a && a.intro, text: (a && a.text) || q.text }; }
   function deepQ() {
     if (!pro()) { location.hash = '#pro'; return; }
@@ -238,21 +244,33 @@
       var ans = D.questions.filter(function (q) { return st.answers[q.id] != null; }).map(function (q) { return { q: q.id, v: st.answers[q.id], t: deepView(q, st.flags || []).text }; });
       var r = { id: rid(), kind: 'deep', at: Date.now(), name: LS.get('name', ''), answers: ans, flags: st.flags || [], main: st.main || null, qv: D.version || 1 };
       DB.put(r); LS.set('deepq', null); submit(r, { flags: r.flags, main_id: r.main }); sync();
-      var m = st.main && byId(st.main) ? st.main : (results('main')[0] || {}).id;
-      location.hash = m ? '#report/' + encodeURIComponent(m) : '#history';
+      location.hash = deepLink(r);
     };
   }
 
   /* ---------- full report (Pro) ---------- */
   function report(id) {
     if (!pro()) { location.hash = '#pro'; return; }
-    var r = byId(id) || results('main')[0]; if (!r) { location.hash = '#start'; return; }
-    var deep = results('deep')[0] || null;
-    if (!window.MPReport || !KEYED) { V.innerHTML = '<div class="card"><p>Loading your report\u2026</p></div>'; if (!KEYED) ensureKey().then(function () { if (KEYED && /^#report/.test(location.hash)) report(id); }); return; }
+    var r = byId(id) || results('main')[0], deep = results('deep')[0] || null;
+    if (!r) { location.hash = deep ? '#deepres/' + encodeURIComponent(deep.id) : '#start'; return; }
+    if (!window.MPReport || !KEYED) { V.innerHTML = '<div class="card"><p>Loading your report\u2026</p></div>'; if (!KEYED) ensureKey().then(function () { if (!/^#report/.test(location.hash)) return; if (KEYED) report(id); else { V.innerHTML = '<div class="card"><p>Couldn\u2019t load your full report. Check your connection and try again.</p><button class="btn block" id="rt">Try again</button>' + (deep ? '<a class="btn ghost block" href="#deepres/' + encodeURIComponent(deep.id) + '">See just your Deep Dive</a>' : '') + '</div>'; $('#rt').onclick = function () { report(id); }; } }); return; }
     V.innerHTML = window.MPReport.html(Q, D, r, scoreOf(r), deep) +
       '<div class="noprint card"><h2>Take it with you</h2><button class="btn block" id="xl">Download spreadsheet (.xlsx)</button><button class="btn ghost block" id="pr">Save as PDF / print</button>' +
       '<p class="muted small">On iPhone: tap Save as PDF, then Share \u2192 Save to Files.</p>' + (deep ? '' : '<a class="btn ghost block" href="#deep">Add the Deep Dive to this report</a>') + '</div>';
     $('#xl').onclick = function () { try { window.MPXlsx.download(Q, D, r, scoreOf(r), deep); } catch (e) { toast('Couldn\u2019t make the spreadsheet.'); } };
+    $('#pr').onclick = function () { window.print(); };
+  }
+
+  /* ---------- Deep Dive results on their own (Pro) ---------- */
+  function deepResults(id) {
+    if (!pro()) { location.hash = '#pro'; return; }
+    var d = byId(id); if (!d || d.kind !== 'deep') d = results('deep')[0]; if (!d) { location.hash = '#deep'; return; }
+    var main = d.main && byId(d.main) ? byId(d.main) : results('main')[0];
+    if (!window.MPReport) { V.innerHTML = '<div class="card"><p>Loading your results\u2026</p></div>'; return; }
+    V.innerHTML = window.MPReport.deepHtml(Q, D, d, main && KEYED ? scoreOf(main) : null, d.name || LS.get('name', '')) +
+      '<div class="noprint card">' + (main ? '<h2>Your full report</h2><p>See your Deep Dive next to your quiz results: strengths, blind spots, relationships and more.</p><a class="btn block" href="#report/' + encodeURIComponent(main.id) + '">Open your full report</a>'
+        : '<h2>Connect it to your personality</h2><p>Take the main quiz and your full report will tie your Deep Dive to your results.</p><a class="btn block" href="#start">Take the main quiz</a>') +
+      '<button class="btn ghost block" id="pr">Save as PDF / print</button><p class="muted small">On iPhone: tap Save as PDF, then Share \u2192 Save to Files.</p></div>';
     $('#pr').onclick = function () { window.print(); };
   }
 
@@ -309,7 +327,7 @@
   /* ---------- boot ---------- */
   function onCloud() {
     C().onAccountChange(function () { var h = location.hash; if (/^#(account|pro|home|history|results.*)?$/.test(h) || h === '') route(); });
-    if (signed()) C().refresh(true).then(function () { return sync(); }).then(imports).then(function () { var h = location.hash; if (/^#(home|history|pro|results.*)?$/.test(h)) route(); });
+    if (signed()) C().refresh(true).then(function () { return sync(); }).then(imports).then(function () { var h = location.hash; if (/^#(home|history|pro|deep|results.*|deepres.*|report.*)?$/.test(h)) route(); });
   }
   flush();
   if (C()) onCloud(); else window.addEventListener('cloud-ready', onCloud, { once: true });
