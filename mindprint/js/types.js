@@ -376,5 +376,5 @@
       disc: t.disc.code + ' (' + t.disc.color + ')', cognitive: t.cognitive.name, learning: t.learning.name, cluster: t.cluster.name, clusterEmoji: t.cluster.emoji, clusterMatch: t.cluster.match, family: t.four.group, tags: t.tags };
   }
   function line(b) { return b ? [b.four + ' ' + b.fourName, b.clusterEmoji + ' ' + b.cluster + ' ' + b.clusterMatch + '%', 'Enneagram ' + b.ennea, b.temper, b.arche, b.sloan, b.attach, 'DISC ' + b.disc].join(' \u00b7 ') : ''; }
-  window.MPTypes = { all: all, fromScore: fromScore, fromCompact: fromCompact, brief: brief, line: line, CLUSTERS: CL, FOUR: FOUR, DEEP: DEEP, SOC: SOC, EN: EN, AR: AR, DISC: DISC, TEMP: TEMP, ATTN: ATTN, CG: CG, LS: LS, OVSYS: OVSYS, cleanOv: cleanOv, socToMbti: socToMbti, mbtiToSoc: mbtiToSoc };
+  window.MPTypes = { all: all, fromScore: fromScore, fromCompact: fromCompact, brief: brief, line: line, CLUSTERS: CL, FOUR: FOUR, DEEP: DEEP, SOC: SOC, EN: EN, AR: AR, DISC: DISC, TEMP: TEMP, ATTN: ATTN, CG: CG, LS: LS, OVSYS: OVSYS, cleanOv: cleanOv, socToMbti: socToMbti, mbtiToSoc: mbtiToSoc, TG: TG, ROLES: ROLES, STEREO: STEREO, GROUP: GROUP, BF: BF, SL: SL, DUAL: DUAL, QUADRA: QUADRA, K: K };
 })();

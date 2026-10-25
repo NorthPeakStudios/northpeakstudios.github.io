@@ -69,8 +69,8 @@
     }).catch(function () {});
   }
   function full() { return KEYED && pro(); }
-  function loadQ() { return Q ? Promise.resolve(Q) : fetch('data/questions.json?v=8').then(function (r) { return r.json(); }).then(function (j) { Q = j; S.setNames(j.scales); return Q; }); }
-  function loadD() { return D ? Promise.resolve(D) : fetch('data/deep.json?v=8').then(function (r) { return r.json(); }).then(function (j) { D = j; return D; }); }
+  function loadQ() { return Q ? Promise.resolve(Q) : fetch('data/questions.json?v=9').then(function (r) { return r.json(); }).then(function (j) { Q = j; S.setNames(j.scales); return Q; }); }
+  function loadD() { return D ? Promise.resolve(D) : fetch('data/deep.json?v=9').then(function (r) { return r.json(); }).then(function (j) { D = j; return D; }); }
   function scoreOf(r) { return KEYED ? S.score(Q, r.answers) : null; }
   function fmtDate(t) { return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
   function toast(msg) { var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(function () { t.remove(); }, 2600); }
@@ -80,7 +80,7 @@
   var cloudReady = new Promise(function (ok) { if (C()) return ok(); window.addEventListener('cloud-ready', function () { ok(); }, { once: true }); setTimeout(ok, 4000); });
   /* ---------- router ---------- */
   function route() {
-    busy = false; window.scrollTo(0, 0);
+    busy = false; window.scrollTo(0, 0); if (window.MPExplain) MPExplain.set(null);
     var h = (location.hash || '#home').slice(1).split('#')[0].split('/'), r = h[0] || 'home', arg = decodeURIComponent(h.slice(1).join('/'));
     document.querySelectorAll('.tabbar a').forEach(function (a) { var t = a.getAttribute('href').slice(1); a.classList.toggle('on', t === r || (a.dataset.also || '').split(' ').indexOf(r) >= 0); });
     var f = { home: home, start: start, quiz: quiz, results: resultsPage, history: history, deep: deepIntro, deepq: deepQ, deepres: deepResults, report: report, account: account, pro: proPage, types: typesHub, sharpen: sharpen, retake: retake, pick: pick, diag: diag, diagq: diagQ, lens: typesHub }[r] || home;
@@ -156,7 +156,7 @@
   /* ---------- results (free) ---------- */
   function bars(sc, keys) {
     return keys.filter(function (k) { return sc.scales[k]; }).map(function (k) { var v = sc.scales[k];
-      return '<div class="br"><div class="bl"><span>' + esc(S.nm(k)) + (v.n < 4 ? ' <em class="lean">leaning</em>' : '') + '</span><b>' + v.pct + '</b></div><div class="bt"><i style="width:' + Math.max(3, v.pct) + '%"></i></div></div>'; }).join('');
+      return '<div class="br" data-x="scale:' + k + '"><div class="bl"><span>' + esc(S.nm(k)) + (v.n < 4 ? ' <em class="lean">leaning</em>' : '') + '</span><b>' + v.pct + '</b></div><div class="bt"><i style="width:' + Math.max(3, v.pct) + '%"></i></div></div>'; }).join('');
   }
   var LOCK = '<svg class="lk" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3h1a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h1zm2 0h6V7a3 3 0 0 0-6 0v3z"/></svg>';
   var FILL = ['When things get tense with someone close to you, your first instinct is something most people never notice about themselves.', 'The way you get close to people says a lot about what you learned early on, and where you still hold back.', 'Your choices follow a pattern: what you weigh first, who you listen to, and what you do when you can\u2019t decide.', 'How long you can be around people before you need to recharge, and what actually fills you back up.', 'What you do first when everything piles up, and the habit that quietly makes it worse.', 'The three things you care about most, ranked, and how they pull against each other.', 'Your scores on all five traits, with every facet broken down.'];
@@ -167,11 +167,18 @@
   var TYNOTE = 'Inferred from your answers, for fun. These are rough labels built from your quiz scores, not the official MBTI, Enneagram or DISC tests.';
   var APPURL = 'https://northpeakstudios.github.io/mindprint/';
   var A = null;
-  function loadA() { return A ? Promise.resolve(A) : Promise.all([fetch('data/addon.json?v=8').then(function (r) { return r.json(); }), fetch('data/retake.json?v=8').then(function (r) { return r.json(); }).catch(function () { return { questions: [] }; })])
+  function loadA() { return A ? Promise.resolve(A) : Promise.all([fetch('data/addon.json?v=9').then(function (r) { return r.json(); }), fetch('data/retake.json?v=9').then(function (r) { return r.json(); }).catch(function () { return { questions: [] }; })])
     .then(function (x) { A = x[0]; A.R = x[1]; A.all = A.questions.concat((x[1].questions || []).map(function (q) { var c = {}; for (var k in q) c[k] = q[k]; c.bank = 'B'; return c; })); return A; }).catch(function () { return null; }); }
   function addonRec() { return results('addon')[0] || null; }
   function tyOpts() { var d = results('deep')[0], ad = addonRec(); return { deep: d ? d.answers : [], addon: ad ? ad.answers : [], AQ: A ? { questions: A.all } : null, ov: ad && ad.ov ? ad.ov : null }; }
   function curOv() { var ad = addonRec(); return ad && ad.ov ? ad.ov : null; }
+
+  /* ---------- tap-to-explain context (1.1.4): what MPExplain needs to say "why you got this" from this person's own answers ---------- */
+  function xSet(r, T, sc) { if (!window.MPExplain) return; if (!T) { MPExplain.set(null); return; }
+    var o = tyOpts(), T0 = T; try { if (T.ov) { var o2 = {}; for (var k in o) o2[k] = o[k]; o2.ov = null; T0 = window.MPTypes.fromScore(sc, o2); } } catch (e) { T0 = T; }
+    MPExplain.set({ full: true, T: T, p: T.p, p0: T0.p, r: r, Q: Q, AQ: A ? { questions: A.all } : null, addon: o.addon, nm: S.nm, acts: tyActs }); }
+  function xSetFree(r, ty) { if (!window.MPExplain) return; var w = ty && ty.why;
+    MPExplain.set({ full: false, four: ty && ty.four, cluster: ty && ty.cluster, why: w, p: w && (w.sp || w.s), p0: w && w.s, ov: (ty && ty.four && ty.four.self) || (ty && ty.cluster && ty.cluster.self) ? curOv() : null, r: r, Q: Q, nm: S.nm, acts: tyActs }); }
   function typesOf(r) { return window.MPTypes ? window.MPTypes.fromScore(scoreOf(r), tyOpts()) : null; }
   function tyShareText(four, cl) { return 'My Mindprint: ' + four.code + ' \u201c' + four.name + '\u201d \u00b7 ' + cl.emoji + ' ' + cl.name + ' (' + cl.match + '% match). What\u2019s yours?'; }
   function tyBindShare(four, cl) {
@@ -182,13 +189,13 @@
   }
   function tyHero(four, cl, noPick) {
     var si = function (x) { return x.self && x.inferred ? '<p class="tyinf">' + (x.same ? 'You picked this, and your answers agree' : 'You picked this \u00b7 your answers said ' + esc(x.inferred.code || x.inferred.name)) + '</p>' : ''; };
-    return '<div class="tyhero" style="--c:' + esc(cl.color) + '"><div class="tyemo" aria-hidden="true">' + esc(cl.emoji) + '</div><div><p class="tyk">Your cluster' + (cl.self ? ' \u00b7 self-identified' : '') + '</p><h2>' + esc(cl.name) + '</h2><p class="tym">' + cl.match + '% match</p></div></div>' + si(cl) +
-      '<p class="tyt">' + esc(cl.text) + '</p>' +
-      '<div class="ty4"><div class="ty4c">' + esc(four.code) + '</div><div><p class="tyk">4-letter type \u00b7 ' + (four.self ? 'self-identified' : 'MBTI-style') + '</p><h3>' + esc(four.name) + '</h3></div></div>' + si(four) + '<p class="tyt">' + esc(four.text) + '</p>' +
+    return '<div class="tyhero" data-x="cluster" style="--c:' + esc(cl.color) + '"><div class="tyemo" aria-hidden="true">' + esc(cl.emoji) + '</div><div><p class="tyk">Your cluster' + (cl.self ? ' \u00b7 self-identified' : '') + '</p><h2>' + esc(cl.name) + '</h2><p class="tym">' + cl.match + '% match</p></div></div>' + si(cl) +
+      '<p class="tyt" data-x="cluster">' + esc(cl.text) + '</p>' +
+      '<div class="ty4" data-x="four"><div class="ty4c">' + esc(four.code) + '</div><div><p class="tyk">4-letter type \u00b7 ' + (four.self ? 'self-identified' : 'MBTI-style') + '</p><h3>' + esc(four.name) + '</h3></div></div>' + si(four) + '<p class="tyt" data-x="four">' + esc(four.text) + '</p>' +
       (noPick ? '' : '<div class="tyacts"><a class="tyact pick" href="#pick/four">' + (four.self ? 'Change my type' : 'Not me? Pick my real type') + '</a><a class="tyact pick" href="#pick/cluster">' + (cl.self ? 'Change my cluster' : 'Pick my cluster') + '</a></div>');
   }
-  function tyMini(rows) { return rows.map(function (x) { return '<div class="br"><div class="bl"><span>' + esc(x[0]) + '</span><b>' + esc(String(x[1])) + '</b></div><div class="bt"><i style="width:' + Math.max(3, Math.min(100, x[2])) + '%' + (x[3] ? ';background:' + x[3] : '') + '"></i></div></div>'; }).join(''); }
-  function confChip(c) { return c ? '<span class="cf cf-' + c.word + '">' + esc(c.word) + ' confidence \u00b7 ' + c.pct + '%</span>' : ''; }
+  function tyMini(rows) { return rows.map(function (x) { return '<div class="br"' + (x[4] ? ' data-x="' + esc(x[4]) + '"' : '') + '><div class="bl"><span>' + esc(x[0]) + '</span><b>' + esc(String(x[1])) + '</b></div><div class="bt"><i style="width:' + Math.max(3, Math.min(100, x[2])) + '%' + (x[3] ? ';background:' + x[3] : '') + '"></i></div></div>'; }).join(''); }
+  function confChip(c, sys) { return c ? '<span class="cf cf-' + c.word + '"' + (sys ? ' data-x="conf:' + sys + '"' : '') + '>' + esc(c.word) + ' confidence \u00b7 ' + c.pct + '%</span>' : ''; }
   var PICKABLE = { four: 1, socionics: 1, ennea: 1, temper: 1, arche: 1, disc: 1, attach: 1, cognitive: 1, learning: 1, cluster: 1 };
   function rtLine(sys) { var ad = addonRec(), log = ((ad && ad.rt) || {})[sys] || [], l = log[log.length - 1]; if (!l) return '';
     return '<p class="tymeta">\u21bb Retaken ' + fmtDate(l.at) + ' with question set ' + esc(l.bank) + ' (' + l.n + ' answered' + (l.skipped ? ', ' + l.skipped + ' skipped' : '') + ')' + (l.before && l.after && l.before !== l.after ? ': ' + esc(l.before) + ' \u2192 ' + esc(l.after) : '') + '</p>'; }
@@ -203,28 +210,28 @@
     if (PICKABLE[sys] && (pro() || sys === 'four' || sys === 'cluster')) h += '<a class="tyact pick" href="#pick/' + sys + '">' + (x && x.self ? 'Change my pick' : 'Not me? Pick my real type') + '</a>';
     return h ? '<div class="tyacts">' + h + '</div>' : '';
   }
-  function selfChip(x) { var i = x.inferred || {};
-    return '<span class="cf cf-self">Self-identified</span><p class="tyinf">' + (x.same ? 'Your answers said the same: ' : 'Your answers said: ') + esc((i.code && i.code !== i.name ? i.code + ' ' : '') + (i.name || '')) + (i.conf ? ' \u00b7 ' + i.conf.pct + '% confidence' : '') + '</p>'; }
+  function selfChip(x, sys) { var i = x.inferred || {};
+    return '<span class="cf cf-self"' + (sys ? ' data-x="self:' + sys + '"' : '') + '>Self-identified</span><p class="tyinf">' + (x.same ? 'Your answers said the same: ' : 'Your answers said: ') + esc((i.code && i.code !== i.name ? i.code + ' ' : '') + (i.name || '')) + (i.conf ? ' \u00b7 ' + i.conf.pct + '% confidence' : '') + '</p>'; }
   function tyRow(o) {
     var x = o.res || { conf: o.conf };
-    return '<div class="tyr" id="ty-' + (o.sys || '') + '"><div class="tyb' + (/^[\x00-\x7f]+$/.test(o.badge) ? '' : ' emo') + '"' + (o.bstyle ? ' style="' + o.bstyle + '"' : '') + '>' + esc(o.badge) + '</div><div class="tyx"><p class="tyk">' + esc(o.kicker) + '</p><h3>' + esc(o.title) + '</h3><p>' + esc(o.text) + '</p>' +
-      (o.meta ? '<p class="tymeta">' + esc(o.meta) + '</p>' : '') + (x.self ? selfChip(x) : confChip(o.conf)) + (o.sys ? rtLine(o.sys) : '') + (o.extra || '') + (o.sys ? tyActs(o.sys, x) : '') + '</div></div>';
+    return '<div class="tyr" id="ty-' + (o.sys || '') + '"' + (o.sys || o.xk ? ' data-x="' + esc(o.xk || o.sys) + '"' : '') + '><div class="tyb' + (/^[\x00-\x7f]+$/.test(o.badge) ? '' : ' emo') + '"' + (o.bstyle ? ' style="' + o.bstyle + '"' : '') + '>' + esc(o.badge) + '</div><div class="tyx"><p class="tyk">' + esc(o.kicker) + '</p><h3>' + esc(o.title) + '</h3><p>' + esc(o.text) + '</p>' +
+      (o.meta ? '<p class="tymeta">' + esc(o.meta) + '</p>' : '') + (x.self ? selfChip(x, o.sys) : confChip(o.conf, o.sys)) + (o.sys ? rtLine(o.sys) : '') + (o.extra || '') + (o.sys ? tyActs(o.sys, x) : '') + '</div></div>';
   }
   function spec(lo, hi, v) { return '<div class="tyl"><span class="' + (v < 50 ? 'on' : '') + '">' + esc(lo) + '</span><div class="tyline"><i style="left:' + v + '%"></i></div><span class="' + (v >= 50 ? 'on' : '') + '">' + esc(hi) + '</span></div>'; }
   /* compact card on the results page (Pro): headline + link to the hub */
   function typesCard(T) {
     if (!T) return '';
     return '<div class="card types"><p class="tag">Your types</p>' + tyHero(T.four, T.cluster) +
-      '<div class="chips tychips"><span class="chip">' + esc('Enneagram ' + T.ennea.code) + '</span><span class="chip">' + esc(T.temper.emoji + ' ' + T.temper.name) + '</span><span class="chip">' + esc(T.arche.emoji + ' ' + T.arche.name) + '</span><span class="chip">' + esc('Big Five ' + T.sloan.code) + '</span><span class="chip">' + esc('DISC ' + T.disc.color) + '</span></div>' +
+      '<div class="chips tychips"><span class="chip" data-x="ennea">' + esc('Enneagram ' + T.ennea.code) + '</span><span class="chip" data-x="temper">' + esc(T.temper.emoji + ' ' + T.temper.name) + '</span><span class="chip" data-x="arche">' + esc(T.arche.emoji + ' ' + T.arche.name) + '</span><span class="chip" data-x="sloan">' + esc('Big Five ' + T.sloan.code) + '</span><span class="chip" data-x="disc">' + esc('DISC ' + T.disc.color) + '</span></div><p class="muted small xhint">Tap anything to see what it means and why you got it.</p>' +
       '<a class="btn block" href="#types">See all your types</a><button class="btn ghost block" id="tyshare">Share my type</button><p class="muted small">' + esc(TYNOTE) + '</p></div>';
   }
   /* free: headline type + cluster (from the server's teaser), everything else locked */
   function typesFree(ty, hub) {
     if (!ty || !ty.four || !ty.cluster) return '';
-    var h = '<div class="card types" id="types"><p class="tag">Your types</p>' + tyHero(ty.four, ty.cluster) + '<button class="btn ghost block" id="tyshare">Share my type</button><p class="muted small">' + esc(TYNOTE) + '</p></div>';
+    var h = '<div class="card types" id="types"><p class="tag">Your types</p>' + tyHero(ty.four, ty.cluster) + '<p class="muted small xhint">Tap your type or cluster to see what it means and why you got it.</p><button class="btn ghost block" id="tyshare">Share my type</button><p class="muted small">' + esc(TYNOTE) + '</p></div>';
     var L = [['Types', 'Enneagram-style + wing, temperament, archetype, DISC colour, attachment'], ['Traits', 'Your Big Five spectra and code, plus every other scale'], ['Clusters', 'All 8 clusters and who you\u2019re most similar to'], ['Hierarchy', 'Your path: family \u2192 cluster \u2192 type \u2192 subtype'], ['Styles + tags', 'Decision style, learning style and your auto tags'], ['Sharpen', 'A few extra questions to make any result more accurate']];
-    h += '<div class="card locked"><div class="lockhd">' + LOCK + '<h2>' + (hub ? 'The rest of your types' : '12 more ways to sort you') + '</h2><span class="pill">Pro</span></div><div class="blur" aria-hidden="true">' +
-      L.map(function (x) { return '<div class="tyr"><div class="tyb">\u2588</div><div class="tyx"><p class="tyk">' + x[0] + '</p><h3>\u2588\u2588\u2588\u2588\u2588\u2588 \u2588\u2588\u2588</h3><p>' + x[1] + '</p></div></div>'; }).join('') + '</div><a class="unlk" href="#pro">' + LOCK + ' Unlock</a></div>';
+    h += '<div class="card locked" data-x="lock:types"><div class="lockhd">' + LOCK + '<h2>' + (hub ? 'The rest of your types' : '12 more ways to sort you') + '</h2><span class="pill">Pro</span></div><div class="blur" aria-hidden="true">' +
+      L.map(function (x, i) { return '<div class="tyr" data-x="lock:' + ['types', 'traits', 'clusters', 'hier', 'styles', 'sharpen'][i] + '"><div class="tyb">\u2588</div><div class="tyx"><p class="tyk">' + x[0] + '</p><h3>\u2588\u2588\u2588\u2588\u2588\u2588 \u2588\u2588\u2588</h3><p>' + x[1] + '</p></div></div>'; }).join('') + '</div><a class="unlk" href="#pro">' + LOCK + ' Unlock</a></div>';
     return h;
   }
   function typesHub() {
@@ -232,30 +239,30 @@
     if (!r) { V.innerHTML = '<h1 class="pt">Your types</h1><div class="card"><p class="tag">Quick diagnostic</p><h2>One short quiz, every type</h2><p>' + DIAG.length + ' questions, about 8 minutes. It fills in your 4-letter type, Enneagram-style type, temperament, archetype, DISC colour, attachment, Socionics-style type, cluster and 30+ other ways to sort you, all at once. Then you can retake any one part.</p><a class="btn big block" href="#diag">Take the quick diagnostic</a><a class="btn ghost block" href="#start">Or the full 77-question quiz</a><p class="muted small">' + esc(TYNOTE) + '</p></div>'; return; }
     if (!full()) {
       var tz = r.teaser, ovs = JSON.stringify(curOv() || null);
-      if (!tz || !tz.types || (r.tzov || 'null') !== ovs) { V.innerHTML = '<div class="card center"><div class="spin"></div><p>Working out your types\u2026</p></div>';
+      if (!tz || !tz.types || !tz.types.why || (r.tzov || 'null') !== ovs) { V.innerHTML = '<div class="card center"><div class="spin"></div><p>Working out your types\u2026</p></div>';
         fetch('https://mindprint.sites.tab.bot/api/mp/teaser', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ answers: r.answers, ov: curOv() }), cache: 'no-store', credentials: 'omit' })
           .then(function (x) { return x.json(); }).then(function (j) { if (j && j.teaser && j.teaser.types) { r.teaser = j.teaser; r.tzov = ovs; DB.put(r); if (location.hash.indexOf('#types') === 0) typesHub(); } else throw 0; })
           .catch(function () { V.innerHTML = '<div class="card"><p>Connect to the internet to see your types.</p><button class="btn block" id="rt">Try again</button></div>'; $('#rt').onclick = typesHub; }); return; }
       V.innerHTML = '<h1 class="pt">Your types</h1><p class="muted small">From your quiz on ' + fmtDate(r.at) + '.</p>' + typesFree(tz.types, true) +
         lensLocked() + '<div class="card cta"><a class="btn big block" href="#pro">Unlock all your types \u2014 $10</a><a class="small center codeln" href="#pro">Have a code?</a></div>';
-      tyBindShare(tz.types.four, tz.types.cluster); return;
+      tyBindShare(tz.types.four, tz.types.cluster); xSetFree(r, tz.types); return;
     }
     var T = typesOf(r), f = T.four, cl = T.cluster, en = T.ennea, tp = T.temper, ar = T.arche, di = T.disc, at = T.attach, cg = T.cognitive, ls = T.learning, sl = T.sloan, sc = scoreOf(r), u = T.used;
     var nRt = 0, adr = addonRec(); for (var rk in ((adr && adr.rt) || {})) nRt += adr.rt[rk].length;
     var from = [(r.diag ? 'your quick diagnostic' : 'your main quiz') + ' (' + fmtDate(r.at) + ')'].concat(u.deep ? ['your Deep Dive'] : []).concat(u.addon ? [u.addon + ' extra answer' + (u.addon > 1 ? 's' : '')] : []).concat(nRt ? [nRt + ' retake' + (nRt > 1 ? 's' : '')] : []).concat(T.ov ? ['the types you picked yourself'] : []);
-    var h = '<h1 class="pt">Your types</h1><p class="muted small">Built from ' + esc(S.list(from)) + '. The more you answer, the sharper every result gets.</p>';
+    var h = '<h1 class="pt">Your types</h1><p class="muted small">Built from ' + esc(S.list(from)) + '. The more you answer, the sharper every result gets.</p><p class="xhint">\ud83d\udc46 Tap anything to see what it means and why you got it.</p>';
     h += '<div class="card types"><p class="tag">Headline</p>' + tyHero(f, cl) + '<button class="btn ghost block" id="tyshare">Share my type</button></div>';
     /* Types */
     h += '<div class="card types"><p class="tag">\ud83e\udde9 Types</p><p class="muted small">Typologies put you in one box out of a set.</p>';
     h += tyRow({ sys: 'four', res: f, badge: f.code, kicker: '4-letter type \u00b7 MBTI-style', title: f.name, text: f.text, meta: 'Group: ' + f.group + ' (' + f.groupText + ')', conf: f.conf,
-      extra: '<details class="fold"><summary>Letter by letter</summary>' + f.letters.map(function (l, i) { var pr = [['E', 'I'], ['N', 'S'], ['F', 'T'], ['J', 'P']][i]; return spec(pr[1], pr[0], l.score) + '<p class="tymeta">' + esc(l.letter + ' = ' + l.word + ', ' + l.strength + ' (' + l.from + ' ' + Math.round(l.score) + '/100)') + '</p>'; }).join('') + '</details>' });
+      extra: '<details class="fold"><summary>Letter by letter</summary>' + f.letters.map(function (l, i) { var pr = [['E', 'I'], ['N', 'S'], ['F', 'T'], ['J', 'P']][i]; return '<div data-x="letter:' + i + '">' + spec(pr[1], pr[0], l.score) + '<p class="tymeta">' + esc(l.letter + ' = ' + l.word + ', ' + l.strength + ' (' + l.from + ' ' + Math.round(l.score) + '/100)') + '</p></div>'; }).join('') + '</details>' });
     var so = T.socionics;
     h += tyRow({ sys: 'socionics', res: so, badge: so.code, kicker: 'Socionics-style type', title: so.code + ' (' + so.letters + ') \u00b7 ' + so.name, text: 'Quadra ' + so.quadra + ': ' + so.quadraText + '.', meta: 'Dual (the type Socionics says completes you): ' + so.dual + ' (' + so.dualLetters + '), ' + so.dualName + '. Matched from your 4-letter type; MBTI \u2194 Socionics matching is debated.', conf: so.conf });
     h += tyRow({ sys: 'ennea', res: en, badge: en.code, kicker: 'Enneagram-style type + wing', title: 'Type ' + en.type + ': ' + en.name, text: en.text, meta: 'Wing ' + en.wing + ' (' + en.wingName + ') \u00b7 fit ' + en.match + '/100', conf: en.conf,
-      extra: '<details class="fold"><summary>All 9 types</summary>' + tyMini(en.ranked.map(function (e) { return [e.n + ' ' + e.name, e.score, e.score]; })) + '</details>' });
+      extra: '<details class="fold"><summary>All 9 types</summary>' + tyMini(en.ranked.map(function (e) { return [e.n + ' ' + e.name, e.score, e.score, '', 'ennea:' + e.n]; })) + '</details>' });
     h += tyRow({ sys: 'temper', res: tp, badge: tp.emoji, kicker: 'Classic temperament', title: tp.name, text: tp.text, meta: tp.share + '% ' + tp.name.toLowerCase() + ', then ' + tp.second.share + '% ' + tp.second.name.toLowerCase(), conf: tp.conf });
     h += tyRow({ sys: 'arche', res: ar, badge: ar.emoji, kicker: 'Archetype \u00b7 Jungian-style', title: ar.name, text: ar.text, meta: 'Runner-up: ' + ar.second.name, conf: ar.conf,
-      extra: '<details class="fold"><summary>All 12 archetypes</summary>' + tyMini(ar.ranked.map(function (a) { return [a.emoji + ' ' + a.name, a.score, a.score]; })) + '</details>' });
+      extra: '<details class="fold"><summary>All 12 archetypes</summary>' + tyMini(ar.ranked.map(function (a) { return [a.emoji + ' ' + a.name, a.score, a.score, '', 'arche:' + a.key]; })) + '</details>' });
     h += tyRow({ sys: 'disc', res: di, badge: di.key, bstyle: 'background:' + di.hex + ';color:#14101f', kicker: 'DISC-style work style', title: di.name + ' \u00b7 ' + di.color, text: di.text, meta: (di.code.length > 1 ? 'Blend with ' : 'Backup style: ') + di.second.name + ' (' + di.second.color + ')', conf: di.conf,
       extra: '<div class="tydisc">' + di.shares.map(function (x) { return '<i style="flex:' + Math.max(1, x.share) + ';background:' + x.hex + '"></i>'; }).join('') + '</div><p class="tymeta">' + di.shares.map(function (x) { return x.key + ' ' + x.share + '%'; }).join(' \u00b7 ') + '</p>' });
     h += tyRow({ sys: 'attach', res: at, badge: at.emoji, kicker: 'Attachment style', title: at.name, text: (S.ATT[at.key] || {}).text || '', meta: 'Anxiety ' + at.anxiety + '/100 \u00b7 avoidance ' + at.avoidance + '/100', conf: at.conf });
@@ -263,18 +270,18 @@
     /* Traits */
     var BN = { O: ['Practical', 'Curious'], C: ['Flexible', 'Organized'], E: ['Reserved', 'Outgoing'], A: ['Direct', 'Warm'], N: ['Calm', 'Sensitive'] };
     h += '<div class="card types"><p class="tag">\ud83d\udcca Traits</p><p class="muted small">Traits are spectra: everyone sits somewhere on each line.</p><h3 class="tyh">Big Five</h3>' +
-      T.big5.map(function (b) { return spec(BN[b.key][0], BN[b.key][1], b.score) + '<p class="tymeta">' + esc(S.nm(b.key) + ' ' + b.score + '/100') + '</p>'; }).join('');
+      T.big5.map(function (b) { return '<div data-x="scale:' + b.key + '">' + spec(BN[b.key][0], BN[b.key][1], b.score) + '<p class="tymeta">' + esc(S.nm(b.key) + ' ' + b.score + '/100') + '</p></div>'; }).join('');
     h += tyRow({ sys: 'sloan', res: sl, badge: sl.code, kicker: 'Big Five code \u00b7 SLOAN-style', title: sl.code, text: sl.parts.map(function (x) { return x.letter + ' ' + x.word + (x.soft ? ' (leaning)' : ''); }).join(' \u00b7 '), meta: 'Capital = clearly that side, lowercase = leaning', conf: sl.conf });
     h += '<details class="fold"><summary>Other spectra</summary>' + bars(sc, ['att_anxiety', 'att_avoidance', 'dm_maximizer', 'dm_risk', 'E_sociability', 'N_anxiety', 'A_empathy', 'O_fantasy']) + '<a class="small" href="#results/' + encodeURIComponent(r.id) + '">All 40+ trait scores \u203a</a></details>';
-    if (T.tags.length) h += '<h3 class="tyh">Your tags</h3><div class="chips">' + T.tags.map(function (t) { return '<span class="chip">#' + esc(t) + '</span>'; }).join('') + '</div><p class="tymeta">Auto labels for the traits furthest from the middle.</p>';
+    if (T.tags.length) h += '<h3 class="tyh">Your tags</h3><div class="chips">' + T.tags.map(function (t) { return '<span class="chip" data-x="tag:' + esc(t) + '">#' + esc(t) + '</span>'; }).join('') + '</div><p class="tymeta">Auto labels for the traits furthest from the middle.</p>';
     h += '</div>';
     /* Clusters */
     h += '<div class="card types"><p class="tag">\ud83e\udec2 Clusters</p><p class="muted small">Clusters group people who score alike. Yours is the closest of 8 profiles.</p>' +
       tyRow({ sys: 'cluster', res: cl, badge: cl.emoji, bstyle: 'background:' + cl.color, kicker: 'Your cluster', title: cl.name + ' \u00b7 ' + cl.match + '% match', text: cl.text, meta: 'Similar to: ' + cl.similar.map(function (c) { return c.emoji + ' ' + c.name + ' (' + c.match + '%)'; }).join(', '), conf: cl.conf }) +
-      '<details class="fold"><summary>All 8 clusters</summary>' + tyMini(cl.ranked.map(function (c) { return [c.emoji + ' ' + c.name, c.match + '%', c.match, c.color]; })) + '<p class="tymeta">Match = how close your Big Five scores are to each profile. The profiles are hand-made, not measured groups of real people.</p></details></div>';
+      '<details class="fold"><summary>All 8 clusters</summary>' + tyMini(cl.ranked.map(function (c) { return [c.emoji + ' ' + c.name, c.match + '%', c.match, c.color, 'cluster:' + c.key]; })) + '<p class="tymeta">Match = how close your Big Five scores are to each profile. The profiles are hand-made, not measured groups of real people.</p></details></div>';
     /* Hierarchy */
     h += '<div class="card types"><p class="tag">\ud83c\udf33 Hierarchy</p><p class="muted small">Your path down the personality tree, from the widest group to the narrowest.</p><ol class="tytree">' +
-      T.taxonomy.map(function (x) { return '<li><span class="tyk">' + esc(x.level) + '</span><b>' + esc(x.name) + '</b><small>' + esc(x.note) + '</small></li>'; }).join('') + '</ol></div>';
+      T.taxonomy.map(function (x, i) { return '<li data-x="' + ['family', 'cluster', 'four', 'subtype'][i] + '"><span class="tyk">' + esc(x.level) + '</span><b>' + esc(x.name) + '</b><small>' + esc(x.note) + '</small></li>'; }).join('') + '</ol></div>';
     /* Styles */
     h += '<div class="card types"><p class="tag">\ud83e\udde0 Styles</p>' +
       tyRow({ sys: 'cognitive', res: cg, badge: cg.emoji, kicker: 'Decision / thinking style', title: cg.name, text: cg.text, meta: [cg.scope, cg.maximizer, cg.risk].filter(Boolean).join(' \u00b7 '), conf: cg.conf }) +
@@ -291,19 +298,20 @@
       '<li><b>Retake this part:</b> a different set of questions than the ones that scored it. Retake answers count double, so they can correct a guess.</li>' +
       '<li><b>Not me?</b> Pick your real type and it shows as self-identified, with what your answers said underneath. A 4-letter, Socionics, temperament or attachment pick also moves the trait scores it comes from a little, so your cluster and tree update too.</li>' +
       '<li><b>Lenses</b> are different ways of sorting the same answers. The profiles, names and maps are made up for fun; none of them are measured groups of real people.</li></ul></details><p class="muted small">' + esc(TYNOTE) + '</p></div>';
-    V.innerHTML = h; tyBindShare(f, cl); bindLenses(T);
+    V.innerHTML = h; tyBindShare(f, cl); bindLenses(T); xSet(r, T, sc);
     var a0 = (location.hash.split('#')[2] || ''); if (a0 && $('#ty-' + a0)) $('#ty-' + a0).scrollIntoView({ block: 'center' });
   }
   /* ---------- Lenses (Odin's categorization list, Oct 25 2026): the same answers seen as maps, trees, groups, tiers, labels and graphs ---------- */
+  var LENSID = {'Where you sit': 'map', 'Your vector': 'vector', 'Bins and cells': 'bins', 'Profile shape': 'shape', 'Soft membership': 'mixture', 'Your sets': 'sets', 'Tribe, guild and school': 'tribe', 'Your role and niche': 'roles', 'Values profile': 'values', 'Your personality taxonomy': 'taxon', 'Cluster family tree': 'tree', 'Supertype and subtype': 'super', 'Trait graph': 'graph', 'You as a knowledge graph': 'kg', 'Your Socionics relation': 'socrel', 'Your trait tier list': 'tiers', 'Your priorities': 'prio', 'Persona': 'persona', 'Facets': 'facets', 'Your tags, with synonyms': 'thes', 'Genre, style and modality': 'genre', 'Your pattern': 'pattern', 'Your personality code': 'code', 'Topics from your Deep Dive': 'topics', 'How textbook are you?': 'proto', 'Stereotype check': 'stereo', 'Are you a \u201ckind\u201d?': 'kind', 'True statements about you': 'pred'};
   function lensGroup(icon, title, terms, inner, open) { return '<div class="card types lensg"><p class="tag">' + icon + ' ' + esc(title) + '</p><p class="lterms">' + esc(terms) + '</p>' + inner + '</div>'; }
-  function lens(title, terms, body, open) { return '<details class="fold lens"' + (open ? ' open' : '') + '><summary>' + esc(title) + (terms ? ' <small>' + esc(terms) + '</small>' : '') + '</summary>' + body + '</details>'; }
+  function lens(title, terms, body, open, id) { id = id || LENSID[title]; return '<details class="fold lens"' + (open ? ' open' : '') + '><summary>' + esc(title) + (terms ? ' <small>' + esc(terms) + '</small>' : '') + (id ? '<span class="xi" role="button" tabindex="0" data-xi="1" data-x="lens:' + id + '" aria-label="What this means and why">i</span>' : '') + '</summary>' + (id ? '<div data-x="lens:' + id + '">' + body + '</div>' : body) + '</details>'; }
   function mapSvg(L) {
     var X = function (v) { return 24 + 252 * v / 100; }, Y = function (v) { return 276 - 252 * v / 100; }, s = '<svg class="tymap" viewBox="0 0 300 300" role="img" aria-label="Where you sit: openness and outgoingness across, steadiness up">';
     s += '<rect x="24" y="24" width="252" height="252" rx="8" class="mbg"/><line x1="150" y1="24" x2="150" y2="276" class="max"/><line x1="24" y1="150" x2="276" y2="150" class="max"/>';
     s += '<text x="146" y="40" text-anchor="end" class="mq">Steady Anchor</text><text x="154" y="40" class="mq">Grounded Explorer</text><text x="146" y="270" text-anchor="end" class="mq">Inner World</text><text x="154" y="270" class="mq">Restless Explorer</text>';
     s += '<text x="150" y="296" text-anchor="middle" class="ml">Reserved, routine \u2190 \u2192 Outgoing, curious</text><text x="10" y="150" text-anchor="middle" class="ml" transform="rotate(-90 10 150)">Reactive \u2190 \u2192 Steady</text>';
-    L.points.forEach(function (p) { s += '<circle cx="' + X(p.x) + '" cy="' + Y(p.y) + '" r="11" fill="' + esc(p.color) + '" opacity=".35"/><text x="' + X(p.x) + '" y="' + (Y(p.y) + 4) + '" text-anchor="middle" class="me">' + esc(p.emoji) + '</text>'; });
-    s += '<circle cx="' + X(L.x) + '" cy="' + Y(L.y) + '" r="9" class="mu"/><text x="' + X(L.x) + '" y="' + (Y(L.y) - 13) + '" text-anchor="middle" class="mt">You</text></svg>';
+    L.points.forEach(function (p) { s += '<g data-x="cluster:' + esc(p.key) + '"><circle cx="' + X(p.x) + '" cy="' + Y(p.y) + '" r="11" fill="' + esc(p.color) + '" opacity=".35"/><text x="' + X(p.x) + '" y="' + (Y(p.y) + 4) + '" text-anchor="middle" class="me">' + esc(p.emoji) + '</text></g>'; });
+    s += '<g data-x="lens:map"><circle cx="' + X(L.x) + '" cy="' + Y(L.y) + '" r="9" class="mu"/><text x="' + X(L.x) + '" y="' + (Y(L.y) - 13) + '" text-anchor="middle" class="mt">You</text></g></svg>';
     return s;
   }
   function graphSvg(L) {
@@ -311,8 +319,8 @@
     var pos = {}; tr.forEach(function (t, i) { pos[t.key] = ty(i, tr.length); });
     rs.forEach(function (r, j) { var y = ty(j, rs.length); r[2].forEach(function (k) { var t = tr.filter(function (x) { return x.key === k; })[0], w = t ? Math.abs(t.v - 50) / 50 : 0;
       s += '<line x1="70" y1="' + pos[k] + '" x2="190" y2="' + y + '" class="gl" stroke-width="' + (0.6 + 2.6 * w).toFixed(1) + '" opacity="' + (0.25 + 0.6 * w).toFixed(2) + '"/>'; }); });
-    tr.forEach(function (t) { s += '<circle cx="58" cy="' + pos[t.key] + '" r="14" class="gn"/><text x="58" y="' + (pos[t.key] + 4) + '" text-anchor="middle" class="gt">' + esc(t.key) + '</text><text x="36" y="' + (pos[t.key] + 4) + '" text-anchor="end" class="gv">' + t.v + '</text>'; });
-    rs.forEach(function (r, j) { var y = ty(j, rs.length); s += '<rect x="190" y="' + (y - 11) + '" width="104" height="22" rx="11" class="gr"/><text x="242" y="' + (y + 4) + '" text-anchor="middle" class="gt">' + esc(String(r[1]).slice(0, 16)) + '</text>'; });
+    tr.forEach(function (t) { s += '<g data-x="scale:' + esc(t.key) + '"><circle cx="58" cy="' + pos[t.key] + '" r="14" class="gn"/><text x="58" y="' + (pos[t.key] + 4) + '" text-anchor="middle" class="gt">' + esc(t.key) + '</text><text x="36" y="' + (pos[t.key] + 4) + '" text-anchor="end" class="gv">' + t.v + '</text></g>'; });
+    rs.forEach(function (r, j) { var y = ty(j, rs.length); s += '<g data-x="' + esc(r[0]) + '"><rect x="190" y="' + (y - 11) + '" width="104" height="22" rx="11" class="gr"/><text x="242" y="' + (y + 4) + '" text-anchor="middle" class="gt">' + esc(String(r[1]).slice(0, 16)) + '</text></g>'; });
     return s + '</svg>';
   }
   function topicWords() { var d = results('deep')[0]; if (!d) return []; var STOP = 'that this with have from they them were what when your just like really about there their would could because always never think things thing being much more some very been they\u2019re don\u2019t didn\u2019t also into then than only even still other dont didnt wasnt it\u2019s i\u2019m im its youre feel felt make made know lot lots kind sort pretty';
@@ -322,7 +330,7 @@
   var MOODQ = { Charged: 'high energy, good mood', Calm: 'low energy, good mood', Wired: 'high energy, rough mood', Drained: 'low energy, rough mood' };
   function moodHtml() { var m = LS.get('mood', null);
     var cur = m ? '<p class="tymeta">Last check ' + fmtDate(m.at) + ': <b>' + esc(m.q) + '</b> (' + esc(MOODQ[m.q]) + ')' + (m.s >= 60 ? ', in a high-pressure phase' : '') + '.</p>' : '';
-    return '<p class="muted small">Optional and saved on this phone only. Your type is who you are most of the time; your state is today. Three sliders put you in a quadrant of the state space.</p>' + cur +
+    return '<p class="muted small" data-x="lens:state">Optional and saved on this phone only. Your type is who you are most of the time; your state is today. Three sliders put you in a quadrant of the state space.</p>' + cur +
       ['e:Energy:Empty:Full', 'm:Mood:Rough:Great', 's:Stress:Chill:Maxed'].map(function (x) { var p = x.split(':'); return '<label class="msl">' + p[1] + ' <input type="range" min="0" max="100" value="' + (m ? m[p[0]] : 50) + '" id="mood-' + p[0] + '"><span class="ends"><span>' + p[2] + '</span><span>' + p[3] + '</span></span></label>'; }).join('') +
       '<button class="btn ghost block" id="moodsave">Save today\u2019s state</button>' + (m ? '<button class="btn ghost block" id="moodclear">Clear it</button>' : ''); }
   function bindLenses(T) {
@@ -333,8 +341,8 @@
   function lensLocked() {
     var L = [['Maps', 'Where you sit on a 2D personality map, your trait vector, bins'], ['Groups', 'Soft cluster membership, tribe, guild, school, your group role'], ['Taxonomy', 'Your personal kingdom \u2192 species, and the cluster family tree'], ['Networks', 'A trait graph and your personality as a knowledge graph'],
       ['Tiers', 'Your trait tier list, S to D'], ['Labels', 'Facets, persona, genre, your personality code'], ['Philosophy', 'Prototype, stereotype check, how \u201cboxable\u201d you are']];
-    return '<div class="card locked"><div class="lockhd">' + LOCK + '<h2>30+ lenses on your answers</h2><span class="pill">Pro</span></div><div class="blur" aria-hidden="true">' +
-      L.map(function (x) { return '<div class="tyr"><div class="tyb">\u2588</div><div class="tyx"><p class="tyk">' + x[0] + '</p><h3>\u2588\u2588\u2588\u2588\u2588 \u2588\u2588\u2588</h3><p>' + x[1] + '</p></div></div>'; }).join('') + '</div><a class="unlk" href="#pro">' + LOCK + ' Unlock</a></div>';
+    return '<div class="card locked" data-x="lock:lenses"><div class="lockhd">' + LOCK + '<h2>30+ lenses on your answers</h2><span class="pill">Pro</span></div><div class="blur" aria-hidden="true">' +
+      L.map(function (x, i) { return '<div class="tyr" data-x="lock:' + ['maps', 'groups', 'taxonomy', 'networks', 'tiers', 'labels', 'philo'][i] + '"><div class="tyb">\u2588</div><div class="tyx"><p class="tyk">' + x[0] + '</p><h3>\u2588\u2588\u2588\u2588\u2588 \u2588\u2588\u2588</h3><p>' + x[1] + '</p></div></div>'; }).join('') + '</div><a class="unlk" href="#pro">' + LOCK + ' Unlock</a></div>';
   }
   function lensesHtml(T, sc, r) {
     var L = T.lenses; if (!L) return ''; var nm = function (k) { return S.nm(k) || k; }, h = '';
@@ -348,13 +356,13 @@
     /* Clusters & groups */
     h += lensGroup('\ud83e\udec2', 'Clusters & groups', 'Latent class \u00b7 mixture model \u00b7 membership class \u00b7 set \u00b7 subset \u00b7 partition \u00b7 equivalence class \u00b7 cohort \u00b7 tribe \u00b7 guild \u00b7 school \u00b7 affinity group \u00b7 community \u00b7 role \u00b7 niche \u00b7 ecotype \u00b7 function class \u00b7 psychographic profile',
       lens('Soft membership', 'mixture model \u00b7 latent class', tyMini(L.mixture.map(function (c) { return [c.emoji + ' ' + c.name, c.pct + '%', c.pct, c.color]; })) + '<p class="tymeta">Instead of one box, a share of you in each cluster (closer profiles get more). Like a mixture model, but over 8 hand-made profiles, not a model fitted to real people.</p>', true) +
-      lens('Your sets', 'sets \u00b7 subsets \u00b7 partition \u00b7 equivalence class', '<div class="chips">' + L.sets.map(function (x) { return '<span class="chip">' + esc(x) + '</span>'; }).join('') + '</div><p class="tyt">You\u2019re in the intersection of all of these. The 16 four-letter types <b>partition</b> everyone into 16 non-overlapping parts; add temperament and you get 64. Your <b>equivalence class</b> (everyone who matches you on both) is <b>' + esc(L.equiv) + '</b>, your quiz cohort.</p>') +
+      lens('Your sets', 'sets \u00b7 subsets \u00b7 partition \u00b7 equivalence class', '<div class="chips">' + L.sets.map(function (x, i) { return '<span class="chip" data-x="' + (['letter:0', 'letter:1', 'letter:2', 'letter:3', 'temper', 'attach', 'family'][i] || 'lens:sets') + '">' + esc(x) + '</span>'; }).join('') + '</div><p class="tyt">You\u2019re in the intersection of all of these. The 16 four-letter types <b>partition</b> everyone into 16 non-overlapping parts; add temperament and you get 64. Your <b>equivalence class</b> (everyone who matches you on both) is <b>' + esc(L.equiv) + '</b>, your quiz cohort.</p>') +
       lens('Tribe, guild and school', 'affinity group \u00b7 community', '<ul class="lul"><li><b>Tribe:</b> ' + esc(L.tribe.name) + ' (' + esc(L.tribe.text) + ')</li><li><b>Guild:</b> ' + esc(L.guild.name) + ' (' + esc(L.guild.text) + ')</li><li><b>School:</b> ' + esc(L.school.name) + ' (you value ' + esc(L.school.text) + ' most)</li><li><b>Affinity group:</b> ' + esc(L.affinity.join(', ')) + '</li></ul><p class="tymeta">Made-up groups, sorted from your 4-letter type, DISC style, top value and nearest clusters.</p>') +
-      lens('Your role and niche', 'role \u00b7 function class \u00b7 niche \u00b7 ecotype', '<ul class="lul">' + L.roles.map(function (x, i) { return '<li><b>' + (i ? 'Backup: ' : 'Group role: ') + esc(x.name) + '</b>, ' + esc(x.text) + ' <span class="muted">(' + x.s + '/100)</span></li>'; }).join('') + '</ul><p class="tyt"><b>Your niche:</b> you\u2019d probably do best in ' + esc(L.niche.join(', ')) + '.</p>') +
+      lens('Your role and niche', 'role \u00b7 function class \u00b7 niche \u00b7 ecotype', '<ul class="lul">' + L.roles.map(function (x, i) { return '<li data-x="lens:roles"><b>' + (i ? 'Backup: ' : 'Group role: ') + esc(x.name) + '</b>, ' + esc(x.text) + ' <span class="muted">(' + x.s + '/100)</span></li>'; }).join('') + '</ul><p class="tyt"><b>Your niche:</b> you\u2019d probably do best in ' + esc(L.niche.join(', ')) + '.</p>') +
       lens('Values profile', 'psychographic', '<p class="tyt">What you care about, in order: ' + esc(L.priorities.map(function (k, i) { return (i + 1) + '. ' + nm(k); }).join('  ')) + '.</p>'));
     /* Hierarchy & taxonomy */
     h += lensGroup('\ud83c\udf33', 'Hierarchy & taxonomy', 'Taxonomy \u00b7 domain \u00b7 kingdom \u00b7 phylum \u00b7 class \u00b7 order \u00b7 family \u00b7 genus \u00b7 species \u00b7 taxon \u00b7 taxonomic rank \u00b7 tree \u00b7 dendrogram \u00b7 clade \u00b7 lineage \u00b7 supertype \u00b7 subtype \u00b7 variant \u00b7 instance',
-      lens('Your personality taxonomy', 'Linnaean-style, for fun', '<ol class="tytree ltax">' + L.taxon.map(function (x) { return '<li><span class="tyk">' + esc(x[0]) + '</span><b>' + esc(x[1]) + '</b><small>' + esc(x[2]) + '</small></li>'; }).join('') + '<li><span class="tyk">Instance</span><b>' + esc(r.name || 'You') + '</b><small>one of a kind</small></li></ol><p class="tymeta">Fake Latin, real logic: each rank narrows the one above it.</p>', true) +
+      lens('Your personality taxonomy', 'Linnaean-style, for fun', '<ol class="tytree ltax">' + L.taxon.map(function (x, i) { return '<li data-x="' + ['lens:taxon', 'scale:E', 'scale:N', 'family', 'temper', 'cluster', 'four', 'lens:taxon', 'ennea'][i] + '"><span class="tyk">' + esc(x[0]) + '</span><b>' + esc(x[1]) + '</b><small>' + esc(x[2]) + '</small></li>'; }).join('') + '<li><span class="tyk">Instance</span><b>' + esc(r.name || 'You') + '</b><small>one of a kind</small></li></ol><p class="tymeta">Fake Latin, real logic: each rank narrows the one above it.</p>', true) +
       lens('Cluster family tree', 'dendrogram \u00b7 clade \u00b7 lineage', '<div class="ldend">' + L.tree.map(function (x) { return '<div class="' + (x.mine ? 'mine' : '') + (x.leaf ? ' leaf' : '') + '" style="padding-left:' + (x.depth * 14) + 'px">' + (x.depth ? '\u2514 ' : '') + esc(x.label) + '</div>'; }).join('') + '</div><p class="tymeta">The 8 profiles joined by similarity (closest pairs first). Highlighted = your lineage. Your clade: ' + esc((L.clade[L.clade.length - 1] || []).join(', ') || T.cluster.name) + '.</p>') +
       lens('Supertype and subtype', 'variant', '<p class="tyt">Supertype: <b>' + esc(L.supertype) + '</b> \u2192 type: <b>' + esc(T.four.code) + '</b> \u2192 subtype: <b>' + esc(L.subtype) + '</b> \u2192 variant: <b>' + esc(T.ennea.code) + '</b>.</p>'));
     /* Relations & networks */
@@ -363,16 +371,16 @@
       lens('You as a knowledge graph', 'triples \u00b7 ontology', '<ul class="ltri">' + L.triples.map(function (x) { return '<li><b>' + esc(x[0]) + '</b> <i>' + esc(x[1]) + '</i> <b>' + esc(x[2]) + '</b></li>'; }).join('') + '</ul><p class="tymeta">Subject \u2192 relation \u2192 object, the way knowledge graphs store facts.</p>') +
       lens('Your Socionics relation', 'relation', '<p class="tyt">Socionics is built on relations between types. Your <b>dual</b>, the type it says fits you best, is <b>' + esc(T.socionics.dual + ' (' + T.socionics.dualLetters + ')') + '</b>, ' + esc(T.socionics.dualName) + '. Not proven by research; fun to compare with friends.</p>'));
     /* Tiers & levels */
-    var tierRow = function (k) { var xs = L.tiers[k]; return '<div class="ltier"><b class="t' + k + '">' + k + '</b><div>' + (xs.length ? xs.map(function (x) { return '<span class="chip">' + esc(nm(x.key)) + ' ' + x.v + '</span>'; }).join('') : '<span class="muted small">none</span>') + '</div></div>'; };
+    var tierRow = function (k) { var xs = L.tiers[k]; return '<div class="ltier"><b class="t' + k + '">' + k + '</b><div>' + (xs.length ? xs.map(function (x) { return '<span class="chip" data-x="tier:' + esc(x.key) + '">' + esc(nm(x.key)) + ' ' + x.v + '</span>'; }).join('') : '<span class="muted small">none</span>') + '</div></div>'; };
     h += lensGroup('\ud83c\udfc5', 'Tiers & levels', 'Tier list \u00b7 tier \u00b7 rank \u00b7 level \u00b7 stratum \u00b7 ordinal scale \u00b7 priority class',
       lens('Your trait tier list', 'S to D', ['S', 'A', 'B', 'C', 'D'].map(tierRow).join('') + '<p class="tymeta">Tiers rank how strongly each trait shows in your answers (S = 85+, A = 70+, B = 55+, C = 40+, D = under 40). Not how good it is: a D in sensitivity just means you\u2019re calm.</p>', true) +
-      lens('Your priorities', 'priority class', '<ol class="lul">' + L.priorities.map(function (k) { return '<li>' + esc(nm(k)) + '</li>'; }).join('') + '</ol>'));
+      lens('Your priorities', 'priority class', '<ol class="lul">' + L.priorities.map(function (k) { return '<li data-x="scale:' + esc(k) + '">' + esc(nm(k)) + '</li>'; }).join('') + '</ol>'));
     /* Labels & tags */
     var tw = topicWords();
     h += lensGroup('\ud83c\udff7\ufe0f', 'Labels & tags', 'Label \u00b7 tag \u00b7 facet \u00b7 metadata \u00b7 controlled vocabulary \u00b7 thesaurus \u00b7 index \u00b7 genre \u00b7 style \u00b7 modality \u00b7 persona \u00b7 behavioral type \u00b7 coding scheme \u00b7 phenotype \u00b7 topic cluster \u00b7 pattern \u00b7 configuration',
       lens('Persona', 'persona class', '<div class="lper"><div class="tyb emo">' + esc(L.persona.emoji) + '</div><div><h3>' + esc(L.persona.name) + '</h3><ul class="lul"><li><b>Wants:</b> ' + esc(L.persona.wants) + '</li><li><b>At work:</b> ' + esc(L.persona.work) + '</li><li><b>With people:</b> ' + esc(L.persona.people) + '</li><li><b>Under stress:</b> ' + esc(L.persona.stress) + '</li></ul></div></div>', true) +
       lens('Facets', 'metadata \u00b7 filters', '<div class="lfac">' + L.facets.map(function (x) { return '<div><span>' + esc(x[0]) + '</span><b>' + esc(x[1]) + '</b></div>'; }).join('') + '</div><p class="tymeta">Like the filters on a shopping site, but for you.</p>') +
-      lens('Your tags, with synonyms', 'controlled vocabulary \u00b7 thesaurus', T.tags.length ? '<ul class="lul">' + L.thesaurus.map(function (x) { return '<li><b>#' + esc(x.tag) + '</b>' + (x.syn.length ? ' \u2248 ' + esc(x.syn.join(', ')) : '') + '</li>'; }).join('') + '</ul><p class="tymeta">Observable traits (your phenotype): ' + esc(L.phenotype.join(', ')) + '.</p>' : '<p class="muted small">Your scores are close to the middle, so no tags stood out.</p>') +
+      lens('Your tags, with synonyms', 'controlled vocabulary \u00b7 thesaurus', T.tags.length ? '<ul class="lul">' + L.thesaurus.map(function (x) { return '<li data-x="tag:' + esc(x.tag) + '"><b>#' + esc(x.tag) + '</b>' + (x.syn.length ? ' \u2248 ' + esc(x.syn.join(', ')) : '') + '</li>'; }).join('') + '</ul><p class="tymeta">Observable traits (your phenotype): ' + esc(L.phenotype.join(', ')) + '.</p>' : '<p class="muted small">Your scores are close to the middle, so no tags stood out.</p>') +
       lens('Genre, style and modality', 'genre \u00b7 style \u00b7 modality', '<ul class="lul"><li><b>If you were a genre:</b> ' + esc(L.genre) + '</li><li><b>Communication style:</b> ' + esc(L.comm) + '</li><li><b>Social modality:</b> ' + esc(L.modality) + '</li><li><b>Behavioral type (DISC-style):</b> ' + esc(T.disc.name) + '</li></ul>') +
       lens('Your pattern', 'pattern \u00b7 configuration \u00b7 structure', '<p class="tyt"><b>' + esc(L.pattern.name) + '</b>. ' + esc(L.pattern.text) + '</p>') +
       lens('Your personality code', 'coding scheme \u00b7 index', '<p class="tyt lcode">' + esc(L.code) + '</p><p class="tymeta">4-letter \u00b7 Enneagram-style \u00b7 temperament \u00b7 Big Five code \u00b7 Socionics-style \u00b7 DISC-style, in one string.</p>') +
@@ -380,9 +388,9 @@
     /* Philosophy-ish */
     h += lensGroup('\ud83c\udfdb\ufe0f', 'Philosophy-ish', 'Prototype \u00b7 exemplary type \u00b7 stereotype \u00b7 natural kind \u00b7 universal \u00b7 particular \u00b7 predicate class \u00b7 concept class \u00b7 essentialist type',
       lens('How textbook are you?', 'prototype \u00b7 exemplary type', '<p class="tyt">For your 4-letter type you\u2019re a <b>' + esc(L.prototype.name) + '</b> (' + L.prototype.pct + '/100 from the middle). Your nearest neighbour type is <b>' + esc(L.prototype.neighbor) + '</b>. Prototype theory says categories have a fuzzy centre and blurry edges, and people sit closer or further from it.</p>', true) +
-      lens('Stereotype check', 'stereotype', '<ul class="lul">' + L.stereo.map(function (x) { return '<li><b>' + esc(x.letter) + '</b> types get called \u201c' + esc(x.claim) + '\u201d: <b>' + esc(x.fits) + '</b></li>'; }).join('') + '</ul>') +
+      lens('Stereotype check', 'stereotype', '<ul class="lul">' + L.stereo.map(function (x, i) { return '<li data-x="stereo:' + i + '"><b>' + esc(x.letter) + '</b> types get called \u201c' + esc(x.claim) + '\u201d: <b>' + esc(x.fits) + '</b></li>'; }).join('') + '</ul>') +
       lens('Are you a \u201ckind\u201d?', 'natural kind \u00b7 universal', '<p class="tyt">Most research finds personality is spread out on scales, not split into natural kinds, so types are useful boxes, not species. Your traits sit on average <b>' + L.boxiness + '/100</b> away from the middle: ' + (L.boxiness >= 40 ? 'pretty boxable' : L.boxiness >= 20 ? 'somewhat boxable' : 'hard to box, you\u2019re near the middle on most things') + '. The type is the universal; you are the particular.</p>') +
-      lens('True statements about you', 'predicate class', '<ul class="lpred">' + L.predicates.map(function (x) { return '<li class="' + (x[1] ? 'y' : 'n') + '">' + (x[1] ? '\u2713 ' : '\u2717 ') + esc(x[0]) + '</li>'; }).join('') + '</ul>'));
+      lens('True statements about you', 'predicate class', '<ul class="lpred">' + L.predicates.map(function (x, i) { return '<li data-x="pred:' + i + '" class="' + (x[1] ? 'y' : 'n') + '">' + (x[1] ? '\u2713 ' : '\u2717 ') + esc(x[0]) + '</li>'; }).join('') + '</ul>'));
     /* State */
     h += '<div id="ty-lens-state">' + lensGroup('\ud83c\udf21\ufe0f', 'Today\u2019s state (optional)', 'State space \u00b7 phase \u00b7 regime', moodHtml()) + '</div>';
     return h;
@@ -577,42 +585,42 @@
         .catch(function () { V.innerHTML = '<div class="card"><p>Your answers are saved. Connect to the internet to see your top trait.</p><button class="btn block" id="rt">Try again</button></div>'; $('#rt').onclick = function () { teaserPage(r); }; });
       return;
     }
-    if (!tz.types && !r._tyTry) { r._tyTry = 1; fetch('https://mindprint.sites.tab.bot/api/mp/teaser', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ answers: r.answers }), cache: 'no-store', credentials: 'omit' })
+    if ((!tz.types || !tz.types.why) && !r._tyTry) { r._tyTry = 1; fetch('https://mindprint.sites.tab.bot/api/mp/teaser', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ answers: r.answers }), cache: 'no-store', credentials: 'omit' })
       .then(function (x) { return x.json(); }).then(function (j) { if (j && j.teaser && j.teaser.types) { r.teaser = j.teaser; DB.put(r); if (/^#results/.test(location.hash) && !full()) teaserPage(r); } }).catch(function () {}); }
     var locked = (tz.locked && tz.locked.length ? tz.locked.map(function (x) { return [x.id, x.title]; }) : TEASE_DEF);
-    var html = '<div class="rhead tease"><p class="eyebrow">' + nm + ' Mindprint \u00b7 ' + fmtDate(r.at) + '</p><p class="tag">Your top trait</p><h1>' + esc(tz.title) + '</h1><p class="lede">' + esc(tz.text) + '</p>' +
+    var html = '<div class="rhead tease"><p class="eyebrow">' + nm + ' Mindprint \u00b7 ' + fmtDate(r.at) + '</p><p class="tag">Your top trait</p><h1 data-x="top">' + esc(tz.title) + '</h1><p class="lede">' + esc(tz.text) + '</p>' +
       (tz.more ? '<p class="muted small">+' + tz.more + ' more standout trait' + (tz.more > 1 ? 's' : '') + ' in your full results</p>' : '') + '</div>' +
       '<div class="fwk"><span><b>7</b> frameworks analyzed</span><span><b>' + (tz.answered || r.answers.length) + '</b> answers</span><span><b>40+</b> traits scored</span></div>'
     html += typesFree(tz.types);
     html += '<div class="card cta"><h2>Unlock your full Mindprint</h2><p>Every trait and what it means, how you love, fight, decide and cope, plus the Deep Dive, a written report, a spreadsheet and a PDF. Your answers are saved, so it all appears the moment you unlock. No retake.</p>' +
       '<a class="btn big block" href="#pro">Unlock your full Mindprint \u2014 $10</a><a class="btn ghost block" href="#pro">Northpeak All-Access \u2014 $100, every app</a><a class="small center codeln" href="#pro">Have a code?</a></div>';
     html += locked.map(function (x, k) { var w = [72, 45, 88, 30, 61, 54, 80];
-      return '<div class="card locked"><div class="lockhd">' + LOCK + '<h2>' + esc(x[1]) + '</h2><span class="pill">Pro</span></div><div class="blur" aria-hidden="true"><p>' + esc(FILL[k % FILL.length]) + ' ' + esc(FILL[(k + 3) % FILL.length]) + '</p>' +
+      return '<div class="card locked" data-x="lock:' + esc(x[0]) + '"><div class="lockhd">' + LOCK + '<h2>' + esc(x[1]) + '</h2><span class="pill">Pro</span></div><div class="blur" aria-hidden="true"><p>' + esc(FILL[k % FILL.length]) + ' ' + esc(FILL[(k + 3) % FILL.length]) + '</p>' +
         '<div class="br"><div class="bl"><span>\u2588\u2588\u2588\u2588\u2588\u2588</span><b>\u2588\u2588</b></div><div class="bt"><i style="width:' + w[k % 7] + '%"></i></div></div><div class="br"><div class="bl"><span>\u2588\u2588\u2588\u2588</span><b>\u2588\u2588</b></div><div class="bt"><i style="width:' + w[(k + 2) % 7] + '%"></i></div></div></div>' +
         '<a class="unlk" href="#pro">' + LOCK + ' Unlock</a></div>'; }).join('');
     html += '<div class="card cta"><a class="btn big block" href="#pro">Unlock your full Mindprint \u2014 $10</a></div>';
     html += signed() ? '<p class="muted small center">Saved to your account.</p>' : '<div class="card"><p><b>Keep these results.</b> Sign in or create a free Northpeak account to keep them in your history on any device.</p><a class="btn ghost block" href="#account">Sign in to save</a></div>';
     html += '<div class="row2"><a class="btn ghost" href="#start">Retake</a><a class="btn ghost" href="#history">History</a></div><p class="muted small center">Not a diagnosis \u2014 for fun and self-reflection.</p>';
-    V.innerHTML = html; if (tz.types) tyBindShare(tz.types.four, tz.types.cluster);
+    V.innerHTML = html; if (tz.types) tyBindShare(tz.types.four, tz.types.cluster); xSetFree(r, tz.types);
   }
   function resultsPage(id) {
     var r = byId(id) || results('main')[0]; if (!r) { location.hash = '#start'; return; }
     if (!full()) { teaserPage(r); return; }
     var sc = scoreOf(r), sm = S.summaries(sc), hl = S.headlines(sc), nm = r.name ? esc(r.name) + '\u2019s' : 'Your';
-    var html = '<div class="rhead"><p class="eyebrow">' + nm + ' Mindprint \u00b7 ' + fmtDate(r.at) + '</p><h1>' + (hl.length ? esc(hl[0].title) : 'Your results') + '</h1>' +
-      (hl.length > 1 ? '<div class="chips">' + hl.slice(1).map(function (h) { return '<span class="chip">' + esc(h.title) + '</span>'; }).join('') + '</div>' : '') + '</div>';
+    var html = '<div class="rhead"><p class="eyebrow">' + nm + ' Mindprint \u00b7 ' + fmtDate(r.at) + '</p><h1' + (hl.length ? ' data-x="hl:' + esc(hl[0].key) + '"' : '') + '>' + (hl.length ? esc(hl[0].title) : 'Your results') + '</h1>' +
+      (hl.length > 1 ? '<div class="chips">' + hl.slice(1).map(function (h) { return '<span class="chip" data-x="hl:' + esc(h.key) + '">' + esc(h.title) + '</span>'; }).join('') + '</div>' : '') + '</div>';
     var TT = typesOf(r); html += typesCard(TT);
     sm.forEach(function (s) {
       if (s.id === 'big5') html += '<div class="card"><h2>' + esc(s.title) + '</h2><p class="muted">' + esc(s.text) + '</p>' + s.items.map(function (it) {
-        return '<div class="trait"><div class="bl"><span>' + esc(it.name) + '</span><b>' + it.pct + ' \u00b7 ' + esc(it.band) + '</b></div><div class="bt"><i style="width:' + Math.max(3, it.pct) + '%"></i></div><p>' + esc(it.text) + '</p>' +
+        return '<div class="trait"><div data-x="scale:' + it.key + '"><div class="bl"><span>' + esc(it.name) + '</span><b>' + it.pct + ' \u00b7 ' + esc(it.band) + '</b></div><div class="bt"><i style="width:' + Math.max(3, it.pct) + '%"></i></div><p>' + esc(it.text) + '</p></div>' +
           '<details class="fold"><summary>Facets</summary>' + bars(sc, Object.keys(sc.scales).filter(function (k) { return k.indexOf(it.key + '_') === 0; })) + '</details></div>'; }).join('') + '</div>';
-      else html += '<div class="card"><h2>' + esc(s.title) + '</h2><p>' + esc(s.text) + '</p>' + (s.id === 'attach' ? bars(sc, ['att_anxiety', 'att_avoidance']) : bars(sc, s.keys.slice(0, 6))) + '</div>';
+      else html += '<div class="card"><h2' + (s.id === 'attach' && TT ? ' data-x="attach"' : '') + '>' + esc(s.title) + '</h2><p>' + esc(s.text) + '</p>' + (s.id === 'attach' ? bars(sc, ['att_anxiety', 'att_avoidance']) : bars(sc, s.keys.slice(0, 6))) + '</div>';
     });
     html += '<div class="card deepcard"><p class="tag">Pro</p><h2>Go deeper</h2><p>Get the full written report: what your results say about your strengths, blind spots, relationships, stress and school or work fit, plus the Deep Dive into your childhood and family, a spreadsheet of every answer and a printable PDF.</p>' +
       (pro() ? '<a class="btn block" href="#report/' + encodeURIComponent(r.id) + '">Open your full report</a><a class="btn ghost block" href="#deep">Deep Dive</a>' : '<a class="btn block" href="#pro">Unlock Mindprint Pro \u00b7 $10</a>') + '</div>';
     html += signed() ? '<p class="muted small center">Saved to your account.</p>' : '<div class="card"><p><b>Keep these results.</b> Sign in or create a free Northpeak account to keep them in your history on any device.</p><a class="btn ghost block" href="#account">Sign in to save</a></div>';
     html += '<div class="row2"><a class="btn ghost" href="#start">Retake</a><a class="btn ghost" href="#history">History</a></div><p class="muted small center">Not a diagnosis \u2014 for fun and self-reflection.</p>';
-    V.innerHTML = html; if (TT) tyBindShare(TT.four, TT.cluster);
+    V.innerHTML = html; if (TT) tyBindShare(TT.four, TT.cluster); xSet(r, TT, sc);
   }
   function tyTag(r, lk) { try { if (r.kind !== 'main') return ''; var t = lk ? (r.teaser && r.teaser.types) : typesOf(r);
     return t && t.four ? ' \u00b7 ' + esc(t.four.code + ' ' + t.cluster.emoji) : ''; } catch (e) { return ''; } }
