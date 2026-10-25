@@ -1,7 +1,7 @@
 // Mindprint service worker (Northpeak). Offline app shell; account/sync calls go straight to the network.
 // auto-update: a new version installs fresh files (cache: 'reload'), takes over at once (skipWaiting + clients.claim), and np-update.js reloads when safe.
-const V = 'mindprint-v2';
-const SHELL = ["./", "index.html", "style.css?v=2", "manifest.webmanifest", "data/questions.json?v=2", "data/deep.json?v=2", "js/score.js?v=2", "js/report.js?v=2", "js/xlsx.js?v=2", "js/app.js?v=2", "js/cloud.js?v=2", "js/cloud-boot.js?v=2", "np-update.js?v=1", "nozoom.js", "pwa.js", "vpshort.js", "np-email.js?v=1", "icon-180.png", "icon-192.png", "icon-512.png"];
+const V = 'mindprint-v3';
+const SHELL = ["./", "index.html", "style.css?v=3", "manifest.webmanifest", "data/questions.json?v=3", "data/deep.json?v=3", "js/score.js?v=3", "js/report.js?v=3", "js/xlsx.js?v=3", "js/app.js?v=3", "js/cloud.js?v=3", "js/cloud-boot.js?v=3", "np-update.js?v=1", "nozoom.js", "pwa.js", "vpshort.js", "np-email.js?v=1", "icon-180.png", "icon-192.png", "icon-512.png"];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))).catch(() => {}).then(() => self.skipWaiting())); });
 self.addEventListener('message', e => { if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('mindprint-') && k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

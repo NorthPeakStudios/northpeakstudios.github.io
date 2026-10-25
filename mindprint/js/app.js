@@ -54,8 +54,8 @@
       return C().sync(DB).then(function () { return C().api('/api/mp/imports/claim', { ids: got }); }).then(function () { if (n) toast(n === 1 ? 'A saved result was added to your history' : n + ' saved results were added to your history'); return n; });
     }).catch(function () { return 0; });
   }
-  function loadQ() { return Q ? Promise.resolve(Q) : fetch('data/questions.json?v=2').then(function (r) { return r.json(); }).then(function (j) { Q = j; S.setNames(j.scales); return Q; }); }
-  function loadD() { return D ? Promise.resolve(D) : fetch('data/deep.json?v=2').then(function (r) { return r.json(); }).then(function (j) { D = j; return D; }); }
+  function loadQ() { return Q ? Promise.resolve(Q) : fetch('data/questions.json?v=3').then(function (r) { return r.json(); }).then(function (j) { Q = j; S.setNames(j.scales); return Q; }); }
+  function loadD() { return D ? Promise.resolve(D) : fetch('data/deep.json?v=3').then(function (r) { return r.json(); }).then(function (j) { D = j; return D; }); }
   function scoreOf(r) { return S.score(Q, r.answers); }
   function fmtDate(t) { return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
   function toast(msg) { var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(function () { t.remove(); }, 2600); }

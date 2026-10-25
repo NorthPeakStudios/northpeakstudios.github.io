@@ -23,7 +23,7 @@
     function group(pre) {
       var arr = Object.keys(scales).filter(function (k) { return k.indexOf(pre) === 0 && k !== 'dm_maximizer' && k !== 'dm_risk'; })
         .map(function (k) { return { key: k, raw: scales[k].raw, pct: scales[k].pct, n: scales[k].n }; })
-        .sort(function (a, b) { return b.raw - a.raw || b.pct - a.pct; });
+        .sort(function (a, b) { return b.pct - a.pct || b.raw - a.raw; });
       var t = arr.reduce(function (s, x) { return s + Math.max(0, x.raw); }, 0) || 1;
       arr.forEach(function (x) { x.share = Math.round(100 * Math.max(0, x.raw) / t); });
       return arr;
@@ -68,7 +68,7 @@
 
   function nm(k) { return (NAMES[k] && NAMES[k].name) || k; }
   function lead(sc, k) { return few(sc, k) ? 'You lean toward ' : 'You '; }
-  function top(arr, m) { return arr.filter(function (x) { return x.raw > 0; }).slice(0, m || 1); }
+  function top(arr, m) { return arr.filter(function (x) { return x.pct > 0; }).slice(0, m || 1); }
   function list(a) { return a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]; }
 
   /* short plain-English summary per framework (the free results page) */

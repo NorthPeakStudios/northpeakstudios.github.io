@@ -60,7 +60,7 @@ html.vp-short .tabbar{padding-bottom:8px}
 foot,.foot{display:block;text-align:center;color:var(--mute);font-size:13px;margin:26px 0 0}
 /* full report */
 .rep h2{margin-top:26px}.rep h3{font-size:17px;margin:18px 0 6px}.rep p{margin:8px 0;color:#e6dff5}.rep .quote{border-left:3px solid var(--lav);padding:4px 0 4px 12px;color:#d9d1ee;font-style:italic;margin:8px 0}
-.rep table{width:100%;border-collapse:collapse;font-size:14px}.rep td{border-top:1px solid var(--line);padding:6px 4px;vertical-align:top}.rep td:last-child{text-align:right;white-space:nowrap}
+.rep table{width:100%;border-collapse:collapse;font-size:14px}.rep td{border-top:1px solid var(--line);padding:6px 4px;vertical-align:top}.rep td:last-child{text-align:right;width:42%}.rep{overflow-wrap:anywhere}
 .rep .cover{text-align:center;padding:24px 0 8px}.rep .cover h1{margin:6px 0}
 @media print{
   @page{margin:16mm}
