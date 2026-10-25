@@ -2,7 +2,7 @@
 (function(){
 var API=/\.sites\.tab\.bot$/.test(location.hostname)?'':'https://northpeak-admin.sites.tab.bot';
 var TK_KEY='np_admin_session', ME=null, D=null, filt='all', hideTest=false, view='req', NOTES={}, U=null, LG={u:'',kind:'',items:[]}, setupKey='';
-var BASE={syn:'https://odin-cards.sites.tab.bot',axon:'https://axon-sync.sites.tab.bot',liminal:'https://liminal-sync.sites.tab.bot',cadence:'https://cadence-sync.sites.tab.bot'}, PEER={synapse:BASE.syn,axon:BASE.axon,liminal:BASE.liminal,cadence:BASE.cadence};
+var BASE={syn:'https://odin-cards.sites.tab.bot',axon:'https://axon-sync.sites.tab.bot',liminal:'https://liminal-sync.sites.tab.bot',cadence:'https://cadence-sync.sites.tab.bot',mindprint:'https://mindprint.sites.tab.bot'}, PEER={synapse:BASE.syn,axon:BASE.axon,liminal:BASE.liminal,cadence:BASE.cadence,mindprint:BASE.mindprint};
 var CAPN={view_requests:'see requests',approve:'mark paid',mint_codes:'make codes',dismiss:'dismiss / decline',notes:'add notes',delete:'delete',revoke_codes:'revoke codes',toggle_buying:'open/close buying',view_sheet:'see sheet',view_logs:'see logs',manage_users:'manage users',manage_accounts:'app accounts (owner only)'};
 var $=function(s){return document.querySelector(s)};
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
@@ -69,18 +69,19 @@ function startApp(){
  switchView(view);load();}
 function switchView(v){view=v;document.querySelectorAll('#tabs button').forEach(function(b){b.classList.toggle('on',b.dataset.v===v)});['req','sheet','more','users','acct','logs'].forEach(function(x){$('#v-'+x).hidden=x!==v});
  if(v==='users')loadUsers();if(v==='acct')loadAccounts();if(v==='logs'){loadLogs();loadActlog()}}
-var MAPP={synapse:{app:'syn',body:{product:'synapse_lifetime'},name:'Synapse Lifetime',works:'Synapse'},axon:{app:'axon',body:{},name:'Axon Pro',works:'Axon'},liminal:{app:'liminal',body:{},name:'Liminal Pro',works:'Liminal'},cadence:{app:'cadence',body:{},name:'Cadence Pro',works:'Cadence'},all:{app:'syn',body:{product:'all_access'},name:'All-Access',works:'Synapse, Axon, Liminal and Cadence'}},MSEL='synapse';
+var MAPP={synapse:{app:'syn',body:{product:'synapse_lifetime'},name:'Synapse Lifetime',works:'Synapse'},axon:{app:'axon',body:{},name:'Axon Pro',works:'Axon'},liminal:{app:'liminal',body:{},name:'Liminal Pro',works:'Liminal'},cadence:{app:'cadence',body:{},name:'Cadence Pro',works:'Cadence'},mindprint:{app:'mindprint',body:{},name:'Mindprint Pro',works:'Mindprint'},all:{app:'syn',body:{product:'all_access'},name:'All-Access',works:'Synapse, Axon, Liminal, Cadence and Mindprint'}},MSEL='synapse';
 function CODES_OK(){return CAN('mint_codes')||CAN('revoke_codes')}
 function loadAll(){
- var jobs=[CAN('view_requests')?appApi('syn','list'):Promise.resolve(null),CAN('view_requests')?appApi('axon','list'):Promise.resolve(null),CAN('view_sheet')?api('/api/sheet'):Promise.resolve(null),CAN('view_requests')?api('/api/notes'):Promise.resolve(null),CAN('view_requests')?appApi('liminal','list'):Promise.resolve(null),CODES_OK()?appApi('axon','codes'):Promise.resolve(null),CODES_OK()?appApi('liminal','codes'):Promise.resolve(null),CAN('view_requests')?appApi('cadence','list'):Promise.resolve(null),CODES_OK()?appApi('cadence','codes'):Promise.resolve(null)];
- return Promise.all(jobs).then(function(v){NOTES={};((v[3]&&v[3].notes)||[]).forEach(function(n){NOTES[n.k]=n});return{ok:true,at:Date.now(),syn:v[0]||{},axon:v[1]||{},liminal:v[4]||{},axc:v[5]||{},lic:v[6]||{},cadence:v[7]||{},cac:v[8]||{},sheet:v[2]&&v[2].sheet}})}
+ var jobs=[CAN('view_requests')?appApi('syn','list'):Promise.resolve(null),CAN('view_requests')?appApi('axon','list'):Promise.resolve(null),CAN('view_sheet')?api('/api/sheet'):Promise.resolve(null),CAN('view_requests')?api('/api/notes'):Promise.resolve(null),CAN('view_requests')?appApi('liminal','list'):Promise.resolve(null),CODES_OK()?appApi('axon','codes'):Promise.resolve(null),CODES_OK()?appApi('liminal','codes'):Promise.resolve(null),CAN('view_requests')?appApi('cadence','list'):Promise.resolve(null),CODES_OK()?appApi('cadence','codes'):Promise.resolve(null),CAN('view_requests')?appApi('mindprint','list'):Promise.resolve(null),CODES_OK()?appApi('mindprint','codes'):Promise.resolve(null)];
+ return Promise.all(jobs).then(function(v){NOTES={};((v[3]&&v[3].notes)||[]).forEach(function(n){NOTES[n.k]=n});return{ok:true,at:Date.now(),syn:v[0]||{},axon:v[1]||{},liminal:v[4]||{},axc:v[5]||{},lic:v[6]||{},cadence:v[7]||{},cac:v[8]||{},mindprint:v[9]||{},mpc:v[10]||{},sheet:v[2]&&v[2].sheet}})}
 function rows(){
  var out=[];
- var s=(D.syn&&D.syn.requests)||[], a=(D.axon&&D.axon.requests)||[], li=(D.liminal&&D.liminal.requests)||[], ca=(D.cadence&&D.cadence.requests)||[];
+ var s=(D.syn&&D.syn.requests)||[], a=(D.axon&&D.axon.requests)||[], li=(D.liminal&&D.liminal.requests)||[], ca=(D.cadence&&D.cadence.requests)||[], mp=(D.mindprint&&D.mindprint.requests)||[];
  s.forEach(function(r){out.push({app:'syn',id:r.id,t:r.t,name:r.name,contact:r.contact,email:r.email,username:'',plan:r.plan,plan_name:r.plan_name,price:r.price||r.charge,amount:+r.amount||0,status:r.status,code:r.code,mirror:!!r.mirror,link:r.link})});
  a.forEach(function(r){out.push({app:'axon',id:r.id,t:Date.parse(r.created_at)||0,name:r.name,contact:r.phone,username:r.username,plan:r.plan,plan_name:r.plan_name,price:r.price,amount:+r.amount||0,status:r.status,code:r.code,mirror:!!r.mirror,link:r.link,pro:r.pro})});
  li.forEach(function(r){out.push({app:'liminal',id:r.id,t:Date.parse(r.created_at)||r.t||0,name:r.name,contact:r.phone||r.contact,username:r.username,plan:r.plan,plan_name:r.plan_name,price:r.price,amount:+r.amount||0,status:r.status,code:r.code,mirror:!!r.mirror,link:r.link,pro:r.pro})});
  ca.forEach(function(r){out.push({app:'cadence',id:r.id,t:Date.parse(r.created_at)||r.t||0,name:r.name,contact:r.phone||r.contact,username:r.username,plan:r.plan,plan_name:r.plan_name,price:r.price,amount:+r.amount||0,status:r.status,code:r.code,mirror:!!r.mirror,link:r.link,pro:r.pro})});
+ mp.forEach(function(r){out.push({app:'mindprint',id:r.id,t:Date.parse(r.created_at)||r.t||0,name:r.name,contact:r.phone||r.contact,username:r.username,plan:r.plan,plan_name:r.plan_name,price:r.price,amount:+r.amount||0,status:r.status,code:r.code,mirror:!!r.mirror,link:r.link,pro:r.pro})});
  var keep=out.filter(function(r){return !r.mirror});
  out.forEach(function(r){if(r.mirror){var o=keep.filter(function(k){return k.app!==r.app&&(k.id===r.link||k.link===r.id)})[0];if(o){if(!o.code&&r.code)o.code=r.code;}else keep.push(r);}});
  keep.forEach(function(r){r.aa=r.plan==='all_access';r.note=NOTES[r.app+':'+r.id]});
@@ -97,11 +98,11 @@ function stats(R){
 /* np-r2: tap a stat to jump to those requests */
 (function(){var go=function(f){return function(){if(!CAN('view_requests'))return;filt=f;switchView('req');renderReq();}};
  [['sTot','all'],['sPaid','paid'],['sMoney','paid'],['sPend','new']].forEach(function(x){var el=document.getElementById(x[0]);if(el&&el.parentNode){el.parentNode.style.cursor='pointer';el.parentNode.setAttribute('role','button');el.parentNode.addEventListener('click',go(x[1]));}})})();
-var FILTERS=[['all','All'],['new','Pending'],['paid','Paid'],['syn','Synapse'],['axon','Axon'],['liminal','Liminal'],['cadence','Cadence'],['aa','All-Access'],['hide','Hide tests']];
+var FILTERS=[['all','All'],['new','Pending'],['paid','Paid'],['syn','Synapse'],['axon','Axon'],['liminal','Liminal'],['cadence','Cadence'],['mindprint','Mindprint'],['aa','All-Access'],['hide','Hide tests']];
 function chips(R){var c=function(k){return R.filter(function(r){return match(r,k)}).length};
  $('#chips').innerHTML=FILTERS.map(function(f){var on=f[0]==='hide'?hideTest:filt===f[0];return '<button class="chip'+(on?' on':'')+'" data-f="'+f[0]+'">'+f[1]+(f[0]==='hide'?'':' '+c(f[0]))+'</button>'}).join('')}
-function match(r,k){if(k==='all')return true;if(k==='new')return r.status==='new';if(k==='paid')return r.status==='paid';if(k==='syn')return r.app==='syn'&&!r.aa;if(k==='axon')return r.app==='axon'&&!r.aa;if(k==='liminal')return r.app==='liminal'&&!r.aa;if(k==='cadence')return r.app==='cadence'&&!r.aa;if(k==='aa')return r.aa;return true}
-function appTag(r){return r.aa?'<span class="tag t-aa">All-Access</span>':r.app==='syn'?'<span class="tag t-syn">Synapse</span>':r.app==='liminal'?'<span class="tag t-lim">Liminal</span>':r.app==='cadence'?'<span class="tag t-cad">Cadence</span>':'<span class="tag t-axon">Axon</span>'}
+function match(r,k){if(k==='all')return true;if(k==='new')return r.status==='new';if(k==='paid')return r.status==='paid';if(k==='syn')return r.app==='syn'&&!r.aa;if(k==='axon')return r.app==='axon'&&!r.aa;if(k==='liminal')return r.app==='liminal'&&!r.aa;if(k==='cadence')return r.app==='cadence'&&!r.aa;if(k==='mindprint')return r.app==='mindprint'&&!r.aa;if(k==='aa')return r.aa;return true}
+function appTag(r){return r.aa?'<span class="tag t-aa">All-Access</span>':r.app==='syn'?'<span class="tag t-syn">Synapse</span>':r.app==='liminal'?'<span class="tag t-lim">Liminal</span>':r.app==='cadence'?'<span class="tag t-cad">Cadence</span>':r.app==='mindprint'?'<span class="tag t-mp">Mindprint</span>':'<span class="tag t-axon">Axon</span>'}
 function stTag(s){return '<span class="tag s-'+esc(s)+'">'+esc(s==='new'?'pending':s)+'</span>'}
 function contact(r){var c=String(r.contact||'').trim();if(!c)return r.email?esc(r.email):'';var d=c.replace(/[^\d+]/g,'');if(d.replace(/\D/g,'').length>=10)return '<a href="sms:'+esc(d)+'">'+esc(c)+'</a>';if(c.indexOf('@')>0)return '<a href="mailto:'+esc(c)+'">'+esc(c)+'</a>';return esc(c)}
 function acts(r){
@@ -135,25 +136,26 @@ function renderSheet(){
  var s=D.sheet;
  if(s&&s.values&&s.values.length){var h=s.values[0],b=s.values.slice(1).reverse();$('#sheetBox').innerHTML=tableHTML(h,b.map(function(r){return h.map(function(_,i){return esc(r[i]||'')})}));$('#sheetAt').textContent='synced '+fmtT(s.at)+' · '+b.length+' row'+(b.length===1?'':'s');}
  else{$('#sheetBox').innerHTML='<div class="empty">Sheet copy not synced yet. Open the sheet.</div>';$('#sheetAt').textContent='';}
- if(CAN('view_requests')){var R=rows();$('#liveBox').innerHTML=tableHTML(['Time (PT)','App','Name','Phone','Charge','Status','Request ID'],R.map(function(r){return [esc(fmtT(r.t)),r.aa?'All-Access':r.app==='syn'?'Synapse':r.app==='liminal'?'Liminal':r.app==='cadence'?'Cadence':'Axon',esc(r.name),esc(r.contact||r.email||''),esc(r.price||money(r.amount)),esc(r.status),'<span class="mono">'+esc(r.id)+'</span>']}))}}
+ if(CAN('view_requests')){var R=rows();$('#liveBox').innerHTML=tableHTML(['Time (PT)','App','Name','Phone','Charge','Status','Request ID'],R.map(function(r){return [esc(fmtT(r.t)),r.aa?'All-Access':r.app==='syn'?'Synapse':r.app==='liminal'?'Liminal':r.app==='cadence'?'Cadence':r.app==='mindprint'?'Mindprint':'Axon',esc(r.name),esc(r.contact||r.email||''),esc(r.price||money(r.amount)),esc(r.status),'<span class="mono">'+esc(r.id)+'</span>']}))}}
 function renderMore(){
- var s=D.syn||{},a=D.axon||{},li=D.liminal||{},ca=D.cadence||{};
+ var s=D.syn||{},a=D.axon||{},li=D.liminal||{},ca=D.cadence||{},mpd=D.mindprint||{};
  $('#appsBox').innerHTML=
   '<div class="row" style="justify-content:space-between;margin-bottom:10px"><div><span class="tag t-syn">Synapse</span> '+(s.ok?'<span class="sub">'+((s.requests||[]).length)+' requests</span>':'')+'</div>'+
   (s.ok&&CAN('toggle_buying')?'<button id="openT">Buying '+(s.open?'open ✅':'closed ⛔')+'</button>':s.ok?'<span class="sub">buying '+(s.open?'open':'closed')+'</span>':'')+'</div>'+
   '<div class="row" style="justify-content:space-between"><div><span class="tag t-axon">Axon</span> '+(a.ok?'<span class="sub">'+(a.accounts||0)+' accounts · '+(a.pro_accounts||0)+' with Pro</span>':'')+'</div></div>'+
   '<div class="row" style="justify-content:space-between;margin-top:8px"><div><span class="tag t-lim">Liminal</span> '+(li.ok?'<span class="sub">'+(li.accounts||0)+' accounts · '+(li.pro_accounts||0)+' with Pro</span>':'')+'</div></div>'+
   '<div class="row" style="justify-content:space-between;margin-top:8px"><div><span class="tag t-cad">Cadence</span> '+(ca.ok?'<span class="sub">'+(ca.accounts||0)+' accounts · '+(ca.pro_accounts||0)+' with Pro</span>':'')+'</div></div>'+
-  '<div class="row" style="margin-top:12px"><a class="btn" href="https://odin-cards.sites.tab.bot/" target="_blank" rel="noopener">Open Synapse ↗</a><a class="btn" href="https://northpeakstudios.github.io/axon/" target="_blank" rel="noopener">Open Axon ↗</a><a class="btn" href="https://northpeakstudios.github.io/liminal/" target="_blank" rel="noopener">Open Liminal ↗</a><a class="btn" href="https://northpeakstudios.github.io/cadence/" target="_blank" rel="noopener">Open Cadence ↗</a></div>';
+  '<div class="row" style="justify-content:space-between;margin-top:8px"><div><span class="tag t-mp">Mindprint</span> '+(mpd.ok?'<span class="sub">'+(mpd.accounts||0)+' accounts · '+(mpd.pro_accounts||0)+' with Pro'+(mpd.quiz?' · quizzes: '+mpd.quiz.main+' main, '+mpd.quiz.deep+' Deep Dive':'')+'</span>':'')+'</div><a class="btn" href="https://mindprint.sites.tab.bot/admin-pro/" target="_blank" rel="noopener" title="Submissions and imports (needs the private Mindprint admin link)">Submissions ↗</a></div>'+
+  '<div class="row" style="margin-top:12px"><a class="btn" href="https://odin-cards.sites.tab.bot/" target="_blank" rel="noopener">Open Synapse ↗</a><a class="btn" href="https://northpeakstudios.github.io/axon/" target="_blank" rel="noopener">Open Axon ↗</a><a class="btn" href="https://northpeakstudios.github.io/liminal/" target="_blank" rel="noopener">Open Liminal ↗</a><a class="btn" href="https://northpeakstudios.github.io/cadence/" target="_blank" rel="noopener">Open Cadence ↗</a><a class="btn" href="https://northpeakstudios.github.io/mindprint/" target="_blank" rel="noopener">Open Mindprint ↗</a></div>';
  var C=[];(s.codes||[]).forEach(function(c){C.push({app:'syn',aa:c.product==='all_access',own:c.kind==='owner',bot:c.kind==='bot',code:c.code,note:c.note,created:c.created,revoked:c.revoked,used:c.used||c.redeemed,by:c.by})});
- [['axon',D.axc],['liminal',D.lic],['cadence',D.cac]].forEach(function(p){((p[1]&&p[1].codes)||[]).forEach(function(c){C.push({app:p[0],code:c.code,note:c.note,created:c.created,used:c.used,by:c.by})})});
+ [['axon',D.axc],['liminal',D.lic],['cadence',D.cac],['mindprint',D.mpc]].forEach(function(p){((p[1]&&p[1].codes)||[]).forEach(function(c){C.push({app:p[0],code:c.code,note:c.note,created:c.created,used:c.used,by:c.by})})});
  C.sort(function(x,y){return (y.created||0)-(x.created||0)});$('#codesN').textContent=C.length?'· '+C.length:'';
- var tg=function(c){return c.bot?'<span class="tag t-aa">🤖 BOT</span>':c.own?'<span class="tag t-aa">👑 Owner</span>':c.aa?'<span class="tag t-aa">All-Access</span>':c.app==='syn'?'<span class="tag t-syn">Synapse</span>':c.app==='axon'?'<span class="tag t-axon">Axon</span>':c.app==='cadence'?'<span class="tag t-cad">Cadence</span>':'<span class="tag t-lim">Liminal</span>'};
+ var tg=function(c){return c.bot?'<span class="tag t-aa">🤖 BOT</span>':c.own?'<span class="tag t-aa">👑 Owner</span>':c.aa?'<span class="tag t-aa">All-Access</span>':c.app==='syn'?'<span class="tag t-syn">Synapse</span>':c.app==='axon'?'<span class="tag t-axon">Axon</span>':c.app==='cadence'?'<span class="tag t-cad">Cadence</span>':c.app==='mindprint'?'<span class="tag t-mp">Mindprint</span>':'<span class="tag t-lim">Liminal</span>'};
  $('#codesBox').innerHTML=tableHTML(['Code','App','Made','Status',''],C.map(function(c){var st=c.revoked?'<span class="tag s-dismissed">revoked</span>':c.used?'<span class="tag s-paid">used</span>'+(c.by?'<div class="sub">'+esc(c.by)+'</div>':''):'<span class="tag s-new">unused</span>';
   var b='';if(c.own||c.bot)b='<span class="sub">locked</span>';else if(CAN('revoke_codes')){if(c.app==='syn')b=(c.revoked?'':'<button data-c="revoke">Revoke</button>')+'<button class="dang" data-c="code-delete">Delete</button>';else b='<button class="dang" data-c="code-delete">Revoke</button>'}
   return ['<span class="code" data-copy="'+esc(c.code)+'">'+esc(c.code)+'</span>'+(c.note?'<div class="sub">'+esc(c.note)+'</div>':''),tg(c),esc(fmtT(c.created)),st,'<div class="acts" data-code="'+esc(c.code)+'" data-capp="'+c.app+'">'+b+'</div>']}));}
 function render(){if(!D)return;if(CAN('view_requests'))renderReq();renderSheet();renderMore();
- var e=[];if(CAN('view_requests')){if(!(D.syn&&D.syn.ok))e.push('synapse');if(!(D.axon&&D.axon.ok))e.push('axon');if(!(D.liminal&&D.liminal.ok))e.push('liminal');if(!(D.cadence&&D.cadence.ok))e.push('cadence')}
+ var e=[];if(CAN('view_requests')){if(!(D.syn&&D.syn.ok))e.push('synapse');if(!(D.axon&&D.axon.ok))e.push('axon');if(!(D.liminal&&D.liminal.ok))e.push('liminal');if(!(D.cadence&&D.cadence.ok))e.push('cadence');if(!(D.mindprint&&D.mindprint.ok))e.push('mindprint')}
  $('#upd').textContent='updated '+new Date(D.at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/Los_Angeles'})+(e.length?' · ⚠ '+e.join(' + ')+' not loading':'')}
 function load(quiet){if(!ME)return Promise.resolve();$('#rf').innerHTML='<span class="spin"></span>';return loadAll().then(function(j){$('#rf').textContent='↻';D=j;render();if(view==='logs'&&quiet)loadLogs(true)}).catch(function(){$('#rf').textContent='↻';if(!quiet)toast('Offline? Couldn’t reach the server')})}
 function act(app,path,body,label){return appApi(app,path,body).then(function(j){
@@ -199,7 +201,7 @@ function loadLogs(quiet,more){
 /* ---------- owner-key changes (np-actlog v1): each backend's own log of admin calls made with its owner key ---------- */
 var ACTN={mint:'made a code',grant:'gave Pro','code-delete':'deleted a code',revoke:'revoked a code',reset:'reset a code device',mark:'set a request',dismiss:'dismissed a request',delete:'deleted a request',open:'switched buying','acct-license':'changed a license','acct-delete':'deleted an account','acct-reset':'reset a password','np-license':'changed a license','np-delete':'deleted an account','np-password':'reset a password','acct-set':'changed an account','sess-config':'set up admin sign-in'};
 function loadActlog(){var box=$('#actBox');if(!box)return;$('#actPanel').hidden=!CAN('view_logs');if(!CAN('view_logs'))return;
- Promise.all(['syn','axon','liminal','cadence'].map(function(a){return appApi(a,'actlog').then(function(j){return {a:a,ok:!!(j&&j.ok),rows:(j&&j.ok?j.log:[]).map(function(r){r.app=a;return r})}},function(){return {a:a,ok:false,rows:[]}})})).then(function(v){
+ Promise.all(['syn','axon','liminal','cadence','mindprint'].map(function(a){return appApi(a,'actlog').then(function(j){return {a:a,ok:!!(j&&j.ok),rows:(j&&j.ok?j.log:[]).map(function(r){r.app=a;return r})}},function(){return {a:a,ok:false,rows:[]}})})).then(function(v){
   var bad=v.filter(function(x){return !x.ok}).map(function(x){return APPN[x.a]||x.a});
   var all=[].concat.apply([],v.map(function(x){return x.rows})).filter(function(r){return r.who==='owner-token'}).sort(function(a,b){return b.t-a.t}).slice(0,80);
   box.innerHTML=(all.length?all.map(function(l){return '<div class="lg"><span class="ic">🔑</span><div><b>owner key</b> '+esc(ACTN[l.act]||String(l.act).replace(/-/g,' '))+' · '+esc(APPN[l.app]||l.app)+(l.tgt?' · <span class="mono">'+esc(l.tgt)+'</span>':'')+(l.det?' · '+esc(l.det):'')+'</div><div class="l2">'+esc(fmtT(l.t))+'</div></div>'}).join(''):'<div class="empty">No owner-key changes yet.</div>')+(bad.length?'<p class="sub" style="margin-top:8px">Couldn\u2019t read: '+esc(bad.join(', '))+'</p>':'')})}
@@ -237,10 +239,10 @@ document.addEventListener('click',function(e){
   var r=rows().filter(function(x){return x.app===app&&x.id===id})[0]||{};
   var who=(r.name||'this request')+' — '+(r.price||'');
   if(a==='note'){var tx=prompt('Note on '+who+' (empty = remove)',r.note?r.note.txt:'');if(tx==null)return;api('/api/notes',{app:app,id:id,txt:tx}).then(function(j){toast(j.ok?'Note saved':(j.words||j.error));load(true)});return}
-  if(a==='paid'&&!confirm('Mark '+who+' as PAID?\n\nOnly after the Apple Cash came in.'+(r.aa?'\nAll-Access: unlocks Synapse + Axon + Liminal + Cadence.':'')))return;
+  if(a==='paid'&&!confirm('Mark '+who+' as PAID?\n\nOnly after the Apple Cash came in.'+(r.aa?'\nAll-Access: unlocks Synapse + Axon + Liminal + Cadence + Mindprint.':'')))return;
   if(a==='delete'&&!confirm('Delete '+who+'? This removes the request'+(r.aa?' from both apps':'')+'.'))return;
   t.disabled=true;
-  var twin=null;if(r.aa&&a==='delete'){['syn','axon','liminal','cadence'].forEach(function(o){if(twin||o===r.app)return;var L=((D[o]&&D[o].requests)||[]);var tw=L.filter(function(x){return x.mirror&&(x.link===id||x.id===r.link)})[0];if(tw)twin={app:o,id:tw.id};});}
+  var twin=null;if(r.aa&&a==='delete'){['syn','axon','liminal','cadence','mindprint'].forEach(function(o){if(twin||o===r.app)return;var L=((D[o]&&D[o].requests)||[]);var tw=L.filter(function(x){return x.mirror&&(x.link===id||x.id===r.link)})[0];if(tw)twin={app:o,id:tw.id};});}
   var delTwin=function(j){if(!twin||!j||!j.ok)return j;return (twin.app==='syn'?appApi('syn','delete',{req:twin.id}):appApi(twin.app,'mark',{id:twin.id,status:'delete'})).then(function(){return load(true)})};
   if(app==='syn'){if(a==='paid')act('syn','mint',{req:id},'Paid ✓');else act('syn',a,{req:id},a==='delete'?'Deleted':'Dismissed').then(delTwin);}
   else{var st={paid:'paid',decline:'declined',delete:'delete',undo:'new'}[a];act(app,'mark',{id:id,status:st},{paid:'Paid ✓',declined:'Declined',delete:'Deleted',new:'Back to pending'}[st]).then(delTwin);}
@@ -253,19 +255,19 @@ document.addEventListener('visibilitychange',function(){if(!document.hidden&&ME&
 setInterval(function(){if(!document.hidden&&ME&&D)load(true)},30000);
 
 /* ---------- accounts (owner only) — np-accounts v1 ---------- */
-var AC={app:'all',q:'',data:null,busy:false}, APPN={syn:'Synapse',axon:'Axon',liminal:'Liminal',cadence:'Cadence'}, ATAG={syn:'t-syn',axon:'t-axon',liminal:'t-lim',cadence:'t-cad'};
-var ARoute={syn:{list:'np-accounts',lic:'np-license',del:'np-delete',pw:'np-password'},axon:{list:'accounts',lic:'acct-license',del:'acct-delete',pw:'acct-reset'},liminal:{list:'accounts',lic:'acct-license',del:'acct-delete',pw:'acct-reset'},cadence:{list:'accounts',lic:'acct-license',del:'acct-delete',pw:'acct-reset'}};
+var AC={app:'all',q:'',data:null,busy:false}, APPN={syn:'Synapse',axon:'Axon',liminal:'Liminal',cadence:'Cadence',mindprint:'Mindprint'}, ATAG={syn:'t-syn',axon:'t-axon',liminal:'t-lim',cadence:'t-cad',mindprint:'t-mp'};
+var ARoute={syn:{list:'np-accounts',lic:'np-license',del:'np-delete',pw:'np-password'},axon:{list:'accounts',lic:'acct-license',del:'acct-delete',pw:'acct-reset'},liminal:{list:'accounts',lic:'acct-license',del:'acct-delete',pw:'acct-reset'},cadence:{list:'accounts',lic:'acct-license',del:'acct-delete',pw:'acct-reset'},mindprint:{list:'accounts',lic:'acct-license',del:'acct-delete',pw:'acct-reset'}};
 var LICN={free:'Free',pro:'Pro',all_access:'All-Access',owner:'Owner 👑',bot:'Bot 🤖'};
 function acLabel(a){return a.email||('@'+a.username)}
 function loadAccounts(){if(!CAN('manage_accounts'))return;$('#acBox').innerHTML='<div class="empty"><span class="spin"></span> Loading accounts…</div>';
- return Promise.all(['syn','axon','liminal','cadence'].map(function(app){return appApi(app,ARoute[app].list).then(function(j){return j},function(){return{ok:false,error:'unreachable'}})})).then(function(v){
-  AC.data={syn:v[0],axon:v[1],liminal:v[2],cadence:v[3]};renderAccounts()})}
-function acAll(){var out=[];['syn','axon','liminal','cadence'].forEach(function(app){var j=AC.data&&AC.data[app];((j&&j.accounts)||[]).forEach(function(a){a.app=app;out.push(a)})});return out}
+ return Promise.all(['syn','axon','liminal','cadence','mindprint'].map(function(app){return appApi(app,ARoute[app].list).then(function(j){return j},function(){return{ok:false,error:'unreachable'}})})).then(function(v){
+  AC.data={syn:v[0],axon:v[1],liminal:v[2],cadence:v[3],mindprint:v[4]};renderAccounts()})}
+function acAll(){var out=[];['syn','axon','liminal','cadence','mindprint'].forEach(function(app){var j=AC.data&&AC.data[app];((j&&j.accounts)||[]).forEach(function(a){a.app=app;out.push(a)})});return out}
 function acSiblings(a){var em=(a.email||'').toLowerCase();if(!em)return [a];return acAll().filter(function(x){return (x.email||'').toLowerCase()===em})}
 function renderAccounts(){
  if(!AC.data)return;var all=acAll();
- $('#acApp').innerHTML=[['all','All apps'],['syn','Synapse'],['axon','Axon'],['liminal','Liminal'],['cadence','Cadence']].map(function(c){var n=c[0]==='all'?all.length:all.filter(function(a){return a.app===c[0]}).length;return '<button class="chip'+(AC.app===c[0]?' on':'')+'" data-acapp="'+c[0]+'">'+c[1]+' · '+n+'</button>'}).join('');
- var sum=[];['syn','axon','liminal','cadence'].forEach(function(app){var j=AC.data[app];if(!j||!j.ok){sum.push(APPN[app]+': couldn’t load ('+esc((j&&(j.words||j.error))||'error')+')');return}
+ $('#acApp').innerHTML=[['all','All apps'],['syn','Synapse'],['axon','Axon'],['liminal','Liminal'],['cadence','Cadence'],['mindprint','Mindprint']].map(function(c){var n=c[0]==='all'?all.length:all.filter(function(a){return a.app===c[0]}).length;return '<button class="chip'+(AC.app===c[0]?' on':'')+'" data-acapp="'+c[0]+'">'+c[1]+' · '+n+'</button>'}).join('');
+ var sum=[];['syn','axon','liminal','cadence','mindprint'].forEach(function(app){var j=AC.data[app];if(!j||!j.ok){sum.push(APPN[app]+': couldn’t load ('+esc((j&&(j.words||j.error))||'error')+')');return}
   var c={};j.accounts.forEach(function(a){var k=a.license+(/^grandfathered/.test(a.via)?'*':'');c[k]=(c[k]||0)+1});
   sum.push('<b>'+APPN[app]+'</b> '+j.accounts.length+': '+Object.keys(c).map(function(k){return c[k]+' '+(LICN[k.replace('*','')]||k).replace(/ .*/,'')+(k.slice(-1)==='*'?' (grandfathered)':'')}).join(', '))});
  $('#acSum').innerHTML=sum.join('<br>');$('#acN').textContent=all.length+' total';
@@ -292,12 +294,12 @@ function acModal(html){var m=document.createElement('div');m.className='amod';m.
 function acPwGen(){var AB='abcdefghjkmnpqrstuvwxyz23456789',r=crypto.getRandomValues(new Uint8Array(12)),s='';for(var i=0;i<12;i++)s+=AB[r[i]%AB.length];return s.slice(0,4)+'-'+s.slice(4,8)+'-'+s.slice(8)}
 function acDerive(app,kdf,pw){ /* exactly what the Axon / Liminal apps do: PBKDF2-SHA256, 600k rounds; only the login half leaves this phone */
  var te=new TextEncoder();return crypto.subtle.importKey('raw',te.encode(String(pw).normalize('NFC')),'PBKDF2',false,['deriveBits']).then(function(base){
-  return crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:te.encode((app==='axon'?'axon-sync/v1:':app==='cadence'?'cadence-sync/v1:':'liminal-sync/v1:')+String(kdf||'').trim().toLowerCase()),iterations:600000},base,512)}).then(function(b){
+  return crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:te.encode((app==='axon'?'axon-sync/v1:':app==='cadence'?'cadence-sync/v1:':app==='mindprint'?'mindprint-sync/v1:':'liminal-sync/v1:')+String(kdf||'').trim().toLowerCase()),iterations:600000},base,512)}).then(function(b){
   return [].slice.call(new Uint8Array(b).slice(32)).map(function(x){return x.toString(16).padStart(2,'0')}).join('')})}
 function acLicense(a,lc){
  if(lc===a.license)return toast('Already '+LICN[lc]);
  var sib=acSiblings(a), wasAA=sib.filter(function(x){return x.license==='all_access'&&!x.locked});
- var msg=lc==='all_access'?'Give '+acLabel(a)+' All-Access? It unlocks Synapse, Axon, Liminal and Cadence'+(sib.length>1?' on every account with this email':'')+'.':
+ var msg=lc==='all_access'?'Give '+acLabel(a)+' All-Access? It unlocks Synapse, Axon, Liminal, Cadence and Mindprint'+(sib.length>1?' on every account with this email':'')+'.':
   (a.license==='all_access'&&wasAA.length>1?'Take All-Access off '+acLabel(a)+' on every app? '+(lc==='free'?'All of them become Free.':APPN[a.app]+' becomes Pro, the other apps become Free.'):'Set '+acLabel(a)+' to '+LICN[lc]+' on '+APPN[a.app]+'?');
  if(!confirm(msg))return;
  var jobs;

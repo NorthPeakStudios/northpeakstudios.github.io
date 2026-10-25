@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://northpeak-admin.sites.tab.bot https://odin-cards.sites.tab.bot https://axon-sync.sites.tab.bot https://liminal-sync.sites.tab.bot https://cadence-sync.sites.tab.bot; font-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://northpeak-admin.sites.tab.bot https://odin-cards.sites.tab.bot https://axon-sync.sites.tab.bot https://liminal-sync.sites.tab.bot https://cadence-sync.sites.tab.bot https://mindprint.sites.tab.bot; font-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <!-- no zoom on iPhone: pinch, double-tap, input focus -->
 <style id="np-nozoom">html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}html select.sm,html input.sm{font-size:16px}</style>
@@ -34,7 +34,7 @@ button.dang{color:var(--bad)}button[disabled]{opacity:.5}
 .chip{border-radius:999px;padding:7px 11px;font-size:13px;background:var(--card);color:var(--mu)}
 .chip.on{background:var(--tx);color:var(--bg);border-color:var(--tx)}
 .tag{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:2px 6px;letter-spacing:.2px}
-.t-syn{background:rgba(124,156,255,.16);color:var(--syn)}.t-axon{background:rgba(61,220,151,.14);color:var(--ax)}.t-aa{background:rgba(245,177,76,.16);color:var(--aa)}.t-lim{background:rgba(201,167,255,.16);color:#c9a7ff}.t-cad{background:rgba(122,162,255,.16);color:#9cc4ff}
+.t-syn{background:rgba(124,156,255,.16);color:var(--syn)}.t-axon{background:rgba(61,220,151,.14);color:var(--ax)}.t-aa{background:rgba(245,177,76,.16);color:var(--aa)}.t-lim{background:rgba(201,167,255,.16);color:#c9a7ff}.t-cad{background:rgba(122,162,255,.16);color:#9cc4ff}.t-mp{background:rgba(179,157,255,.16);color:#c9b8ff}
 .s-new{background:rgba(245,177,76,.16);color:var(--warn)}.s-paid{background:rgba(61,220,151,.14);color:var(--ok)}.s-test{background:#2a2f3c;color:var(--mu)}.s-dismissed,.s-declined{background:rgba(255,107,107,.12);color:var(--bad)}
 table{width:100%;border-collapse:collapse}
 th{text-align:left;font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
@@ -181,7 +181,7 @@ select{-webkit-appearance:none;appearance:none;background-image:linear-gradient(
 </section>
 <section id="v-more" hidden>
  <div class="panel" id="appsPanel"><h2>Apps</h2><div id="appsBox"></div></div>
- <div class="panel" id="mintPanel"><!-- np-mint-any v1 --><h2>🔑 Make a code</h2><div class="hint" style="margin-bottom:8px">Pick the app, then make a single-use unlock code (not tied to a request).</div><div class="apick" id="mApp"><button type="button" class="ap on" data-mapp="synapse"><span class="tag t-syn">Synapse</span><span class="sub">Synapse Lifetime</span></button><button type="button" class="ap" data-mapp="axon"><span class="tag t-axon">Axon</span><span class="sub">Axon Pro</span></button><button type="button" class="ap" data-mapp="liminal"><span class="tag t-lim">Liminal</span><span class="sub">Liminal Pro</span></button><button type="button" class="ap" data-mapp="cadence"><span class="tag t-cad">Cadence</span><span class="sub">Cadence Pro</span></button><button type="button" class="ap" data-mapp="all"><span class="tag t-aa">All-Access</span><span class="sub">works on all 3 · $100</span></button></div><div class="row" style="margin-top:10px"><input class="sm" id="mNote" placeholder="note (who it's for)" style="flex:1;min-width:120px"><button class="pri" id="mGo">Make Synapse code</button></div><div id="mOut" hidden></div></div>
+ <div class="panel" id="mintPanel"><!-- np-mint-any v1 --><h2>🔑 Make a code</h2><div class="hint" style="margin-bottom:8px">Pick the app, then make a single-use unlock code (not tied to a request).</div><div class="apick" id="mApp"><button type="button" class="ap on" data-mapp="synapse"><span class="tag t-syn">Synapse</span><span class="sub">Synapse Lifetime</span></button><button type="button" class="ap" data-mapp="axon"><span class="tag t-axon">Axon</span><span class="sub">Axon Pro</span></button><button type="button" class="ap" data-mapp="liminal"><span class="tag t-lim">Liminal</span><span class="sub">Liminal Pro</span></button><button type="button" class="ap" data-mapp="cadence"><span class="tag t-cad">Cadence</span><span class="sub">Cadence Pro</span></button><button type="button" class="ap" data-mapp="mindprint"><span class="tag t-mp">Mindprint</span><span class="sub">Mindprint Pro</span></button><button type="button" class="ap" data-mapp="all"><span class="tag t-aa">All-Access</span><span class="sub">works on all 3 · $100</span></button></div><div class="row" style="margin-top:10px"><input class="sm" id="mNote" placeholder="note (who it's for)" style="flex:1;min-width:120px"><button class="pri" id="mGo">Make Synapse code</button></div><div id="mOut" hidden></div></div>
  <div class="panel" id="codesPanel"><h2>Codes <span class="sub" id="codesN"></span></h2><div class="sheetwrap" id="codesBox"></div></div>
 </section>
 <section id="v-users" hidden>
@@ -213,4 +213,4 @@ select{-webkit-appearance:none;appearance:none;background-image:linear-gradient(
   <p class="sub" style="margin-top:10px">Passwords are stored scrambled (hashed), so nobody can see them, not even you. Reset password makes a new one and shows it once.</p></div>
 </section>
 </div></div><div id="toast"></div>
-<script src="admin.js?v=6"></script></body></html>
+<script src="admin.js?v=7"></script></body></html>
