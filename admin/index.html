@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://northpeak-admin.sites.tab.bot https://odin-cards.sites.tab.bot https://axon-sync.sites.tab.bot https://liminal-sync.sites.tab.bot https://cadence-sync.sites.tab.bot https://mindprint.sites.tab.bot; font-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://northpeak-admin.sites.tab.bot https://odin-cards.sites.tab.bot https://axon-sync.sites.tab.bot https://liminal-sync.sites.tab.bot https://cadence-sync.sites.tab.bot https://mindprint.sites.tab.bot https://*.sites.tab.bot; font-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <!-- no zoom on iPhone: pinch, double-tap, input focus -->
 <style id="np-nozoom">html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}html select.sm,html input.sm{font-size:16px}</style>
@@ -137,6 +137,26 @@ select{-webkit-appearance:none;appearance:none;background-image:linear-gradient(
  .sheetwrap td:not([data-l])::before,.sheetwrap td[data-l=""]::before{content:none}
  .sheetwrap td[colspan]{justify-content:center}
 }
+
+/* np-apps v2: section bar (All + one per app) */
+.secbar{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -14px 12px;padding:2px 14px 4px;}
+.secbar::-webkit-scrollbar{display:none}
+.secbar button{flex:0 0 auto;border-radius:999px;padding:9px 14px;font-size:14px;background:var(--card);color:var(--mu)}
+.secbar button.on{background:var(--tx);color:var(--bg);border-color:var(--tx)}
+.secbar .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:currentColor;margin-right:2px}
+.secbar button.on .dot{opacity:.9}
+.t-app{background:rgba(255,255,255,.08);color:var(--tx)}
+.appcard{padding:8px 0;border-bottom:1px solid var(--line)}.appcard:last-child{border-bottom:0}
+#gsDet summary{cursor:pointer;list-style:revert;padding:2px 0}
+.mr-q{width:100%;background:var(--card2);border:1px solid var(--line);color:var(--tx);border-radius:10px;padding:9px 11px;font-size:16px;margin:8px 0}
+.mr-n{line-height:1.5}
+.mr-card .mr-em{word-break:break-all}
+.mr-blk{margin-top:9px;padding-top:8px;border-top:1px solid var(--line)}
+.mr-lb{font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+.mr-hl{font-weight:650;margin-bottom:2px}
+.mr-sb{margin-top:6px}.mr-sb summary{cursor:pointer;color:var(--syn);font-size:13px;font-weight:600;padding:4px 0}
+.mr-qa{display:flex;flex-direction:column;gap:2px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}.mr-qa b{font-weight:600}.mr-qa span{color:var(--mu)}
+@media (max-width:700px){.tabs{overflow-x:auto;scrollbar-width:none}.tabs button{flex:1 0 auto;padding:9px 10px}}
 </style><script src="np-update.js?v=1" data-sw="" defer></script>
 </head><body><div class="wrap">
 <div id="boot" class="auth" style="text-align:center"><div class="logo">N</div><span class="spin"></span></div>
@@ -160,6 +180,7 @@ select{-webkit-appearance:none;appearance:none;background-image:linear-gradient(
 <header><div class="logo">N</div><h1>Northpeak Admin</h1><div class="sp"></div><button id="rf" aria-label="refresh">↻</button></header>
 <div class="bar"><button class="who" id="whoBtn"><span class="av" id="av">?</span><span id="whoName"></span><span class="rl" id="whoRole"></span><span class="sub">▾</span></button><div class="sp"></div><div class="sub" id="upd">loading…</div></div>
 <div class="panel" id="mePanel" hidden><div class="row" style="justify-content:space-between"><div><b id="meName"></b> <span class="sub" id="meCaps"></span></div></div><div class="row" style="margin-top:10px"><button id="meChpw">Change password</button><button class="dang" id="logout">Log out</button></div></div>
+<nav class="secbar" id="secbar" aria-label="Apps"></nav>
 <div class="stats" id="statsBox">
  <div class="st"><b id="sTot">–</b><span>Requests</span></div>
  <div class="st"><b id="sPaid">–</b><span>Paid</span></div>
@@ -172,16 +193,25 @@ select{-webkit-appearance:none;appearance:none;background-image:linear-gradient(
  <table id="req"><thead><tr><th>App</th><th>Time</th><th>Name</th><th>Contact</th><th>Username</th><th>Plan / price</th><th>Status</th><th>Code</th><th>ID</th><th></th><th></th></tr></thead><tbody></tbody></table>
  <div class="empty" id="reqEmpty" hidden>No requests here yet.</div>
 </section>
-<section id="v-sheet" hidden>
- <div class="panel"><h2>📄 Google Sheet · Requests</h2>
-  <div class="row" style="margin-bottom:10px"><a class="btn" id="openSheet" target="_blank" rel="noopener" href="https://docs.google.com/spreadsheets/d/1qW24vxsIMVVRvvAcP9d5IONRHkCY8dwpEbRA9Hf9X_c/edit">Open sheet ↗</a><span class="sub" id="sheetAt"></span></div>
-  <div class="sheetwrap" id="sheetBox"></div>
- </div>
- <div class="panel" id="livePanel"><h2>⚡ Live data (all apps, sheet columns)</h2><div class="sheetwrap" id="liveBox"></div></div>
+<section id="v-sheet" hidden><!-- np-apps v2: live rows first, Refresh button, Google Sheet copy folded below -->
+ <div class="panel"><div class="row" style="justify-content:space-between;margin-bottom:6px"><h2 style="margin:0">📄 Sheet <span class="sub" id="shN"></span></h2><button class="pri" id="shRf">↻ Refresh</button></div>
+  <div class="sub" id="shUpd" style="margin-bottom:10px">loading…</div>
+  <div class="sheetwrap" id="liveBox"></div></div>
+ <div class="panel"><details id="gsDet"><summary><b>Google Sheet copy</b> <span class="sub" id="sheetAt"></span></summary>
+  <p class="sub" style="margin:8px 0">A copy of the Google Sheet's Requests tab. Tab's buy-request check refreshes it; the live rows above are always current.</p>
+  <div class="row" style="margin-bottom:10px"><a class="btn" id="openSheet" target="_blank" rel="noopener" href="https://docs.google.com/spreadsheets/d/1qW24vxsIMVVRvvAcP9d5IONRHkCY8dwpEbRA9Hf9X_c/edit">Open sheet ↗</a></div>
+  <div class="sheetwrap" id="sheetBox"></div></details></div>
+</section>
+<section id="v-resp" hidden><!-- np-apps v2: Mindprint responses (owner only) -->
+ <div class="panel"><div class="row" style="justify-content:space-between;margin-bottom:8px"><h2 style="margin:0">🧠 Mindprint responses</h2><div class="row"><button id="rsCsv">Export CSV</button><button id="rsRf" aria-label="refresh responses">↻</button></div></div>
+  <div class="sub mr-n" id="rsN"></div>
+  <input id="rsQ" class="mr-q" type="search" placeholder="Search name, email or trait" autocapitalize="none" autocorrect="off" spellcheck="false">
+  <div class="chips" id="rsF"></div>
+  <div id="rsBox"><div class="empty">Loading…</div></div></div>
 </section>
 <section id="v-more" hidden>
  <div class="panel" id="appsPanel"><h2>Apps</h2><div id="appsBox"></div></div>
- <div class="panel" id="mintPanel"><!-- np-mint-any v1 --><h2>🔑 Make a code</h2><div class="hint" style="margin-bottom:8px">Pick the app, then make a single-use unlock code (not tied to a request).</div><div class="apick" id="mApp"><button type="button" class="ap on" data-mapp="synapse"><span class="tag t-syn">Synapse</span><span class="sub">Synapse Lifetime</span></button><button type="button" class="ap" data-mapp="axon"><span class="tag t-axon">Axon</span><span class="sub">Axon Pro</span></button><button type="button" class="ap" data-mapp="liminal"><span class="tag t-lim">Liminal</span><span class="sub">Liminal Pro</span></button><button type="button" class="ap" data-mapp="cadence"><span class="tag t-cad">Cadence</span><span class="sub">Cadence Pro</span></button><button type="button" class="ap" data-mapp="mindprint"><span class="tag t-mp">Mindprint</span><span class="sub">Mindprint Pro</span></button><button type="button" class="ap" data-mapp="all"><span class="tag t-aa">All-Access</span><span class="sub">works on all 3 · $100</span></button></div><div class="row" style="margin-top:10px"><input class="sm" id="mNote" placeholder="note (who it's for)" style="flex:1;min-width:120px"><button class="pri" id="mGo">Make Synapse code</button></div><div id="mOut" hidden></div></div>
+ <div class="panel" id="mintPanel"><!-- np-mint-any v1 --><h2>🔑 Make a code</h2><div class="hint" style="margin-bottom:8px">Pick the app, then make a single-use unlock code (not tied to a request).</div><div class="apick" id="mApp"></div><div class="row" style="margin-top:10px"><input class="sm" id="mNote" placeholder="note (who it's for)" style="flex:1;min-width:120px"><button class="pri" id="mGo">Make Synapse code</button></div><div id="mOut" hidden></div></div>
  <div class="panel" id="codesPanel"><h2>Codes <span class="sub" id="codesN"></span></h2><div class="sheetwrap" id="codesBox"></div></div>
 </section>
 <section id="v-users" hidden>
@@ -213,4 +243,4 @@ select{-webkit-appearance:none;appearance:none;background-image:linear-gradient(
   <p class="sub" style="margin-top:10px">Passwords are stored scrambled (hashed), so nobody can see them, not even you. Reset password makes a new one and shows it once.</p></div>
 </section>
 </div></div><div id="toast"></div>
-<script src="admin.js?v=7"></script></body></html>
+<script src="admin.js?v=8"></script></body></html>
