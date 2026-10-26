@@ -1206,7 +1206,7 @@ const x8back = '<button class="x8-back" data-x8="labs">‹ labs</button>';
 const x8head = k => { const t = X8.find(x => x[0] === k); return `${x8back}<p class="x6-k">labs${t[3] ? ' · pro' : ''}</p><h2 class="x8-h">${t[1]}</h2><p class="x8-p">${t[2]}</p>`; };
 function x8labs() {
   const pro = isPro();
-  const ov = x6open(`<p class="x6-k">new in v33</p><h2 class="x8-h">labs</h2><p class="x8-p">small experiments for your feelings. everything stays on this phone unless it says otherwise.</p><div class="x8-list">${X8.map(t => `<button class="x8-row" data-x8="${t[0]}"><span><b>${t[3] && !pro ? XLOCK : ''}${t[1]}</b><small>${t[2]}</small></span><i>›</i></button>`).join('')}</div>${XHELP}`);
+  const ov = x6open(`<p class="x6-k">new in v34</p><h2 class="x8-h">labs</h2><p class="x8-p">small experiments for your feelings. everything stays on this phone unless it says otherwise.</p><div class="x8-list">${X8.map(t => { const due = t[0] === 'worry' ? x34due() : 0; return `<button class="x8-row" data-x8="${t[0]}"><span><b>${t[3] && !pro ? XLOCK : ''}${t[1]}${t[4] ? '<em class="x34-new">new</em>' : ''}${t[3] ? '<em class="x34-pro">pro</em>' : ''}</b><small>${due ? `${due} parked worr${due === 1 ? 'y is' : 'ies are'} ready to check` : t[2]}</small></span><i>›</i></button>`; }).join('')}</div>${XHELP}`); try { $('#x8L') && $('#x8L').classList.remove('x34-dot'); } catch (e) {}
   x8bind(ov);
 }
 function x8bind(ov) { ov.addEventListener('click', e => { const b = e.target.closest('[data-x8]'); if (!b) return; x8go(b.dataset.x8); }); }
@@ -1214,7 +1214,7 @@ function x8go(k) {
   if (k === 'labs') return x8labs();
   const t = X8.find(x => x[0] === k); if (!t) return;
   if (t[3] && !isPro()) { x6close(); return openPro(t[1]); }
-  ({ name: x8name, unsent: x8unsent, future: x8future, friend: x8friend, sky: x8sky, body: x8body, jar: x8jar, safe: x8safe })[k]();
+  ({ name: x8name, unsent: x8unsent, future: x8future, friend: x8friend, sky: x8sky, body: x8body, jar: x8jar, safe: x8safe, worry: x34worry, rhythm: x34rhythm, thennow: () => x34thennow() })[k]();
 }
 function x8open(k, html) { const ov = x6open(x8head(k) + html); ov.querySelector('.x8-back').onclick = () => x8labs(); return ov; }
 
@@ -1343,4 +1343,77 @@ function x8safe(edit) {
   if ($('#x8L')) $('#x8L').onclick = x8labs;
 })();
 
-window.__liminal = { db, S, renderArchive, engine, cloud, afterAccount, x6week, x6blend, x6echo, x8labs, x8go };
+/* ---------- v34 · three more labs: worry time (free) · your rhythms, then & now (pro) ---------- */
+X8.unshift(
+  ['worry', 'worry time', 'park a worry and pick when to check on it. later, see how many actually happened the way you feared.', 0, 1],
+  ['rhythm', 'your rhythms', 'which hours and days tend to feel heavier or lighter for you, from the moments you kept.', 1, 1],
+  ['thennow', 'then & now', 'a moment from a while ago next to your latest one. what changed?', 1, 1]
+);
+const x34due = () => x8LS('worries', []).filter(w => !w.out && w.due <= Date.now()).length;
+
+/* worry time (free): park it, revisit it, learn from the tally. stays on this phone. */
+function x34worry() {
+  const ws = x8LS('worries', []), now = Date.now();
+  const fmt = t => new Date(t).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }).toLowerCase() + ' · ' + fmtTime(t);
+  const due = ws.filter(w => !w.out && w.due <= now), wait = ws.filter(w => !w.out && w.due > now), done = ws.filter(w => w.out);
+  const nope = done.filter(w => w.out === 'no').length, part = done.filter(w => w.out === 'partly').length;
+  const ov = x8open('worry', `${due.length ? `<p class="x6-k">ready to check · ${due.length}</p>${due.map(w => `<div class="x34-w ready"><p>${esc(w.text)}</p><small>parked ${fmt(w.t)}</small><span class="x34-q">did it happen the way you feared?</span><div class="x8-seg">${[['no', 'no'], ['partly', 'partly'], ['yes', 'yes']].map(([k, l]) => `<button data-wid="${w.id}" data-out="${k}">${l}</button>`).join('')}</div></div>`).join('')}` : ''}
+    <p class="x6-k" style="margin-top:14px">park a worry</p><textarea class="x8-ta" id="x34t" rows="3" maxlength="280" placeholder="what keeps looping?"></textarea>
+    <div class="x8-seg" id="x34d">${[['tonight', 'tonight'], ['tomorrow', 'tomorrow'], ['3 days', 3], ['1 week', 7]].map(([l, d], i) => `<button class="${i === 1 ? 'on' : ''}" data-d="${d}">${l}</button>`).join('')}</div>
+    <button class="x6-blendbtn" id="x34park">park it until then</button>
+    ${wait.length ? `<p class="x6-k" style="margin-top:18px">parked · ${wait.length}</p>${wait.map(w => `<div class="x34-w"><p>${esc(w.text)}</p><small>check ${fmt(w.due)}</small><button class="x34-del" data-del="${w.id}" aria-label="let this one go">let it go</button></div>`).join('')}` : ''}
+    ${done.length ? `<div class="x34-tally"><b>${nope + part} of ${done.length}</b><span>worries you checked didn’t happen the way you feared${part ? ` (${part} only partly)` : ''}.</span></div>` : ''}
+    <p class="x6-fine">parking a worry gives your brain permission to drop it for now. worries stay on this phone only (not synced).</p>${XHELP}`);
+  let pick = 'tomorrow';
+  ov.querySelectorAll('#x34d [data-d]').forEach(b => b.onclick = () => { pick = b.dataset.d; ov.querySelectorAll('#x34d [data-d]').forEach(x => x.classList.toggle('on', x === b)); });
+  ov.querySelector('#x34park').onclick = () => {
+    const text = ov.querySelector('#x34t').value.trim().slice(0, 280); if (!text) { toast('write the worry first'); return; }
+    const d = new Date(); if (pick === 'tonight') d.setHours(Math.max(d.getHours() + 1, 20), 0, 0, 0); else if (pick === 'tomorrow') { d.setDate(d.getDate() + 1); d.setHours(17, 0, 0, 0); } else d.setTime(d.getTime() + (+pick) * 864e5);
+    const list = x8LS('worries', []); list.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), text, t: Date.now(), due: d.getTime() }); x8set('worries', list.slice(-200));
+    toast('parked. you can put it down now.'); x34worry();
+  };
+  ov.querySelectorAll('[data-out]').forEach(b => b.onclick = () => { const list = x8LS('worries', []), w = list.find(x => x.id === b.dataset.wid); if (w) { w.out = b.dataset.out; w.at = Date.now(); x8set('worries', list); } toast(b.dataset.out === 'yes' ? 'that’s hard. you got through the wait, though.' : 'noted. your brain will remember this one.'); x34worry(); });
+  ov.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { x8set('worries', x8LS('worries', []).filter(x => x.id !== b.dataset.del)); x34worry(); });
+}
+
+/* your rhythms (pro): average heaviness/lightness by time of day and weekday, from kept moments */
+function x34rhythm() {
+  const ms = S.moments.filter(m => m.v != null && m.t);
+  const SL = [['early hours', 0, 5], ['morning', 5, 12], ['afternoon', 12, 17], ['evening', 17, 21], ['late night', 21, 24]], PL = { 'early hours': 'early hours', morning: 'mornings', afternoon: 'afternoons', evening: 'evenings', 'late night': 'late nights' }, DN = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+  const grp = (keyFn, keys) => keys.map(k => { const g = ms.filter(m => keyFn(m) === k); return { k, n: g.length, v: g.length ? g.reduce((s, m) => s + m.v, 0) / g.length : null, e: g.length ? g.reduce((s, m) => s + m.e, 0) / g.length : null, col: g.length ? mixHex(g.slice(0, 12).map(m => (m.colors || [])[0]).filter(Boolean)) : null }; });
+  const slot = m => { const h = new Date(m.t).getHours(); return SL.find(s => h >= s[1] && h < s[2])[0]; };
+  const bySlot = grp(slot, SL.map(s => s[0])), byDay = grp(m => DN[new Date(m.t).getDay()], [1, 2, 3, 4, 5, 6, 0].map(i => DN[i]));
+  const bar = g => `<div class="x34-bar${g.n ? '' : ' none'}"><span class="x34-lbl">${g.k}</span><span class="x34-track"><i style="left:${g.n ? Math.round(g.v * 100) : 50}%;${g.col ? `background:${g.col}` : ''}"></i></span><small>${g.n ? `${moodWord(g.v, g.e)} · ${g.n}` : '—'}</small></div>`;
+  const has = bySlot.filter(g => g.n >= 2), lo = has.length > 1 ? has.reduce((a, b) => a.v < b.v ? a : b) : null, hi = has.length > 1 ? has.reduce((a, b) => a.v > b.v ? a : b) : null;
+  const ov = x8open('rhythm', ms.length < 5 ? `<p class="x8-said">keep at least 5 moments and your rhythms show up here.<span>you have ${ms.length} so far.</span></p>` : `
+    ${lo && hi && lo !== hi && hi.v - lo.v > .08 ? `<p class="x8-said">your ${PL[hi.k]} tend to feel lighter than your ${PL[lo.k]}.<span>from ${ms.length} moments. a pattern, not a cause.</span></p>` : `<p class="x8-said">no strong pattern yet.<span>from ${ms.length} moments. more moments, clearer picture.</span></p>`}
+    <div class="x34-scale"><span>heavier</span><span>lighter</span></div>
+    <p class="x6-k">time of day</p>${bySlot.map(bar).join('')}
+    <p class="x6-k" style="margin-top:14px">day of week</p>${byDay.map(bar).join('')}
+    <p class="x6-fine">each dot is the average of the moments you kept then (left = heavier, right = lighter). it only knows when you chose to check in, so it’s a pattern, not a cause.</p>`);
+  return ov;
+}
+
+/* then & now (pro): an older moment beside the newest one */
+function x34thennow(pickAgo) {
+  const ms = S.moments; if (ms.length < 2) { x8open('thennow', `<p class="x8-said">keep a couple of moments on different days first.</p>`); return; }
+  const now = ms[0], opts = [['a week ago', 7], ['a month ago', 30], ['3 months ago', 91], ['a year ago', 365]].filter(([, d]) => ms.some(m => m.t <= now.t - d * 864e5 * .6));
+  const ago = pickAgo || (opts.length ? opts[opts.length > 1 ? 1 : 0][1] : 0);
+  const target = now.t - ago * 864e5, older = ms.slice(1);
+  const then = ago ? older.reduce((a, b) => Math.abs(b.t - target) < Math.abs(a.t - target) ? b : a) : older[older.length - 1];
+  const notes = x8LS('tn', {}), key = then.id + '>' + now.id;
+  const card = (m, k) => `<div class="x34-tn"><canvas width="340" height="420" data-k="${k}"></canvas><b>${esc(m.word)}</b><small>${x6day(m.t)}</small>${m.text ? `<p>“${esc(String(m.text).slice(0, 90))}${String(m.text).length > 90 ? '…' : ''}”</p>` : ''}</div>`;
+  const dv = now.v - then.v, de = now.e - then.e;
+  const shift = Math.abs(dv) < .08 && Math.abs(de) < .08 ? 'you’re sitting close to where you were.' : `${Math.abs(dv) >= .08 ? (dv > 0 ? 'lighter' : 'heavier') : ''}${Math.abs(dv) >= .08 && Math.abs(de) >= .08 ? ' and ' : ''}${Math.abs(de) >= .08 ? (de > 0 ? 'more restless' : 'stiller') : ''} than then.`;
+  const ov = x8open('thennow', `${opts.length > 1 ? `<div class="x8-seg">${opts.map(([l, d]) => `<button class="${d === ago ? 'on' : ''}" data-ago="${d}">${l}</button>`).join('')}</div>` : ''}
+    <div class="x34-pair">${card(then, 'a')}${card(now, 'b')}</div>
+    <p class="x8-said">${shift}<span>then: ${esc(then.word)} · now: ${esc(now.word)}</span></p>
+    <p class="x6-k">what changed? (optional)</p><textarea class="x8-ta" id="x34n" rows="3" maxlength="400" placeholder="one line is enough">${esc(notes[key] || '')}</textarea>
+    <button class="x6-blendbtn" id="x34ns">save note</button><p class="x6-fine">notes stay on this phone only.</p>`);
+  ov.querySelectorAll('canvas[data-k]').forEach(c => { try { drawScene(c, c.dataset.k === 'a' ? then : now); } catch (e) {} });
+  ov.querySelectorAll('[data-ago]').forEach(b => b.onclick = () => x34thennow(+b.dataset.ago));
+  ov.querySelector('#x34ns').onclick = () => { const n = x8LS('tn', {}), v = ov.querySelector('#x34n').value.trim().slice(0, 400); if (v) n[key] = v; else delete n[key]; const ks = Object.keys(n); if (ks.length > 300) delete n[ks[0]]; x8set('tn', n); toast(v ? 'saved' : 'cleared'); };
+}
+setTimeout(() => { try { const n = x34due(); if (n) { const b = $('#x8L'); if (b) b.classList.add('x34-dot'); } } catch (e) {} }, 1500);
+
+window.__liminal = { db, S, renderArchive, engine, cloud, afterAccount, x6week, x6blend, x6echo, x8labs, x8go, x34worry, x34rhythm, x34thennow };

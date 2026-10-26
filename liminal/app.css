@@ -617,3 +617,34 @@ html[data-lt=light] .sheet-card{background:rgba(251,248,254,.98)}
 @keyframes x8up{from{opacity:0;transform:translateY(30px) rotate(-6deg)}}
 .x8-lines p{font-family:var(--serif);font-size:20px;line-height:1.4;text-align:center;margin:8px 0;opacity:0;animation:x8fade 2s ease forwards}
 @keyframes x8fade{to{opacity:1}}
+
+/* v34 labs: worry time · your rhythms · then & now */
+.x34-new,.x34-pro{font-family:var(--sans);font-style:normal;font-size:10px;letter-spacing:.06em;text-transform:uppercase;border-radius:99px;padding:2px 7px;margin-left:4px;line-height:1.4}
+.x34-new{background:#f3efe6;color:#14102a}
+.x34-pro{border:1px solid rgba(243,239,230,.35);color:rgba(243,239,230,.75)}
+#x8L.x34-dot{position:relative}
+#x8L.x34-dot::after{content:"";position:absolute;top:6px;right:6px;width:7px;height:7px;border-radius:50%;background:#ffd48a;box-shadow:0 0 8px #ffd48a}
+.x34-w{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:12px 14px;margin:0 0 8px;position:relative}
+.x34-w.ready{border-color:rgba(255,212,138,.55)}
+.x34-w p{font-family:var(--serif);font-size:18px;line-height:1.4;margin:0 0 4px;color:#f3efe6;overflow-wrap:anywhere;padding-right:64px}
+.x34-w.ready p{padding-right:0}
+.x34-w small{font-size:12px;color:rgba(243,239,230,.6)}
+.x34-q{display:block;font-size:14px;margin:10px 0 0;color:rgba(243,239,230,.85)}
+.x34-w .x8-seg{margin:8px 0 2px}
+.x34-del{position:absolute;top:10px;right:10px;background:none;border:1px solid rgba(255,255,255,.18);border-radius:99px;color:rgba(243,239,230,.75);font:inherit;font-size:12px;min-height:32px;padding:0 10px}
+.x34-tally{display:flex;gap:10px;align-items:baseline;margin:16px 0 4px;padding:12px 14px;border-radius:16px;background:rgba(255,212,138,.08);border:1px solid rgba(255,212,138,.25);color:#f3efe6}
+.x34-tally b{font-family:var(--serif);font-weight:400;font-size:26px;white-space:nowrap}
+.x34-tally span{font-size:14px;line-height:1.4;color:rgba(243,239,230,.85)}
+.x34-scale{display:flex;justify-content:space-between;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:rgba(243,239,230,.55);margin:6px 0 6px 92px;padding-right:94px}
+.x34-bar{display:grid;grid-template-columns:84px 1fr 86px;align-items:center;gap:8px;min-height:30px}
+.x34-bar.none{opacity:.4}
+.x34-lbl{font-size:14px;color:rgba(243,239,230,.85)}
+.x34-track{position:relative;height:8px;border-radius:99px;background:linear-gradient(90deg,rgba(120,140,220,.25),rgba(255,212,138,.3))}
+.x34-track i{position:absolute;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:#f3efe6;box-shadow:0 0 10px rgba(255,255,255,.35)}
+.x34-bar small{font-size:11px;color:rgba(243,239,230,.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.x34-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:4px 0 6px}
+.x34-tn{min-width:0}
+.x34-tn canvas{width:100%;aspect-ratio:340/420;height:auto;border-radius:14px;display:block;background:rgba(255,255,255,.04)}
+.x34-tn b{display:block;font-family:var(--serif);font-weight:400;font-size:19px;margin-top:6px;color:#f3efe6}
+.x34-tn small{font-size:12px;color:rgba(243,239,230,.6)}
+.x34-tn p{font-family:var(--serif);font-size:14px;line-height:1.4;margin:4px 0 0;color:rgba(243,239,230,.8);overflow-wrap:anywhere}
