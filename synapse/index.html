@@ -2,10 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <!-- no zoom on iPhone: pinch, double-tap, input focus -->
 <style id="np-nozoom">html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}</style>
-<script>(function(){if(window.__npNoZoom)return;window.__npNoZoom=1;var p=function(e){e.preventDefault()},o={passive:false};['gesturestart','gesturechange','gestureend'].forEach(function(t){document.addEventListener(t,p,o)});document.addEventListener('dblclick',function(e){var t=e.target;if(!(t&&t.closest&&t.closest('input,textarea,select,[contenteditable]')))e.preventDefault()},o);var b=function(e){var t=e.target;if(t&&/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)&&parseFloat(getComputedStyle(t).fontSize)<16)t.style.fontSize='16px'};document.addEventListener('touchstart',b,{passive:true,capture:true});document.addEventListener('focusin',b,true)})();</script>
+<script src="/synapse/head.js?v=1"></script>
 <title>Synapse: medicine flashcards, 200 courses and 30 lab tools | Northpeak Studios</title>
 <meta name="description" content="Synapse is a medicine study app with spaced-repetition flashcards, 200 courses, Doctordle, a Daily Challenge and 30 Lab tools. Free for 3 days, then $35 one time.">
 <meta name="theme-color" content="#05070c">
@@ -22,7 +24,6 @@
 <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/styles.css?v=2">
-<script>document.documentElement.className+=' js'</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
