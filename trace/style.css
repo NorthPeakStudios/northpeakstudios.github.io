@@ -58,3 +58,20 @@ svg.chart{width:100%;height:auto;display:block}
 .empty{text-align:center;padding:26px 10px;color:var(--mut)}
 .hr{height:1px;background:var(--line);margin:12px 0}
 .conf{font-size:12px;border-radius:999px;padding:2px 8px;border:1px solid}.conf.low{color:#fca5a5;border-color:#7f1d1d}.conf.med{color:#fcd34d;border-color:#78350f}.conf.high{color:#86efac;border-color:#14532d}
+
+/* 1.1 Labs */
+.lic{font-size:22px;width:30px;text-align:center}.wrap{white-space:normal;display:block;line-height:1.35}
+.newc{position:relative;border-color:#3b2f6b;background:linear-gradient(135deg,#1b1630,#161b22)}.newc .x{position:absolute;right:12px;top:10px;color:var(--mut);font-size:15px}
+blockquote.q{margin:4px 0;padding:7px 10px;border-left:3px solid var(--warn);background:#1a1710;border-radius:8px;font-size:13.5px;color:#e5e7eb;line-height:1.45}
+mark{background:#5c4813;color:#fde68a;border-radius:3px;padding:0 2px}
+.ixr{border-top:1px solid #222a35;padding-top:4px}.ixr:first-of-type{border-top:0}
+.utime{font-size:56px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:1px;margin:4px 0}
+.ubar{height:8px;background:#1d2430;border-radius:6px;overflow:hidden;margin:4px 0}.ubar i{display:block;height:100%;width:0;background:var(--acc2);transition:width .9s linear}
+.up{color:var(--ok)}.dn{color:#f0883e}.ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.report{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin:14px 0}
+.report h3{margin:14px 0 6px;font-size:15px}
+table.rt{width:100%;border-collapse:collapse;font-size:13px}table.rt th,table.rt td{border-bottom:1px solid var(--line);padding:5px 4px;text-align:left}table.rt th{color:var(--mut);font-weight:600}
+@media print{
+ html,body{background:#fff!important;color:#000}.top,.tabbar,.noprint,#toast,#sheet{display:none!important}main{padding:0;max-width:none}
+ .report{border:0;background:#fff;color:#000;padding:0;margin:0}.report .muted{color:#444}table.rt th,table.rt td{border-color:#bbb;color:#000}
+}
