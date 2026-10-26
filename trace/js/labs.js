@@ -37,12 +37,12 @@ const LAB={};
 const DOSEY=/\b\d+(\.\d+)?\s?(mg|mcg|µg|g|ml|mL|units?)\b|\bdos(e|es|age|ing)\b|titrat|mg\/kg/i;
 const ALIAS=[[/nonsteroidal anti-inflammatory/i,['nsaid','nsaids']],[/serotonin reuptake inhibitor/i,['ssri','ssris','serotonergic']],[/monoamine oxidase inhibitor/i,['maoi','maois']],[/benzodiazepine/i,['benzodiazepine','benzodiazepines']],[/opioid agonist/i,['opioid','opioids']],[/anticoagulant|vitamin k antagonist/i,['anticoagulant','anticoagulants','warfarin']],[/central nervous system stimulant/i,['stimulant','stimulants']],[/serotonin and norepinephrine reuptake inhibitor/i,['snri','snris','serotonergic']]];
 async function ixLabel(name){
-  const k='trc.fdaix.'+Store.keyOf(name); try{ const c=JSON.parse(localStorage.getItem(k)||'null'); if(c&&Date.now()-c.at<7*DAY) return c.r; }catch(e){}
+  const k='trc.fdaix2.'+Store.keyOf(name); try{ const c=JSON.parse(localStorage.getItem(k)||'null'); if(c&&Date.now()-c.at<7*DAY) return c.r; }catch(e){}
   const q=String(name).trim().replace(/["\\]/g,'').slice(0,60); if(!q) return null;
   const url='https://api.fda.gov/drug/label.json?search='+['openfda.generic_name','openfda.brand_name','openfda.substance_name'].map(f=>encodeURIComponent(f+':"'+q+'"')).join('+')+'&limit=5';
   const r=await fetch(url,{credentials:'omit',cache:'no-store'}); let out=null;
-  if(r.ok){ const j=await r.json(); const R=j.results||[]; const ql=q.toLowerCase(); const nm=y=>{ const o=y.openfda||{}; return [...(o.generic_name||[]),...(o.substance_name||[])].some(s=>s.toLowerCase().includes(ql)); };
-    const x=R.find(y=>nm(y)&&(y.drug_interactions||y.contraindications))||R.find(nm)||R[0]; if(x){ const o=x.openfda||{};
+  if(r.ok){ const j=await r.json(); const R=j.results||[]; const ql=q.toLowerCase(); const nm=y=>{ const o=y.openfda||{}; const qq=ql.split(/[^a-z0-9]+/).join(' ').trim(); return [...(o.generic_name||[]),...((o.substance_name||[]).length===1?o.substance_name:[]),...(o.brand_name||[])].some(s=>{ s=s.toLowerCase().split(/[^a-z0-9]+/).join(' ').trim(); return s===qq||s.startsWith(qq+' '); }); };
+    const x=R.find(y=>nm(y)&&(y.drug_interactions||y.contraindications))||R.find(nm); if(x){ const o=x.openfda||{};
     out={brand:(o.brand_name||[])[0]||'',generic:(o.generic_name||[])[0]||'',set:x.set_id||'',date:x.effective_time||'',
       names:[...(o.generic_name||[]),...(o.brand_name||[]),...(o.substance_name||[])].map(s=>s.toLowerCase()).slice(0,8),
       cls:(o.pharm_class_epc||[]).map(s=>s.replace(/\s*\[EPC\]/,'')).slice(0,4),
