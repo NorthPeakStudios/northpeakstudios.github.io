@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://liminal-sync.sites.tab.bot https://odin-cards.sites.tab.bot https://axon-sync.sites.tab.bot; font-src 'self' data:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://liminal-sync.sites.tab.bot https://odin-cards.sites.tab.bot https://axon-sync.sites.tab.bot; font-src 'self' data:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <!-- no zoom on iPhone: pinch, double-tap, input focus -->
 <style id="np-nozoom">html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}</style>
@@ -193,7 +193,7 @@
       <button class="primary" id="authGo" type="submit">create account</button>
       <button type="button" class="auth-alt" id="aLegacy" hidden>signed up with a username before?</button>
     </form>
-    <p class="auth-fine" id="authFine">one northpeak account: the same email + password works in synapse and axon too. your password locks your journal on this phone before it syncs, so it can't be reset. keep it somewhere safe.</p>
+    <p class="auth-fine" id="authFine">one northpeak account: the same email + password works in every northpeak app. your password locks your journal on this phone before it syncs, so it can't be reset. keep it somewhere safe.</p>
   </div>
 </div>
 
@@ -220,6 +220,6 @@
 <script src="vpshort.js"></script>
 <script src="np-update.js?v=1" data-sw="sw.js" defer></script>
 <script src="np-email.js?v=1"></script>
-<script type="module" src="js/app.js?v=26"></script>
+<script type="module" src="js/app.js?v=27"></script>
 </body>
 </html>

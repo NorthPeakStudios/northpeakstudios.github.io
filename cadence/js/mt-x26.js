@@ -38,7 +38,7 @@
     $('#nnm').addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (!b) return; st.mode = b.dataset.m; $$('#nnm button').forEach(x => x.classList.toggle('on', x === b)); draw(); });
     $('#nnhb').addEventListener('change', e => { st.hb = e.target.checked; draw(); });
     $('#nnplay').onclick = () => { (st.notes || []).forEach((n, i) => Audio.playMidi(T.midi(n), i * 0.42, 0.6)); };
-    $('#nnshare').onclick = () => { const u = location.origin + location.pathname + '#namenotes/' + encodeURIComponent(st.w || ''); try { navigator.clipboard.writeText(u); toastC('Link copied'); } catch (e) { toastC(u); } };
+    $('#nnshare').onclick = () => { const u = location.origin + location.pathname + '#namenotes/' + encodeURIComponent(st.w || ''); const fb = () => { if (navigator.share) navigator.share({ url: u }).catch(() => {}); else toastC(u); }; try { navigator.clipboard.writeText(u).then(() => toastC('Link copied'), fb); } catch (e) { fb(); } /* 1.7: only say copied when it was */ };
     draw();
   };
   function toastC(msg) { let t = $('#nntoast'); if (!t) { t = document.createElement('div'); t.id = 'nntoast'; t.className = 'nn-toast'; document.body.appendChild(t); } t.textContent = msg; t.classList.add('on'); clearTimeout(toastC.t); toastC.t = setTimeout(() => t.classList.remove('on'), 1800); }
