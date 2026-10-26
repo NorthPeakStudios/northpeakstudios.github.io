@@ -333,6 +333,7 @@
     styles: ['Styles + tags', 'Your decision style, learning-style preference (not research-backed) and auto tags for your most extreme traits.'],
     think: ['Thinking style + team role', 'Your cognitive style on three sliders (big-picture vs step-by-step, words vs pictures, context-led vs independent) and your role in a group, each with an optional 6-question quiz. For fun, not validated tests.'],
     classified: ['Your Mindprint, classified', 'Your results run through the classification words: kingdom → phylum → class → order → family → genus → species, your quadrant, latent class, tier, phenotype, genotype, prototype and more. Made up for fun, built from your real results.'],
+    map: ['Mindprint Map', 'An interactive map of how every system connects: 16 types, cognitive functions, Enneagram, Big Five, Socionics, Keirsey, DISC, attachment and more. Tap any dot or line for a deep explanation, with each link labelled by how solid it is, and your own results lit up as your web.'],
     sharpen: ['Sharpen', 'A few extra questions for any result, plus retakes with a different question set so you can correct a part.'],
     maps: ['Maps', 'Where you sit on a 2D personality map (the Big Five\u2019s higher-order axes), your 5D trait vector and score bins.'],
     groups: ['Groups', 'Soft membership across clusters (like a mixture model), your tribe, guild, school and group role.'],
@@ -353,8 +354,13 @@
   M.lock = function (id) { var x = LOCKM[id]; if (!x) return null; return { kicker: 'Pro', title: x[0], mean: para(esc(x[1])) + para('<span class="muted">Everything is inferred from the answers you already gave, for fun.</span>'), why: '', locked: true }; };
   M.top = function () { return { kicker: 'Your top trait', title: 'Your top trait', mean: para('Your top trait is the score furthest from the middle across the 40+ traits Mindprint measures. The more extreme a score, the more it shows in how you act.'), why: '', locked: true }; };
 
+  /* 1.1.7: the Mindprint Map (js/map.js) — every dot and line opens here */
+  M.mapn = function (x) { return window.MPMap ? MPMap.nodeSheet(x) : null; };
+  M.mape = function (x) { return window.MPMap ? MPMap.edgeSheet(x) : null; };
+  M.mapfree = function () { if (!window.MPMap) return null; var r = MPMap.edgeSheet(MPMap.sampleEdge()); if (r) { r.kicker = 'Free peek \u00b7 ' + r.kicker; r.secs = r.secs.filter(function (s) { return s[0] !== 'The two ends' && s[0] !== 'In your web'; }); r.secs.push(['The rest of the map', '<p>' + MPMap.counts().nodes + ' dots and ' + MPMap.counts().edges + ' links like this one, each with its own deep explanation, plus your own results lit up as your web.</p><a class="btn block" href="#pro">Unlock the Map with Pro \u2014 $10</a>']); } return r; };
+
   /* which keys a free user gets in full */
-  var FREEOK = { four: 1, letter: 1, cluster: 1, family: 1, lock: 1, top: 1 };
+  var FREEOK = { four: 1, letter: 1, cluster: 1, family: 1, lock: 1, top: 1, mapfree: 1 };
 
   /* ---------- the sheet ---------- */
   var bg, sh, inner, startY = null, dy = 0;
@@ -381,11 +387,11 @@
     var c = key.indexOf(':'), id = c < 0 ? key : key.slice(0, c), arg = c < 0 ? '' : key.slice(c + 1), f = M[id]; if (!f || !CTX) return null; CACHE = {};
     var free = !CTX.full, r; CURP = null; try { r = f(arg); } catch (e) { try { console.error('explain', key, e); } catch (x) {} r = null; }
     if (!r) return null; if (free && !FREEOK[id] && !(id === 'conf' || id === 'self') ) r.locked = true; if (free && (id === 'conf' || id === 'self') && !(arg === 'four' || arg === 'cluster')) r.locked = true;
-    var h = '<p class="xs-k">' + esc(r.kicker || '') + '</p><h2 id="xs-h">' + esc(r.title || '') + '</h2>' + '<section><h3>What it means</h3>' + (r.mean || '') + '</section>';
+    var h = '<p class="xs-k">' + esc(r.kicker || '') + '</p><h2 id="xs-h">' + esc(r.title || '') + '</h2>' + (r.secs ? r.secs.map(function (s) { return '<section><h3>' + esc(s[0]) + '</h3>' + s[1] + '</section>'; }).join('') : '<section><h3>What it means</h3>' + (r.mean || '') + '</section>');
     if (r.locked) h += '<section class="xs-lock"><h3>Why you got this</h3><p>Your personal breakdown (your scores, the answers that drove it and what would flip it) is part of Mindprint Pro.</p><a class="btn block" href="#pro">Unlock with Pro \u2014 $10</a><a class="small center codeln" href="#pro">Have a code?</a></section>';
     else if (r.why) h += '<section><h3>Why you got this</h3>' + r.why + '</section>';
     if (!r.locked && r.sys && CTX.acts) { var a = CTX.acts(r.sys, r.x); if (a) h += '<section class="xs-acts">' + a + '</section>'; }
-    h += '<p class="xs-note">' + esc(NOTE) + '</p>';
+    h += '<p class="xs-note">' + esc(r.note || NOTE) + '</p>';
     return h;
   }
   function show(key, replace) {

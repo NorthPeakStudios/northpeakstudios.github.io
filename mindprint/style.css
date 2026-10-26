@@ -259,3 +259,32 @@ details.hiw{margin-top:0;border-top:0;padding-top:0}
 .clx{padding:2px 0}.clsp{font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:24px;font-weight:600;margin:2px 0 0;color:var(--ink)}
 .clch{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:10px 0 8px;font-size:13.5px;font-weight:650;cursor:pointer}.clch span{display:inline-flex;flex-direction:column;line-height:1.15}.clch small{font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--mute)}.clch i{color:var(--mute);font-style:normal}
 .clr{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:9px 0;border-top:1px solid var(--line);cursor:pointer}.clr span{color:var(--mute);font-size:13px;font-weight:600;flex:none}.clr b{text-align:right;font-size:14.5px;font-weight:650;min-width:0;overflow-wrap:anywhere}.clv{cursor:default}
+
+/* 1.1.7 Mindprint Map */
+.mpm-chips{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin:4px -18px 10px;padding:0 18px}
+.mpm-chips::-webkit-scrollbar{display:none}
+.mpm-chips button{flex:none;border:1px solid var(--line);background:var(--card);color:var(--mute);border-radius:999px;padding:7px 12px;font:600 13px/1 -apple-system,system-ui,sans-serif;cursor:pointer}
+.mpm-chips button.on{background:var(--lav);border-color:var(--lav);color:#1a1430}
+.mpm-wrap{position:relative;margin:0 -18px;height:min(62vh,560px);height:min(62dvh,560px);background:radial-gradient(500px 360px at 50% 45%,rgba(179,157,255,.10),transparent 70%),#0f0c19;border-top:1px solid var(--line);border-bottom:1px solid var(--line);overflow:hidden}
+.mpm-cv{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+.mpm-z{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;gap:6px}
+.mpm-z button{width:38px;height:38px;border-radius:12px;border:1px solid var(--line);background:rgba(29,24,48,.9);color:var(--ink);font-size:20px;line-height:1;cursor:pointer}
+.mpm-leg{display:flex;flex-wrap:wrap;gap:4px 12px;margin:8px 0 2px;font-size:12px;color:var(--mute)}
+.mpm-leg span{display:inline-flex;align-items:center;gap:6px}
+.mpl{display:inline-block;width:22px;height:0;border-top:2px solid #33e1d2}
+.mpl-theory{border-top:2px dashed #b39dff}.mpl-lore{border-top:2px dotted #ff8a65}.mpl-method{border-top:2px dashed rgba(220,214,240,.45)}.mpl-mine{border-top:2px solid #ffd166}
+.mpm-p h2{margin:2px 0 6px}.mpm-y{color:#ffd166}
+.mpm-h{margin:14px 0 6px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+.mpx-l{display:flex;flex-direction:column;gap:6px}
+.mpx-e{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:1px solid var(--line);background:var(--card2);color:var(--ink);border-radius:12px;padding:9px 12px;font:inherit;font-size:15px;cursor:pointer}
+.mpx-e>span:nth-child(2){flex:1;min-width:0}.mpx-e b{display:block;font-weight:600;line-height:1.3}.mpx-e small{display:block;color:var(--mute);font-size:12px}.mpx-e i{color:var(--mute);font-style:normal}
+.mpd{flex:none;width:10px;height:10px;border-radius:50%}
+.mpk{display:inline-block;margin-top:3px;font-size:11px;font-weight:700;letter-spacing:.02em;padding:2px 7px;border-radius:999px;border:1px solid currentColor}
+.mpk-study{color:#33e1d2}.mpk-theory{color:#b39dff}.mpk-lore{color:#ff8a65}.mpk-method{color:#b3a9cc}.mpk-part{color:#8a80a8}
+.mpm-mine{display:flex;flex-wrap:wrap;gap:6px}
+.mpm-mine button{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(255,209,102,.45);background:rgba(255,209,102,.08);color:#ffe6a6;border-radius:999px;padding:6px 10px;font:600 13px/1 -apple-system,system-ui,sans-serif;cursor:pointer}
+.mpm-mine i{width:8px;height:8px;border-radius:50%}
+.mpm-teaser .mpm-cv{filter:blur(3px);opacity:.75;pointer-events:none}
+.mpm-lock{position:absolute;left:16px;right:16px;top:50%;transform:translateY(-50%);background:rgba(29,24,48,.94);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.mpm-lock h2{margin:0 0 6px}.mpm-lock .btn{margin:8px 0 0}
+.mpm-card{background:linear-gradient(160deg,#241c40,#1d1830 60%)}

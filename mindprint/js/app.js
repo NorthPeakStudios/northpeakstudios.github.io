@@ -84,8 +84,8 @@
     var tb = $('.top'); if (tb) document.documentElement.style.setProperty('--toph', tb.offsetHeight + 'px');
     var h = (location.hash || '#home').slice(1).split('#')[0].split('/'), r = h[0] || 'home', arg = decodeURIComponent(h.slice(1).join('/'));
     document.querySelectorAll('.tabbar a').forEach(function (a) { var t = a.getAttribute('href').slice(1); a.classList.toggle('on', t === r || (a.dataset.also || '').split(' ').indexOf(r) >= 0); });
-    var f = { home: home, start: start, quiz: quiz, results: resultsPage, history: history, deep: deepIntro, deepq: deepQ, deepres: deepResults, report: report, account: account, pro: proPage, types: typesHub, sharpen: sharpen, retake: retake, pick: pick, diag: diag, diagq: diagQ, lens: typesHub }[r] || home;
-    Promise.all([loadQ(), cloudReady, r.indexOf('deep') === 0 || r === 'report' || r === 'history' ? loadD() : null, /^(types|sharpen|retake|pick|diag|diagq|results|report|history|home)$/.test(r) ? loadA() : null]).then(ensureKey).then(function () { f(arg); }).catch(function (e) { try { console.error('route', e && e.stack || e); } catch (x) {} V.innerHTML = '<div class="card"><p>Couldn\u2019t load Mindprint. Check your connection and try again.</p></div>'; });
+    var f = { home: home, start: start, quiz: quiz, results: resultsPage, history: history, deep: deepIntro, deepq: deepQ, deepres: deepResults, report: report, account: account, pro: proPage, types: typesHub, sharpen: sharpen, retake: retake, pick: pick, diag: diag, diagq: diagQ, lens: typesHub, map: mapPage }[r] || home;
+    Promise.all([loadQ(), cloudReady, r.indexOf('deep') === 0 || r === 'report' || r === 'history' ? loadD() : null, /^(types|sharpen|retake|pick|diag|diagq|results|report|history|home|map)$/.test(r) ? loadA() : null]).then(ensureKey).then(function () { f(arg); }).catch(function (e) { try { console.error('route', e && e.stack || e); } catch (x) {} V.innerHTML = '<div class="card"><p>Couldn\u2019t load Mindprint. Check your connection and try again.</p></div>'; });
   }
   window.addEventListener('hashchange', route);
 
@@ -101,6 +101,7 @@
     h += '<div class="card nav">' +
       (last ? row('#results/' + encodeURIComponent(last.id), '\ud83d\udcca', 'Your results', 'Your latest quiz, sorted by system') : '') +
       row(last ? '#types' : '#diag', '\ud83e\udde9', last ? 'Your types' : 'Quick diagnostic', last ? '16 types, Enneagram, Big Five, Socionics and more' : DIAG.length + ' questions, about 8 minutes, every type at once') +
+      row('#map', '\ud83d\udd78\ufe0f', 'Mindprint Map', 'How every system connects, with deep explanations' + (pro() ? '' : ' \u00b7 Pro')) +
       (dg && dg.i > 0 ? row('#diagq', '\u23f8\ufe0f', 'Continue the quick diagnostic', 'Pick up where you left off') : '') +
       (dprog && dprog.i > 0 ? row('#deepq', '\u23f8\ufe0f', 'Continue your Deep Dive', 'Pick up where you left off') : row(pro() ? '#deep' : '#pro', '\ud83c\udf00', 'Deep Dive', 'Childhood + family, 50 skippable questions' + (pro() ? '' : ' \u00b7 Pro'))) +
       row('#history', '\ud83d\uddc2\ufe0f', 'History', 'Every quiz you\u2019ve taken') +
@@ -242,7 +243,7 @@
   function typesFree(ty, hub) {
     if (!ty || !ty.four || !ty.cluster) return '';
     var h = '<div class="card types" id="types"><p class="tag">Your types</p>' + tyHero(ty.four, ty.cluster) + '<p class="muted small xhint">Tap your type or cluster to see what it means and why you got it.</p><button class="btn ghost block" id="tyshare">Share my type</button><p class="muted small">' + esc(TYNOTE) + '</p></div>';
-    var L = [['Enneagram-style', 'Your type and wing, plus all 9 ranked', 'types'], ['Big Five', 'Your five trait spectra, Big Five code and tags', 'traits'], ['Socionics-style', 'Your Socionics type, quadra and dual', 'types'], ['Temperament \u00b7 DISC \u00b7 archetype', 'Three more classic ways to sort you', 'types'], ['Attachment', 'How you bond with your people', 'types'], ['Cluster + tree', 'All 8 clusters and your path down the tree', 'hier'], ['Styles', 'Decision style and learning style', 'styles'], ['Thinking style \u00b7 team role', 'Cognitive style and your role in a group, each with an optional 6-question quiz', 'think'], ['Your Mindprint, classified', 'Kingdom \u2192 species, quadrant, tier, phenotype and more', 'classified'], ['Sharpen', 'A few extra questions to make any result more accurate', 'sharpen']];
+    var L = [['Enneagram-style', 'Your type and wing, plus all 9 ranked', 'types'], ['Big Five', 'Your five trait spectra, Big Five code and tags', 'traits'], ['Socionics-style', 'Your Socionics type, quadra and dual', 'types'], ['Temperament \u00b7 DISC \u00b7 archetype', 'Three more classic ways to sort you', 'types'], ['Attachment', 'How you bond with your people', 'types'], ['Cluster + tree', 'All 8 clusters and your path down the tree', 'hier'], ['Styles', 'Decision style and learning style', 'styles'], ['Thinking style \u00b7 team role', 'Cognitive style and your role in a group, each with an optional 6-question quiz', 'think'], ['Your Mindprint, classified', 'Kingdom \u2192 species, quadrant, tier, phenotype and more', 'classified'], ['Mindprint Map', 'How every system connects, tap anything for a deep explanation', 'map'], ['Sharpen', 'A few extra questions to make any result more accurate', 'sharpen']];
     h += '<div class="card lockl"><div class="lockhd">' + LOCK + '<h2>' + (hub ? 'The rest of your types' : 'Every other system') + '</h2><span class="pill">Pro</span></div>' +
       L.map(function (x) { return '<div class="lrow" data-x="lock:' + x[2] + '">' + LOCK + '<span>' + esc(x[0]) + '<small>' + esc(x[1]) + '</small></span><i aria-hidden="true">\u203a</i></div>'; }).join('') + '</div>';
     return h;
@@ -289,6 +290,14 @@
       '<details class="fold"><summary>Full specimen label (' + more.length + ' more)</summary>' + more.map(function (x) { return row(x[0], x[1], x[2]); }).join('') + '</details>' +
       '<p class="tymeta">Made-up Latin, real logic: every label comes straight from your results above. For fun, not science.</p></div>';
   }
+  /* ---------- 1.1.7: Mindprint Map — how every system relates (js/map.js) ---------- */
+  function mapPage() {
+    if (!window.MPMap) { V.innerHTML = '<div class="card"><p>Couldn\u2019t load the Map. Check your connection and try again.</p></div>'; return; }
+    var r = results('main')[0], T = null;
+    if (full()) { if (r) { try { T = typesOf(r); xSet(r, T, scoreOf(r)); } catch (e) { T = null; } } if (!T && window.MPExplain) MPExplain.set({ full: true, nm: S.nm }); }
+    else if (window.MPExplain) { var tz = r && r.teaser && r.teaser.types; if (tz) xSetFree(r, tz); else MPExplain.set({ full: false, nm: S.nm }); }
+    MPMap.page(V, { full: full(), T: T });
+  }
   function typesHub() {
     var r = results('main')[0];
     if (!r) { V.innerHTML = '<h1 class="pt">Your types</h1><div class="card"><p class="tag">Quick diagnostic</p><h2>One short quiz, every type</h2><p>' + DIAG.length + ' questions, about 8 minutes. It fills in your 4-letter type, Enneagram-style type, temperament, archetype, DISC colour, attachment, Socionics-style type, cluster and 30+ other ways to sort you, all at once. Then you can retake any one part.</p><a class="btn big block" href="#diag">Take the quick diagnostic</a><a class="btn ghost block" href="#start">Or the full 77-question quiz</a><p class="muted small">' + esc(TYNOTE) + '</p></div>'; return; }
@@ -307,7 +316,7 @@
     var from = [(r.diag ? 'your quick diagnostic' : 'your main quiz') + ' (' + fmtDate(r.at) + ')'].concat(u.deep ? ['your Deep Dive'] : []).concat(u.addon ? [u.addon + ' extra answer' + (u.addon > 1 ? 's' : '')] : []).concat(nRt ? [nRt + ' retake' + (nRt > 1 ? 's' : '')] : []).concat(T.ov ? ['the types you picked yourself'] : []);
     var so = T.socionics;
     var h = '<h1 class="pt">Your types</h1><p class="muted small">Built from ' + esc(S.list(from)) + '. Tap any result to see what it means and why you got it.</p>';
-    var SEC = [['top', 'Summary'], ['mbti', '16 types'], ['ennea', 'Enneagram'], ['big5', 'Big Five'], ['soc', 'Socionics'], ['temper', 'Temperament'], ['disc', 'DISC'], ['arche', 'Archetype'], ['attach', 'Attachment'], ['cluster', 'Cluster'], ['styles', 'Styles'], ['think', 'Thinking'], ['team', 'Team role'], ['classified', 'Classified'], ['lenses', 'Fun lenses'], ['state', 'Today']];
+    var SEC = [['top', 'Summary'], ['mbti', '16 types'], ['ennea', 'Enneagram'], ['big5', 'Big Five'], ['soc', 'Socionics'], ['temper', 'Temperament'], ['disc', 'DISC'], ['arche', 'Archetype'], ['attach', 'Attachment'], ['cluster', 'Cluster'], ['styles', 'Styles'], ['think', 'Thinking'], ['team', 'Team role'], ['classified', 'Classified'], ['map', 'Map'], ['lenses', 'Fun lenses'], ['state', 'Today']];
     h += jumpBar(SEC);
     h += '<div class="card types" id="s-top" data-sec="top"><p class="tag">Your summary</p>' + tyHeroC(f, cl) +
       glance([['mbti', '16 types', f.code], ['ennea', 'Enneagram', en.code], ['big5', 'Big Five', sl.code], ['soc', 'Socionics', so.code], ['temper', 'Temperament', tp.emoji + ' ' + tp.name], ['disc', 'DISC', di.color], ['arche', 'Archetype', ar.emoji + ' ' + ar.name], ['attach', 'Attachment', at.name], ['think', 'Thinking', T.thinking.emoji + ' ' + T.thinking.name], ['team', 'Team role', T.team.emoji + ' ' + T.team.name]]) +
@@ -339,6 +348,7 @@
       meta: 'Runner-up: ' + tm.second.name + '. Best niche: ' + LL.niche.join(', ') + '. Our own role names, not the Belbin test.', conf: tm.conf,
       extra: '<details class="fold"><summary>All 8 roles</summary>' + tyMini(tm.ranked.map(function (x) { return [x.emoji + ' ' + x.name, x.score, x.score, '', 'team']; })) + '</details>' }));
     h += sec('classified', '\ud83e\uddeb', 'Your Mindprint, classified', LL.taxon[7][1], classifiedHtml(T, r, nRt));
+    h += '<div class="card mpm-card" id="s-map" data-sec="map"><p class="tag">Mindprint Map</p><h2>How it all connects</h2><p class="small">Every system on this page as an interactive map: what links to what, how solid each link is, and your own results lit up as your web.</p><a class="btn block" href="#map">Open the Map</a></div>';
     h += sec('lenses', '\ud83d\udd2d', 'Fun lenses', '30+ other ways to sort you', lensesHtml(T, sc, r));
     h += '<div id="ty-lens-state">' + sec('state', '\ud83c\udf21\ufe0f', 'Today\u2019s state (optional)', (LS.get('mood', null) || {}).q || 'Not checked yet', moodHtml()) + '</div>';
     h += '<div class="card"><details class="fold"><summary>How these are worked out</summary><ul class="care small">' +
