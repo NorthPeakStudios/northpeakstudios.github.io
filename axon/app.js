@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.18.2 */
+/* Axon · Northpeak Studios · v1.18.3 */
 (function () {
   'use strict';
-  var VERSION = '1.18.2';
+  var VERSION = '1.18.3';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -563,6 +563,60 @@
     saveMeta();
     return hit.length;
   }
+
+  /* ---------- overlay scroll lock (v1.18.3) ---------- */
+  /* iPhone: swiping a list inside the command search or a sheet panned the page behind it (or the keyboard-shifted viewport) instead of
+     the list. While anything is open in #layer: the layer is pinned to the visible area above the keyboard, the page can't scroll, and a
+     touch that has no scrollable list to move (or would run past a list's end) is stopped so it never reaches the page. Lists still scroll natively. */
+  var ovlOn = false;
+  function vvFit() {
+    var vv = window.visualViewport;
+    if (!ovlOn || !vv) { layer.style.top = ''; layer.style.height = ''; return; }
+    layer.style.top = Math.max(0, Math.round(vv.offsetTop)) + 'px';
+    layer.style.height = Math.round(vv.height) + 'px';
+  }
+  function ovlSync() {
+    var on = layer.children.length > 0;
+    if (on === ovlOn) { if (on) vvFit(); return; }
+    ovlOn = on;
+    document.documentElement.classList.toggle('ovl', on);
+    vvFit();
+    if (!on && (window.scrollY || document.documentElement.scrollTop)) window.scrollTo(0, 0);
+  }
+  new MutationObserver(ovlSync).observe(layer, { childList: true });
+  if (window.visualViewport) { visualViewport.addEventListener('resize', vvFit); visualViewport.addEventListener('scroll', vvFit); }
+  window.addEventListener('scroll', function () { if (ovlOn && window.scrollY) window.scrollTo(0, 0); }, { passive: true });
+  function scrollerFor(el, stop, axis) {
+    for (; el && el !== stop && el.nodeType === 1; el = el.parentNode) {
+      var cs = getComputedStyle(el), ov = axis === 'x' ? cs.overflowX : cs.overflowY;
+      if (axis === 'y' && el.tagName === 'TEXTAREA' && el.scrollHeight > el.clientHeight + 1) return el;
+      if ((ov === 'auto' || ov === 'scroll') && (axis === 'x' ? el.scrollWidth > el.clientWidth + 1 : el.scrollHeight > el.clientHeight + 1)) return el;
+    }
+    return null;
+  }
+  var tgd = null;
+  function guardRoot(t) { return t && t.closest ? t.closest('#layer, .ac') : null; }
+  document.addEventListener('touchstart', function (e) {
+    tgd = null;
+    if (e.touches.length !== 1) return;
+    var root = guardRoot(e.target); if (!root) return;
+    tgd = { root: root, x: e.touches[0].clientX, y: e.touches[0].clientY, lx: e.touches[0].clientX, ly: e.touches[0].clientY, axis: null };
+  }, { passive: true, capture: true });
+  document.addEventListener('touchmove', function (e) {
+    if (!tgd || e.touches.length !== 1) return;
+    var t = e.target;
+    if (t && t.closest && t.closest('input[type=range], canvas, [data-free-touch]')) return;
+    var p = e.touches[0], dx = p.clientX - tgd.lx, dy = p.clientY - tgd.ly; tgd.lx = p.clientX; tgd.ly = p.clientY;
+    if (!tgd.axis) { var ax = Math.abs(p.clientX - tgd.x), ay = Math.abs(p.clientY - tgd.y); if (ax < 3 && ay < 3) return; tgd.axis = ax > ay ? 'x' : 'y'; }
+    var sc = scrollerFor(t, tgd.root.parentNode, tgd.axis);
+    if (!sc) { if (e.cancelable) e.preventDefault(); return; }
+    if (tgd.axis === 'y') {
+      var atTop = sc.scrollTop <= 0, atEnd = sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 1;
+      if ((dy > 0 && atTop) || (dy < 0 && atEnd)) { if (e.cancelable) e.preventDefault(); }
+    }
+  }, { passive: false, capture: true });
+  document.addEventListener('touchend', function () { tgd = null; }, { passive: true, capture: true });
+  document.addEventListener('touchcancel', function () { tgd = null; }, { passive: true, capture: true });
 
   /* ---------- overlays ---------- */
   /* a sheet or picker left open when the page changes underneath it (back gesture, a link) is closed instead of floating over the new page */

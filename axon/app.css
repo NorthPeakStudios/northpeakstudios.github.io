@@ -1117,3 +1117,12 @@ mark.l8-e{background:rgba(251,191,36,.3);color:inherit;border-radius:3px;padding
 .page .row .nm .qd{font-size:13px}
 .cg-rows .row .nm,.cf-rows .row .nm{font-size:16px}
 .cg-rows .row{padding:6px 0}
+
+/* v1.18.3 overlay scroll: lists inside the command search and sheets scroll themselves, never the page behind (iPhone) */
+#layer{bottom:auto;height:100%;height:100dvh;overscroll-behavior:contain}
+html.ovl,html.ovl body{overflow:hidden;overscroll-behavior:none}
+html.ovl #view{overscroll-behavior:none}
+.qsl,.sheet,.ac,.dialog,.qs{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.qs .qsl{flex:1 1 auto;min-height:0}
+.sheet{max-height:calc(100% - var(--sat) - 20px - var(--bpad))}
+.scrim{touch-action:none}
