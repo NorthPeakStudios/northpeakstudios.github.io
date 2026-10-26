@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.18.1 */
+/* Axon · Northpeak Studios · v1.18.2 */
 (function () {
   'use strict';
-  var VERSION = '1.18.1';
+  var VERSION = '1.18.2';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -5962,7 +5962,7 @@
   function cgBody() {
     var out = ['> [!tip] How to run a command', '> Pull down on the notes list, tap \u201cJump to a note or command\u201d, or press Cmd-K. Type any part of a name below and tap it. Commands that change text work on what you selected, or on the whole note if nothing is selected.', '',
       '## Command folders', 'Group the commands and templates you use together. Run **Command folders** to make one, then type the folder\u2019s name in search to open it with everything inside.', ''];
-    cgSorted().forEach(function (g) { out.push('## ' + g[0]); g[1].forEach(function (c) { out.push('- **' + c[0] + '**' + (c[3] ? ' (Pro)' : '') + ': ' + cmdDesc(c)); }); out.push(''); });
+    cgSorted().forEach(function (g) { out.push('## ' + g[0]); g[1].forEach(function (c) { out.push('- **' + c[0] + '**' + (c[3] ? ' (Pro)' : '') + ': ' + cmdDesc(c).replace(/::/g, '\u2237').replace(/\{\{/g, '{ {').replace(/\?\s*$/, '')); }); out.push(''); });
     out.push('---', COMMANDS.length + ' commands. Run **Command guide** any time to see this list, or tap a command there to run it.');
     return out.join('\n');
   }
@@ -5986,6 +5986,7 @@
   /* first run on a brand-new vault: the guide is the first note (untouched seed notes stay on this device) */
   function cgBoot(m, fresh) {
     if (m.cmdfolders && Array.isArray(m.cmdfolders.l)) CF = { l: m.cmdfolders.l, u: m.cmdfolders.u || 0 };
+    notes.forEach(function (n) { if (n.seed && n.title === CG_TITLE && n.body !== cgBody()) { n.body = cgBody(); putNote(n); } });
     if (m.cmdGuide) return;
     DB.put('meta', { k: 'cmdGuide', v: Date.now() }).catch(function () {});
     if (fresh && !notes.size) { cgMakeNote(true); rebuildIdx(); }
