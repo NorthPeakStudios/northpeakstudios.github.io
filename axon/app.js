@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.16.0 */
+/* Axon · Northpeak Studios · v1.17.0 */
 (function () {
   'use strict';
-  var VERSION = '1.16.0';
+  var VERSION = '1.17.0';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -3178,7 +3178,7 @@
         else if (it.t === 'create') h += '<button data-i="' + i + '">' + I.plus + '<span class="qt">New note \u201c' + esc(it.q) + '\u201d</span></button>';
         else if (it.t === 'search') h += '<button data-i="' + i + '">' + I.search + '<span class="qt">Search text for \u201c' + esc(it.q) + '\u201d</span></button>';
         else if (it.t === 'tmpl') h += '<button data-i="' + i + '">' + I.tmpl + '<span class="qt">New \u201c' + esc(it.tp.name) + '\u201d note</span><small>' + (isPro() ? 'template' : 'Pro') + '</small></button>';
-        else h += '<button data-i="' + i + '">' + I.cmd + '<span class="qt">' + esc(it.c[0]) + '</span></button>';
+        else h += '<button data-i="' + i + '">' + I.cmd + '<span class="qt">' + esc(it.c[0]) + '</span>' + (it.c[3] && !isPro() ? '<small>Pro</small>' : '') + '</button>';
       });
       list.innerHTML = h || '<div class="qsh">Nothing matches</div>';
       hl1();
@@ -5393,7 +5393,7 @@
     ['Fog of war', 'fog forgotten old notes graph fade', function () { NF.fog = true; xLSset('fog', true); go('#/graph'); }]);
 
 
-  /* ---------- v1.15 · Axon Labs: 8 experimental tools (Open questions, Echo words: free · the rest Pro) ---------- */
+  /* ---------- v1.15 tools, commands since v1.17 (Open questions, Echo words: free · the rest Pro) ---------- */
   var L8T = [
     ['questions', 'Open questions', 'Every question you ever typed in a note, in one inbox. Tick them off as you answer them.', 0],
     ['conflicts', 'Conflict finder', 'Finds places where two of your notes seem to disagree (a “not”, or different numbers about the same thing).', 1],
@@ -5413,13 +5413,10 @@
   function l8Sorted() { var a = []; notes.forEach(function (n) { a.push(n); }); return a.sort(function (x, y) { return y.updated - x.updated; }); }
   function l8Pick(tool, id, label) { var list = l8Sorted().slice(0, 400); return '<label class="l8-pk"><span>' + esc(label || 'Note') + '</span><select data-l8pick="' + tool + '"><option value="">Choose a note\u2026</option>' + list.map(function (n) { return '<option value="' + esc(n.id) + '"' + (n.id === id ? ' selected' : '') + '>' + esc(n.title) + '</option>'; }).join('') + '</select></label>'; }
   function l8Def(id) { if (id && notes.get(id)) return notes.get(id); var n = ui.lastNote && notes.get(ui.lastNote); return n || null; }
-  function l8Page(key, body) { var t = L8T.filter(function (x) { return x[0] === key; })[0]; return '<div class="page"><div class="nav stick"><button class="back" data-act="back" data-to="#/x/labs">' + I.back + '<span>Labs</span></button><div class="acts"></div></div><div class="eyebrow">Labs' + (t[3] ? ' \u00b7 Pro' : '') + '</div><h1 class="h1">' + esc(t[1]) + '</h1><p class="xp">' + esc(t[2]) + '</p>' + body + '</div>'; }
+  function l8Page(key, body) { var t = L8T.filter(function (x) { return x[0] === key; })[0]; return '<div class="page"><div class="nav stick"><button class="back" data-act="back" data-to="#/">' + I.back + '<span>Notes</span></button><div class="acts"></div></div>' + (t[3] ? '<div class="eyebrow">Pro</div>' : '') + '<h1 class="h1">' + esc(t[1]) + '</h1><p class="xp">' + esc(t[2]) + '</p>' + body + '</div>'; }
   function l8Lock(key) { var t = L8T.filter(function (x) { return x[0] === key; })[0]; return l8Page(key, '<button class="bignew" data-act="xgetpro" data-f="' + esc(t[1]) + '"><span>Get Axon Pro</span></button>'); }
   function l8Gate(key, fn) { return function (arg) { var t = L8T.filter(function (x) { return x[0] === key; })[0]; if (t[3] && !isPro()) return l8Lock(key); return fn(arg); }; }
-  XV.labs = function () {
-    return '<div class="page"><div class="nav stick"><button class="back" data-act="back" data-to="#/">' + I.back + '<span>Notes</span></button><div class="acts"></div></div><div class="eyebrow">Updated in 1.16</div><h1 class="h1">Labs</h1><p class="xp">Experimental tools that read your whole vault in new ways. Everything runs on this phone.</p><div class="rows">' +
-      L8T.map(function (t) { return '<button class="row l8-row" data-act="xgo" data-to="x:' + t[0] + '"><span class="l8-rt"><span class="nm">' + esc(t[1]) + (t[3] && !isPro() ? ' <i class="l8-pro">Pro</i>' : '') + (t[4] ? ' <i class="l8-pro l9-new">New</i>' : '') + '</span><span class="l8-sub">' + esc(t[2]) + '</span></span><span class="chev">' + I.chev + '</span></button>'; }).join('') + '</div></div>';
-  };
+  XV.labs = function () { setTimeout(function () { go('#/', true); openSwitcher(); }, 0); return '<div class="page"></div>'; }; // v1.17: no Labs screen any more; an old #/x/labs link opens the command list
   document.addEventListener('change', function (e) { var s = e.target.closest && e.target.closest('[data-l8pick]'); if (s && s.value) go('#/x/' + s.dataset.l8pick + '/' + encodeURIComponent(s.value), true); });
 
   /* 1 · open questions (free) */
@@ -5590,7 +5587,7 @@
     return l8Page('echo', body);
   };
 
-  /* ---------- v1.16 · three more Labs tools (Resurface: free · Card maker, Compare two notes: Pro) ---------- */
+  /* ---------- v1.16 · three more tools, commands since v1.17 (Resurface: free · Card maker, Compare two notes: Pro) ---------- */
   L8T.push(
     ['resurface', 'Resurface', 'Three notes you haven\u2019t touched in a month, picked fresh each day. Re-read them, then mark them still true or open one to fix it.', 0, 1],
     ['cardmaker', 'Card maker', 'Finds \u201cterm: definition\u201d lines and bold terms in a note and turns the ones you pick into Recall cards (question :: answer).', 1, 1],
@@ -5682,12 +5679,10 @@
   });
   document.addEventListener('change', function (e) { var s = e.target.closest && e.target.closest('[data-l9cmp]'); if (!s) return; var r = route(), ps = String(r.arg || '').split('~'); ps[+s.dataset.l9cmp] = s.value; go('#/x/compare/' + encodeURIComponent(ps[0] || '') + '~' + encodeURIComponent(ps[1] || ''), true); });
 
-  XSTRIP.unshift(['labs', '\u2728 Labs', 'x:labs']);
-  COMMANDS.push(['Labs', 'labs experimental new tools', function () { go('#/x/labs'); }]);
-  L8T.forEach(function (t) { COMMANDS.push([t[1], 'labs ' + t[2].toLowerCase().slice(0, 60), function () { go('#/x/' + t[0]); }]); });
+  /* v1.17: these tools are commands only (search box / pull down / Cmd-K), no Labs screen or chip. Pro ones open the Pro sheet for free users. */
+  L8T.forEach(function (t) { COMMANDS.push([t[1], 'tool ' + t[2].toLowerCase().slice(0, 80), function () { if (!t[3] || proOk(t[1])) go('#/x/' + t[0]); }, t[3] ? 1 : 0]); });
 
 
-  xStrip = (function (f) { return function () { var h = f.apply(this, arguments).replace(/(data-to="x:labs">)<svg[\s\S]*?<\/svg>/, '$1'), m = /<button class="chip" data-act="xgo" data-to="x:labs">[\s\S]*?<\/button>/.exec(h); return m ? h.replace(m[0], '').replace('<div class="xstrip">', '<div class="xstrip">' + m[0].replace('class="chip"', 'class="chip l8-chip"')) : h; }; })(xStrip);
   window.__axon = { notes: notes, folders: folders, trash: trash, rc: rc, recallStats: recallStats, byTitle: byTitle, backlinks: backlinks, renameNote: renameNote, exportFiles: function () { return notes; }, Zip: Zip, importFiles: importFiles };
   boot();
 })();
