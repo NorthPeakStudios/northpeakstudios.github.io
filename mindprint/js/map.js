@@ -317,7 +317,7 @@
       sec('How it connects', (n.conn ? para(esc(n.conn)) : '') + (list ? '<div class="mpx-l">' + list + '</div>' : '')),
       sec('How solid is it', para(esc(n.solid || (hub ? H.solid : '')))),
       MINE && MINE[id] ? sec('In your web', para(esc(MINE[id])) + para('<span class="muted">Inferred from your answers, for fun.</span>')) : null].filter(Boolean);
-    return { kicker: G[n.g][0] + (n.hub ? ' \u00b7 ' + (n.kick || 'system') : ' \u00b7 part of ' + (H.title || '')), title: n.title, secs: secs, note: 'The Mindprint Map shows how these systems relate. Links are labelled by how solid they are; nothing here is a diagnosis.' };
+    return { kicker: G[n.g][0] + (n.hub ? ' \u00b7 ' + (n.kick || 'system') : ''), title: n.title, secs: secs, note: 'The Mindprint Map shows how these systems relate. Links are labelled by how solid they are; nothing here is a diagnosis.' };
   }
   function edgeSheet(i) {
     build(); var e = EDGES[+i]; if (!e) return null; var a = BY[e.a], b = BY[e.b];
@@ -458,7 +458,7 @@
     var leg = '<div class="mpm-leg">' + ['study', 'theory', 'lore', 'method'].map(function (k) { return '<span><i class="mpl mpl-' + k + '"></i>' + esc(KIND[k][0]) + '</span>'; }).join('') + (HAS ? '<span><i class="mpl mpl-mine"></i>Your web</span>' : '') + '</div>';
     var h = '<h1 class="pt">Mindprint Map</h1><p class="muted small">Every system in Mindprint and how they connect: ' + c.nodes + ' dots, ' + c.edges + ' links. Tap a dot to focus it, tap it again for the deep dive. Tap a lit line to see how solid that link is. Pinch or scroll to zoom, drag to move.</p>';
     if (!full) {
-      h += '<div class="mpm-wrap mpm-teaser"><canvas class="mpm-cv" aria-hidden="true"></canvas><div class="mpm-lock"><p class="tag">Mindprint Pro</p><h2>See how everything connects</h2><p class="small">' + c.nodes + ' dots and ' + c.edges + ' links across the 16 types, cognitive functions, Enneagram, Big Five, Socionics, Keirsey, DISC, attachment and more. Every dot and line opens a deep explanation, and your own results light up as your web.</p><a class="btn block" href="#pro">Unlock the Map with Pro \u2014 $10</a><button type="button" class="btn ghost block" id="mpfree">Peek at one link free</button><a class="small center codeln" href="#pro">Have a code?</a></div></div>' + leg;
+      h += '<div class="mpm-wrap mpm-teaser"><canvas class="mpm-cv" aria-hidden="true"></canvas><div class="mpm-lock"><p class="tag">Mindprint Pro</p><h2>See how it all connects</h2><p class="small">16 types, functions, Enneagram, Big Five, Socionics, Keirsey, DISC, attachment and more. Every dot and line opens a deep explanation; your results light up as your web.</p><a class="btn block" href="#pro">Unlock the Map with Pro \u2014 $10</a><button type="button" class="btn ghost block" id="mpfree">Peek at one link free</button><a class="small center codeln" href="#pro">Have a code?</a></div></div>' + leg;
       V.innerHTML = h; var cv0 = V.querySelector('.mpm-cv'); CUR = mount(cv0, { still: true });
       V.querySelector('#mpfree').onclick = function () { openX('mapfree'); }; return;
     }

@@ -284,7 +284,7 @@ details.hiw{margin-top:0;border-top:0;padding-top:0}
 .mpm-mine{display:flex;flex-wrap:wrap;gap:6px}
 .mpm-mine button{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(255,209,102,.45);background:rgba(255,209,102,.08);color:#ffe6a6;border-radius:999px;padding:6px 10px;font:600 13px/1 -apple-system,system-ui,sans-serif;cursor:pointer}
 .mpm-mine i{width:8px;height:8px;border-radius:50%}
-.mpm-teaser .mpm-cv{filter:blur(3px);opacity:.75;pointer-events:none}
-.mpm-lock{position:absolute;left:16px;right:16px;top:50%;transform:translateY(-50%);background:rgba(29,24,48,.94);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.mpm-teaser .mpm-cv{filter:blur(1.6px);pointer-events:none}
+.mpm-lock{position:absolute;left:12px;right:12px;bottom:12px;background:rgba(29,24,48,.9);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
 .mpm-lock h2{margin:0 0 6px}.mpm-lock .btn{margin:8px 0 0}
 .mpm-card{background:linear-gradient(160deg,#241c40,#1d1830 60%)}
