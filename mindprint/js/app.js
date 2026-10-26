@@ -513,8 +513,8 @@
   function route() {
     busy = false; window.scrollTo(0, 0); if (window.MPExplain) MPExplain.set(null);
     var tb = $('.top'); if (tb) document.documentElement.style.setProperty('--toph', tb.offsetHeight + 'px');
-    var h = (location.hash || '#home').slice(1).split('#')[0].split('/'), r = h[0] || 'home', arg = decodeURIComponent(h.slice(1).join('/'));
-    document.querySelectorAll('.tabbar a').forEach(function (a) { var t = a.getAttribute('href').slice(1); a.classList.toggle('on', t === r || (a.dataset.also || '').split(' ').indexOf(r) >= 0); });
+    var h = (location.hash || '#home').slice(1).split('#')[0].split('/'), r = h[0] || 'home', arg = (function (s) { try { return decodeURIComponent(s); } catch (e) { return s; } })(h.slice(1).join('/')); // a mangled %-escape in a shared link used to leave the page stuck on Loading
+    document.querySelectorAll('.tabbar a').forEach(function (a) { var t = a.getAttribute('href').slice(1); var on = t === r || (a.dataset.also || '').split(' ').indexOf(r) >= 0; a.classList.toggle('on', on); if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
     var f = { home: home, start: start, quiz: quiz, results: resultsPage, history: history, deep: deepIntro, deepq: deepQ, deepres: deepResults, report: report, account: account, pro: proPage, types: typesHub, sharpen: sharpen, retake: retake, pick: pick, diag: diag, diagq: diagQ, lens: typesHub, map: mapPage, sim: simPage, guess: guessPage, labs: labsPage, lab: labPage, rateme: rateFriend }[r] || home;
     Promise.all([loadQ(), cloudReady, r.indexOf('deep') === 0 || r === 'report' || r === 'history' ? loadD() : null, /^(types|sharpen|retake|pick|diag|diagq|results|report|history|home|map|sim|guess|labs|lab)$/.test(r) ? loadA() : null]).then(ensureKey).then(function () { f(arg); }).catch(function (e) { try { console.error('route', e && e.stack || e); } catch (x) {} V.innerHTML = '<div class="card"><p>Couldn\u2019t load Mindprint. Check your connection and try again.</p></div>'; });
   }

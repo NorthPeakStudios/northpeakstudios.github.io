@@ -4,10 +4,14 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 function toast(m){ const t=$('#toast'); t.textContent=m; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true,2600); }
 const routes={};
 function route(){ const h=(location.hash||'#log').slice(1); const [r,...a]=h.split('/'); const f=routes[r]||routes.log; const v=$('#view'); closeSheet();
-  $$('.tabbar a').forEach(x=>{ const k=x.getAttribute('href').slice(1); x.classList.toggle('on',k===r||(x.dataset.also||'').split(' ').includes(r)); });
-  try{ f(v,...a.map(decodeURIComponent)); }catch(e){ console.warn(e); v.innerHTML='<p class="muted">Something went wrong on this screen.</p>'; } window.scrollTo(0,0); }
+  $$('.tabbar a').forEach(x=>{ const k=x.getAttribute('href').slice(1), on=k===r||(x.dataset.also||'').split(' ').includes(r); x.classList.toggle('on',on); on?x.setAttribute('aria-current','page'):x.removeAttribute('aria-current'); });
+  const dec=s=>{ try{ return decodeURIComponent(s); }catch(e){ return s; } }; // a stray % in a pasted link used to break the screen
+  try{ f(v,...a.map(dec)); }catch(e){ console.warn(e); v.innerHTML='<p class="muted">Something went wrong on this screen.</p>'; } a11y(v); window.scrollTo(0,0); }
+/* give every field a name screen readers can read: tie a bare <label> just before it, else use its placeholder (1.2) */
+function a11y(root){ if(!root) return; root.querySelectorAll('input:not([type=hidden]):not([type=radio]):not([type=checkbox]),select,textarea').forEach(el=>{ if(el.getAttribute('aria-label')||(el.labels&&el.labels.length)) return;
+  const l=el.previousElementSibling; if(l&&l.tagName==='LABEL'&&!l.htmlFor){ if(!el.id) el.id='f'+Math.random().toString(36).slice(2,8); l.htmlFor=el.id; } else if(el.placeholder) el.setAttribute('aria-label',el.placeholder); }); }
 window.addEventListener('hashchange',route);
-function sheet(html,onOpen){ $('#sbody').innerHTML='<div class="grab"></div>'+html; $('#sheet').hidden=false; document.body.style.overflow='hidden'; if(onOpen) onOpen($('#sbody')); }
+function sheet(html,onOpen){ $('#sbody').innerHTML='<div class="grab"></div>'+html; $('#sheet').hidden=false; document.body.style.overflow='hidden'; if(onOpen) onOpen($('#sbody')); a11y($('#sbody')); }
 function closeSheet(){ const s=$('#sheet'); if(s&&!s.hidden){ s.hidden=true; document.body.style.overflow=''; } }
 document.addEventListener('click',e=>{ if(e.target.closest('[data-close]')) closeSheet(); });
 const P=()=>!!(window.Cloud&&Cloud.isPro());
@@ -94,7 +98,7 @@ routes.cal=v=>{
   for(let d=1;d<=days;d++){ const k=Store.dayKey(new Date(y,m,d)); const n=(by[k]||[]).length; cells+=`<div class="d ${k===tk?'today':''} ${k===calSel?'sel':''}" data-k="${k}" style="${col(n)}">${d}${n?`<small>${n}</small>`:''}</div>`; }
   const sel=calSel&&Store.entries().filter(x=>Store.dayKey(x.t)===calSel);
   v.innerHTML=`<div class="row" style="align-items:center"><button class="btn ghost sm fx0" id="cp" aria-label="Previous month">‹</button><h2 style="text-align:center;margin:0">${calM.toLocaleDateString([], {month:'long',year:'numeric'})}</h2><button class="btn ghost sm fx0" id="cn" aria-label="Next month">›</button></div>
-   <select id="cf" style="margin:10px 0"><option value="">Everything I logged</option>${names.map(n=>`<option value="${esc(Store.keyOf(n.name))}" ${Store.keyOf(n.name)===calF?'selected':''}>${esc(n.name)}</option>`).join('')}</select>
+   <select id="cf" style="margin:10px 0" aria-label="Show on the calendar"><option value="">Everything I logged</option>${names.map(n=>`<option value="${esc(Store.keyOf(n.name))}" ${Store.keyOf(n.name)===calF?'selected':''}>${esc(n.name)}</option>`).join('')}</select>
    <div class="cal">${cells}</div>
    <div class="legend">fewer <i style="background:#11161e;border:1px solid #1d2430"></i><i style="background:rgba(94,234,212,.3)"></i><i style="background:rgba(94,234,212,.55)"></i><i style="background:rgba(94,234,212,.8)"></i> more logs that day</div>
    <div id="cd">${sel?`<h3 style="margin-top:16px">${fmtD(new Date(calSel+'T12:00').getTime())}</h3><div class="card list">${sel.length?sel.map(itemHTML).join(''):'<p class="empty">Nothing logged.</p>'}</div>`:'<p class="muted center" style="margin-top:14px">Tap a day to see what you logged.</p>'}</div>`;
