@@ -213,7 +213,7 @@ routes.diagnostic = v => {
   runQuiz(v, i => { const a=areas[Math.floor(i/per)]; if(!a) return null; const s=state[a]; const q=Q.make(DIAG[a][s.lvl], s.lvl+1); q.area=a; q._a=a; q._l=s.lvl; return q; },
    {title:'Diagnostic placement', count:areas.length*per, back:'#today', finishMsg:'Placement done — here’s where you landed.', onDone:()=>{ $('#qbox').insertAdjacentHTML('beforeend', window._diagCard||''); } });
   // hook into answers: observe feedback to adapt
-  const obs=new MutationObserver(()=>{ const fb=$('.feedback'); if(!fb||fb._seen) return; fb._seen=true; const meta=$('#qmeta').textContent.match(/Question (\d+)/); const idx=meta?+meta[1]-1:0; const a=areas[Math.floor(idx/per)]; if(!a) return; const s=state[a]; const ok=fb.classList.contains('ok');
+  const obs=new MutationObserver(()=>{ if(!/^#diagnostic/.test(location.hash)){ obs.disconnect(); return; } /* 1.7: the observer used to outlive the page and read other quizzes' answers into the placement */ const fb=$('.feedback'); if(!fb||fb._seen||!$('#qmeta')) return; fb._seen=true; const meta=$('#qmeta').textContent.match(/Question (\d+)/); const idx=meta?+meta[1]-1:0; const a=areas[Math.floor(idx/per)]; if(!a) return; const s=state[a]; const ok=fb.classList.contains('ok');
       if(ok){ s.best=Math.max(s.best,s.lvl); s.lvl=Math.min(4,s.lvl+1); } else { s.lvl=Math.max(0,s.lvl-1); }
       if(idx===areas.length*per-1){ finishDiag(); } });
   obs.observe(v,{subtree:true,childList:true});
