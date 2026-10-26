@@ -1050,7 +1050,7 @@ let xWasPro = null;
 function xApplyPro(){
   const pro = isPro(); if (pro === xWasPro) return; xWasPro = pro;
   document.documentElement.classList.toggle('xfree', !pro);
-  $$('.xtools button').forEach(b => { if (b.id === 'x8L') { b.textContent = '✦ labs'; return; } b.innerHTML = (pro ? '' : XLOCK) + (b.id === 'xtB' ? 'breathe' : '5-4-3-2-1'); });
+  $$('.xtools button').forEach(b => { if (b.id === 'x8L' || b.id === 'x35C') return; b.innerHTML = (pro ? '' : XLOCK) + (b.id === 'xtB' ? 'breathe' : '5-4-3-2-1'); });
   const g = $('#xGood'); if (g) { g.readOnly = !pro; g.placeholder = pro ? 'even a small one' : 'one good thing · pro'; }
   const own = $('#xOwnQ'); if (own) own.innerHTML = (pro ? '' : XLOCK) + 'write my own';
   const cx = $('.xctx'); if (cx) cx.classList.toggle('xlocked', !pro);
@@ -1202,11 +1202,23 @@ const X8 = [
   ['safe', 'safe place', 'describe a place where you feel okay. liminal paints it and keeps it for when you need it.', 1]
 ];
 const x8LS = (k, d) => LS.get('x8.' + k, d), x8set = (k, v) => LS.set('x8.' + k, v);
-const x8back = '<button class="x8-back" data-x8="labs">‹ labs</button>';
-const x8head = k => { const t = X8.find(x => x[0] === k); return `${x8back}<p class="x6-k">labs${t[3] ? ' · pro' : ''}</p><h2 class="x8-h">${t[1]}</h2><p class="x8-p">${t[2]}</p>`; };
-function x8labs() {
-  const pro = isPro();
-  const ov = x6open(`<p class="x6-k">new in v34</p><h2 class="x8-h">labs</h2><p class="x8-p">small experiments for your feelings. everything stays on this phone unless it says otherwise.</p><div class="x8-list">${X8.map(t => { const due = t[0] === 'worry' ? x34due() : 0; return `<button class="x8-row" data-x8="${t[0]}"><span><b>${t[3] && !pro ? XLOCK : ''}${t[1]}${t[4] ? '<em class="x34-new">new</em>' : ''}${t[3] ? '<em class="x34-pro">pro</em>' : ''}</b><small>${due ? `${due} parked worr${due === 1 ? 'y is' : 'ies are'} ready to check` : t[2]}</small></span><i>›</i></button>`; }).join('')}</div>${XHELP}`); try { $('#x8L') && $('#x8L').classList.remove('x34-dot'); } catch (e) {}
+const x8back = '<button class="x8-back" data-x8="back">‹ back</button>';
+const x8head = k => { const t = X8.find(x => x[0] === k); return `${x8back}${t[3] ? '<p class="x6-k">pro</p>' : ''}<h2 class="x8-h">${t[1]}</h2><p class="x8-p">${t[2]}</p>`; };
+/* v35 · commands: every tool is a command, found by typing (or "/" in the feel box). no drawer. */
+const X35G = [['for right now', ['name', 'worry', 'friend', 'unsent', 'body', 'safe']], ['for later', ['future']], ['looking back', ['sky', 'jar', 'rhythm', 'thennow']]];
+function x8labs(q, focus) {
+  const ov = x6open(`<p class="x6-k">commands</p><input class="x35-q" id="x35q" type="search" enterkeyhint="go" placeholder="find a tool…" autocomplete="off" autocapitalize="off" aria-label="find a tool"><div class="x35-list" id="x35l" role="listbox" aria-label="tools"></div>`);
+  const qi = ov.querySelector('#x35q'); qi.value = typeof q === 'string' ? q : '';
+  const draw = () => { const v = qi.value.trim().toLowerCase(), pro = isPro(), due = x34due();
+    const hit = t => !v || (t[1] + ' ' + t[2]).toLowerCase().includes(v);
+    const row = t => `<button class="x35-i" role="option" data-x8="${t[0]}"><b>${t[1]}${t[0] === 'worry' && due ? ` <i class="x35-due">${due} ready</i>` : ''}${t[3] && !pro ? ' <i class="x35-pro">pro</i>' : ''}</b><small>${t[2]}</small></button>`;
+    if (v) { const all = X35G.flatMap(g => g[1]).map(k => X8.find(t => t[0] === k)).filter(t => t && hit(t)); const sc = t => t[1].toLowerCase().startsWith(v) ? 0 : t[1].toLowerCase().includes(v) ? 1 : 2; all.sort((a, b) => sc(a) - sc(b)); ov.querySelector('#x35l').innerHTML = all.map(row).join('') || '<p class="x35-none">no tool by that name.</p>'; return; }
+    const html = X35G.map(([g, ks]) => { const its = ks.map(k => X8.find(t => t[0] === k)).filter(t => t && hit(t)); return its.length ? `<p class="x35-g">${g}</p>` + its.map(t => `<button class="x35-i" role="option" data-x8="${t[0]}"><b>${t[1]}${t[0] === 'worry' && due ? ` <i class="x35-due">${due} ready</i>` : ''}${t[3] && !pro ? ' <i class="x35-pro">pro</i>' : ''}</b><small>${t[2]}</small></button>`).join('') : ''; }).join('');
+    ov.querySelector('#x35l').innerHTML = html || '<p class="x35-none">no tool by that name.</p>'; };
+  qi.oninput = draw; draw();
+  qi.addEventListener('keydown', e => { if (e.key === 'Enter') { const b = ov.querySelector('.x35-i'); if (b) x8go(b.dataset.x8); } });
+  if (focus) setTimeout(() => qi.focus(), 60);
+  try { $('#x35C') && $('#x35C').classList.remove('x34-dot'); } catch (e) {}
   x8bind(ov);
 }
 function x8bind(ov) { ov.addEventListener('click', e => { const b = e.target.closest('[data-x8]'); if (!b) return; x8go(b.dataset.x8); }); }
@@ -1216,7 +1228,7 @@ function x8go(k) {
   if (t[3] && !isPro()) { x6close(); return openPro(t[1]); }
   ({ name: x8name, unsent: x8unsent, future: x8future, friend: x8friend, sky: x8sky, body: x8body, jar: x8jar, safe: x8safe, worry: x34worry, rhythm: x34rhythm, thennow: () => x34thennow() })[k]();
 }
-function x8open(k, html) { const ov = x6open(x8head(k) + html); ov.querySelector('.x8-back').onclick = () => x8labs(); return ov; }
+function x8open(k, html) { const ov = x6open(x8head(k) + html); ov.querySelector('.x8-back').onclick = () => x6close(); return ov; }
 
 /* 1 · name it (free): emotional granularity */
 const X8W = {
@@ -1339,8 +1351,7 @@ function x8safe(edit) {
   $('#x8ss').onclick = () => { const lines = [0, 1, 2].map(i => $('#x8l' + i).value.trim()); if (!lines.some(Boolean)) return toast('add at least one detail'); x8set('safe', { scene: sc, lines, seed: cur.seed || newSeed(), t: Date.now() }); x8safe(); };
 }
 (function () {
-  const row = $('.xtools'); if (row && !$('#x8L')) { row.insertAdjacentHTML('beforeend', '<button id="x8L">✦ labs</button>'); }
-  if ($('#x8L')) $('#x8L').onclick = x8labs;
+  const row = $('.xtools'); /* v35: the labs drawer is gone; tools live in commands + where they fit */
 })();
 
 /* ---------- v34 · three more labs: worry time (free) · your rhythms, then & now (pro) ---------- */
@@ -1414,6 +1425,17 @@ function x34thennow(pickAgo) {
   ov.querySelectorAll('[data-ago]').forEach(b => b.onclick = () => x34thennow(+b.dataset.ago));
   ov.querySelector('#x34ns').onclick = () => { const n = x8LS('tn', {}), v = ov.querySelector('#x34n').value.trim().slice(0, 400); if (v) n[key] = v; else delete n[key]; const ks = Object.keys(n); if (ks.length > 300) delete n[ks[0]]; x8set('tn', n); toast(v ? 'saved' : 'cleared'); };
 }
-setTimeout(() => { try { const n = x34due(); if (n) { const b = $('#x8L'); if (b) b.classList.add('x34-dot'); } } catch (e) {} }, 1500);
+
+/* v35 · where the tools live: "/ commands" on the feel screen, "/" typed in the feel box, and a look-back row in the archive */
+(function () {
+  const row = $('.xtools'); if (row && !$('#x35C')) row.insertAdjacentHTML('beforeend', '<button id="x35C" aria-label="commands: find a tool">/ commands</button>');
+  if ($('#x35C')) $('#x35C').onclick = () => x8labs('', true);
+  const tx = $('#text'); if (tx) tx.addEventListener('input', () => { if (tx.value === '/') { tx.value = ''; x8labs('', true); } });
+  const seg = $('#archive .seg') || $('.seg'); if (seg && !$('.x35-look')) {
+    seg.insertAdjacentHTML('afterend', `<div class="x35-look" aria-label="look back"><span>look back</span>${['sky', 'jar', 'rhythm', 'thennow'].map(k => { const t = X8.find(x => x[0] === k); return `<button data-x8="${k}"${t[3] ? ' data-pro="1"' : ''}>${t[1]}</button>`; }).join('')}</div>`);
+    $('.x35-look').addEventListener('click', e => { const b = e.target.closest('[data-x8]'); if (b) x8go(b.dataset.x8); });
+  }
+})();
+setTimeout(() => { try { const n = x34due(); if (n) { const b = $('#x35C'); if (b) b.classList.add('x34-dot'); } } catch (e) {} }, 1500);
 
 window.__liminal = { db, S, renderArchive, engine, cloud, afterAccount, x6week, x6blend, x6echo, x8labs, x8go, x34worry, x34rhythm, x34thennow };
