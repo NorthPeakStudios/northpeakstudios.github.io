@@ -218,3 +218,28 @@ p.center{margin:14px 0}
 .rpstat div{background:var(--card2)}
 .mtbar .lnk{font-size:14px}
 #mtgo{position:sticky;bottom:calc(66px + var(--bpad));z-index:4;box-shadow:0 8px 24px rgba(0,0,0,.55)}
+
+/* 1.5: name in notes + melody harmonizer */
+.nn-in{width:100%;box-sizing:border-box;font-size:22px;letter-spacing:.08em;text-transform:uppercase;padding:12px 14px;border-radius:12px;border:1px solid rgba(127,127,127,.35);background:transparent;color:inherit;font-family:inherit}
+.nn-seg{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 6px}
+.nn-seg button{flex:1;min-height:40px;border-radius:99px;border:1px solid rgba(127,127,127,.35);background:transparent;color:inherit;font:inherit;font-size:14px;padding:0 10px}
+.nn-seg button.on{background:var(--acc);border-color:transparent;color:#fff}
+.nn-seg.sm{flex:0 0 auto;margin:0}
+.nn-hb{display:block;margin-top:8px}
+.nn-map{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.nn-map span{display:flex;flex-direction:column;align-items:center;min-width:34px;padding:6px 4px;border-radius:10px;background:rgba(127,127,127,.12)}
+.nn-map span.off{opacity:.4}
+.nn-map b{font-size:16px}.nn-map small{font-size:12px;opacity:.8}
+.nn-gap{width:10px}
+.nn-row{align-items:center;justify-content:space-between;gap:10px}
+.nn-toast{position:fixed;left:50%;bottom:90px;transform:translate(-50%,20px);opacity:0;background:rgba(20,20,24,.92);color:#fff;padding:10px 16px;border-radius:99px;font-size:14px;transition:.3s;z-index:99;pointer-events:none}
+.nn-toast.on{opacity:1;transform:translate(-50%,0)}
+.hz-staff{overflow-x:auto}
+.hz-staff svg{width:auto!important;max-width:none!important;height:150px;display:block}
+.hz-ch{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.hz-ch span{display:flex;flex-direction:column;align-items:center;min-width:40px;padding:6px 4px;border-radius:10px}
+.hz-ch small{font-size:11px;opacity:.75}
+.hz-T{background:rgba(46,160,67,.18)}.hz-PD{background:rgba(214,158,46,.2)}.hz-D{background:rgba(220,70,70,.18)}
+.hz-leg{font-size:13px;line-height:1.7;margin:6px 0}
+.hz-leg span{display:inline-block;min-width:26px;text-align:center;border-radius:6px;font-weight:600;font-size:11px;padding:1px 4px}
+.nn-hb{display:flex;gap:8px;align-items:flex-start}.nn-hb input{width:auto;flex:none;margin:4px 0 0}
