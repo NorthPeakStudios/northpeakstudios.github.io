@@ -38,7 +38,7 @@ routes.staffview = v => {
 };
 routes.viz = v => {
   v.innerHTML = `<a class="back" href="#tools">← Tools</a><h2>Waveform & spectrum</h2><div class="card"><canvas id="wave" height="140"></canvas><canvas id="spec" height="160"></canvas>
-   <p><button class="btn sm" id="vn">▶︎ Play A3 (220 Hz)</button> <button class="btn sm" id="vc">▶︎ Play C major chord</button> <button class="btn ghost sm" id="vm">🎤 Use mic</button></p><p class="muted">Top: waveform (pressure over time). Bottom: spectrum — the peaks are the harmonics (f, 2f, 3f…). Try playing your trumpet into the mic.</p></div>`;
+   <p><button class="btn sm" id="vn">▶︎ Play A3 (220 Hz)</button> <button class="btn sm" id="vc">▶︎ Play C major chord</button> <button class="btn ghost sm" id="vm">🎤 Use mic</button></p><p class="muted">Top: waveform (pressure over time). Bottom: spectrum — the peaks are the harmonics (f, 2f, 3f…). Try playing your instrument into the mic.</p></div>`;
   const an=Audio.analyser(); let src=an; const W=$('#wave'), Sp=$('#spec'); const fit=()=>{ W.width=W.clientWidth*devicePixelRatio; Sp.width=Sp.clientWidth*devicePixelRatio; W.height=140*devicePixelRatio; Sp.height=160*devicePixelRatio; }; fit();
   $('#vn').onclick=()=>Audio.playMidi(57,0,2.5); $('#vc').onclick=()=>Audio.chord([60,64,67],0,2.5);
   $('#vm').onclick=async()=>{ try{ src=await Audio.startMic(); toast('Mic on'); }catch(e){ toast('Mic blocked'); } };

@@ -267,3 +267,32 @@ p.center{margin:14px 0}
 .lb-jam{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
 .lb-jam span{min-width:56px;text-align:center;padding:10px 8px;border-radius:12px;background:rgba(127,127,127,.12);font-weight:700;font-size:16px;transition:background .15s}
 .lb-jam span.on{background:var(--acc);color:#fff}
+
+/* 1.7 labs: practice log · tempo trainer · sight-reading */
+.x27-timer{text-align:center}
+.x27-clock{font-size:46px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.02em;margin:4px 0 10px}
+.x27-timer .inp{width:100%;box-sizing:border-box;margin-bottom:10px}
+.x27-timer .row{justify-content:center;gap:8px}
+.x27-stat{display:flex;align-items:baseline;gap:8px}.x27-stat b{font-size:34px}.x27-stat span{color:var(--muted,#8b949e)}
+.x27-goal{height:8px;border-radius:99px;background:rgba(127,127,127,.2);overflow:hidden;margin:6px 0 10px}.x27-goal i{display:block;height:100%;background:var(--acc)}
+.x27-days,.x27-weeks{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;align-items:end;height:96px;margin:10px 0 4px}
+.x27-weeks{grid-template-columns:repeat(8,1fr);height:120px}
+.x27-days div,.x27-weeks div{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;gap:3px;min-width:0}
+.x27-days i,.x27-weeks i{display:block;width:70%;min-height:2px;border-radius:6px 6px 2px 2px;background:var(--acc)}
+.x27-days small,.x27-weeks small{font-size:11px;color:var(--muted,#8b949e)}
+.x27-weeks b{font-size:11px;font-weight:600;min-height:13px}
+.x27-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid rgba(127,127,127,.15)}
+.x27-item span{flex:1;min-width:0;overflow-wrap:anywhere}.x27-item small{color:var(--muted,#8b949e);white-space:nowrap;font-size:12px}
+.x27-del{background:none;border:0;color:inherit;opacity:.5;font-size:20px;min-width:36px;min-height:36px}
+.x27-bpm{display:flex;justify-content:center;align-items:baseline;gap:6px}.x27-bpm b{font-size:56px;font-variant-numeric:tabular-nums}.x27-bpm span{color:var(--muted,#8b949e)}
+.x27-dots{display:flex;justify-content:center;gap:12px;margin:8px 0}
+.x27-dots i{width:16px;height:16px;border-radius:50%;background:rgba(127,127,127,.3);transition:background .05s}
+.x27-dots i.acc{box-shadow:0 0 0 2px var(--acc) inset}.x27-dots i.on{background:var(--acc)}
+.x27-set label{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(127,127,127,.15);font-size:15px}
+.x27-set label:first-child{border-top:0}.x27-set input[type=range]{flex:1;min-width:120px}
+.x27-staff{margin:6px 0;overflow-x:auto}
+
+.x27-timer .nn-seg button{white-space:nowrap;padding:0 6px;font-size:13px;min-width:0}
+.x27-c{display:flex;justify-content:center;margin-top:6px}
+.x27-set label{display:flex!important}.x27-set label b{margin-left:auto;font-variant-numeric:tabular-nums}
+.x27-set label input[type=range]{flex:1 1 100%;width:100%}
