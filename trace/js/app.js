@@ -137,7 +137,7 @@ let lastAlert=''; setInterval(()=>{ if(document.hidden) return; const d=dueRemin
 routes.more=v=>{ const s=window.Cloud&&Cloud.signedIn();
   v.innerHTML=`<h2>More</h2><div class="card list">
    <a class="it" href="#account"><span class="wh"><b>Account & sync</b><small>${s?esc(Cloud.acct.user):'sign in with your Northpeak account'}</small></span></a>
-   <a class="it" href="#pro"><span class="wh"><b>Trace Pro</b><small>${P()?'unlocked':'effects charts, what may happen, the web, export'}</small></span></a>
+   <a class="it" href="#pro"><span class="wh"><b>Trace Pro</b><small>${P()?'unlocked':'effects, Forecast, the web, export'}</small></span></a>
    <a class="it" href="#body"><span class="wh"><b>Body data</b><small>weight & height, just stored</small></span></a>
    <a class="it" href="#export"><span class="wh"><b>Export my logs</b><small>CSV or JSON ${P()?'':'· Pro'}</small></span></a>
    <a class="it" href="#help"><span class="wh"><b>Help & support lines</b><small>if something feels wrong</small></span></a>
@@ -153,9 +153,9 @@ routes.body=v=>{ const p=Store.prefs(); v.innerHTML=`<h2>Body data</h2><div clas
    <button class="btn block" id="bs" style="margin-top:12px">Save</button></div>`; $('#bs').onclick=()=>{ Store.savePrefs({weight:$('#bw').value.trim(),height:$('#bh').value.trim()}); toast('Saved'); }; };
 routes.about=v=>{ v.innerHTML=`<h2>Trace 1.0</h2><div class="card"><p style="margin-top:0"><b>A private journal</b> for meds, supplements, caffeine, anything you take, and how you feel.</p>
    <p class="muted"><b>Privacy:</b> your logs live on this phone. If you sign in, each entry is encrypted on this phone with a key made from your password before it syncs, so the server can’t read it. Northpeak never sells or shares it.</p>
-   <p class="muted"><b>Free:</b> logging, feelings, the calendar, reminders, FDA label info. <b>Pro ($35, or in $100 All-Access):</b> effects charts, what may happen, the web graph, export.</p>
+   <p class="muted"><b>Free:</b> logging, feelings, the calendar, reminders, FDA label info. <b>Pro ($35, or in $100 All-Access):</b> effects charts, Forecast, the web graph, export.</p>
    <p class="muted"><b>Honest limits:</b> patterns come only from your own logs, and they show correlation, not cause. Trace never suggests amounts or a “safe” dose, and doesn’t predict anything from body type.</p></div>
-   <details class="fold" open><summary>What’s new in 1.0</summary><p class="muted" style="margin-top:0">First release: quick log with feelings now or later, side-effect chips, month heat map, reminders with Calendar alerts, FDA label lookups, effects over time, what may happen, and the web.</p></details>`; };
+   <details class="fold" open><summary>What’s new in 1.0</summary><p class="muted" style="margin-top:0">First release: quick log with feelings now or later, side-effect chips, month heat map, reminders with Calendar alerts, FDA label lookups, effects over time, Forecast (predictions from your own logs), and the web.</p></details>`; };
 routes.export=v=>{ if(!P()) return TrcPro.locked(v,'Export my logs','CSV for spreadsheets or a full JSON backup.');
   v.innerHTML=`<h2>Export</h2><div class="card"><p class="muted" style="margin-top:0">${Store.entries().length} entries. Files are made on this phone.</p><button class="btn block" id="xc">Download CSV</button><button class="btn ghost block" id="xj">Download JSON backup</button></div>`;
   const dl=(name,txt,type)=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type})); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1500); };

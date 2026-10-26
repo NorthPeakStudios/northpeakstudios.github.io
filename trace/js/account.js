@@ -3,8 +3,8 @@
 const C=()=>window.Cloud;
 const pro=()=>!!(C()&&C().isPro());
 function locked(v,what,detail){
-  v.innerHTML=`${['Effects over time','What may happen','The web'].includes(what)?TrcNav(what==='Effects over time'?'fx':what==='What may happen'?'may':'web'):''}<div class="card lockcard"><div class="lockic">🔒</div><h2>${esc(what)}</h2><p class="muted">${esc(detail||'')}</p>
-   <p>Part of <b>Trace Pro</b>: effects over time, what may happen, the web and export. Logging, the calendar, reminders and FDA info stay free.</p>
+  v.innerHTML=`${['Effects over time','Forecast','The web'].includes(what)?TrcNav(what==='Effects over time'?'fx':what==='Forecast'?'forecast':'web'):''}<div class="card lockcard"><div class="lockic">🔒</div><h2>${esc(what)}</h2><p class="muted">${esc(detail||'')}</p>
+   <p>Part of <b>Trace Pro</b>: effects over time, Forecast, the web and export. Logging, the calendar, reminders and FDA info stay free.</p>
    <p><a class="btn big" href="#pro">Get Pro · $35</a></p><p class="muted small">Or $100 Northpeak All-Access: Trace, Synapse, Axon, Liminal, Cadence and Mindprint.${C()&&C().signedIn()?'':' Already have Pro or All-Access? <a href="#account">Sign in</a>.'}</p></div>`;
 }
 window.TrcPro={pro,locked};
@@ -49,16 +49,16 @@ routes.pro=v=>{
    `<div class="card"><div class="pplans"><label class="pplan"><input type="radio" name="pl" value="trace_pro" checked><div><b>Trace Pro</b><span>$35 once</span></div></label><label class="pplan"><input type="radio" name="pl" value="all_access"><div><b>Northpeak All-Access</b><span>$100 once · Trace + Synapse + Axon + Liminal + Cadence + Mindprint + every future app</span></div></label></div>
     <p class="muted small">Paid with Apple Cash: send your name and the phone number on your Apple Cash, you’ll get a request, and Pro turns on when it’s paid.</p>
     <label>Your name<input id="pn" autocomplete="name"></label><label>Apple Cash phone or email<input id="pp" autocomplete="tel" inputmode="tel"></label><button class="btn big block" id="pgo" style="margin-top:12px">Request Pro</button><p id="pm" class="muted"></p></div>`}
-   <details class="fold" open><summary>What Pro adds</summary><p class="muted" style="margin-top:0">Effects over time (each thing vs your mood, energy, focus, sleep, anxiety and appetite; days with vs without; before/after; hours after; effects you noted), What may happen (a labelled projection from your own patterns plus the FDA label’s long-term info), the web graph, and CSV/JSON export.</p></details>
+   <details class="fold" open><summary>What Pro adds</summary><p class="muted" style="margin-top:0">Effects over time (each thing vs your mood, energy, focus, sleep, anxiety and appetite; days with vs without; before/after; hours after; effects you noted), Forecast (labelled predictions of what may happen if your own patterns continue, with confidence, plus the FDA label’s long-term info), the web graph, and CSV/JSON export.</p></details>
    <details class="fold"><summary>What’s free forever</summary><p class="muted" style="margin-top:0">Logging with feelings and effects, the calendar heat map, reminders with Calendar alerts, FDA label info, encrypted sync, and the help lines.</p></details>
    <p class="muted small center">Have a code? Redeem it on the <a href="#account">Account</a> screen.</p>`;
   const chk=$('#chk'); if(chk) chk.onclick=async()=>{ await C().refresh(true); route(); };
   const b=$('#pgo'); if(b) b.onclick=async()=>{ const n=$('#pn').value.trim(), ph=$('#pp').value.trim(), pl=(document.querySelector('input[name=pl]:checked')||{}).value; if(!n||ph.length<5) return $('#pm').textContent='Add your name and Apple Cash phone/email.'; $('#pm').textContent='Sending…'; try{ await C().requestPro(pl,n,ph); route(); }catch(x){ $('#pm').textContent=em(x); } };
 };
 function chip(){ const c=document.getElementById('acChip'); if(!c) return; const s=C()&&C().signedIn(); c.textContent=s?(pro()?'⭐ Pro':'Account'):'Sign in'; c.className='acchip'+(s?'':' out'); }
-function boot(){ C().onAccountChange(()=>{ chip(); }); chip(); if(C().signedIn()){ C().refresh(true).then(()=>{ chip(); const h=location.hash.slice(1).split('/')[0]; if(['fx','may','web','export','pro','account','more'].includes(h)) route(); }); syncNow(); }
+function boot(){ C().onAccountChange(()=>{ chip(); }); chip(); if(C().signedIn()){ C().refresh(true).then(()=>{ chip(); const h=location.hash.slice(1).split('/')[0]; if(['fx','forecast','may','web','export','pro','account','more'].includes(h)) route(); }); syncNow(); }
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&C().signedIn()){ C().refresh().then(chip); syncNow(); } });
   setInterval(()=>{ if(C().signedIn()&&!document.hidden) syncNow(); },120000);
-  const h=location.hash.slice(1).split('/')[0]; if(['account','pro','fx','may','web','export'].includes(h)) route(); }
+  const h=location.hash.slice(1).split('/')[0]; if(['account','pro','fx','forecast','may','web','export'].includes(h)) route(); }
 if(window.Cloud) boot(); else window.addEventListener('cloud-ready',boot,{once:true});
 })();

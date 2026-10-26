@@ -2,7 +2,7 @@
 // (a plain projection of your own patterns, with confidence from how much you've logged). Correlation, not cause.
 (function(){
 const M=()=>Store.METRICS;
-function nav(on,key){ const k=key?'/'+encodeURIComponent(key):''; return `<div class="seg"><a href="#fx${k}" class="${on==='fx'?'on':''}">Effects</a><a href="#may${k}" class="${on==='may'?'on':''}">What may happen</a><a href="#web" class="${on==='web'?'on':''}">The web</a></div>`; }
+function nav(on,key){ const k=key?'/'+encodeURIComponent(key):''; return `<div class="seg"><a href="#fx${k}" class="${on==='fx'?'on':''}">Effects</a><a href="#forecast${k}" class="${on==='forecast'?'on':''}">Forecast</a><a href="#web" class="${on==='web'?'on':''}">The web</a></div>`; }
 window.TrcNav=nav;
 function picker(key,base){ const ns=Store.names(); return `<select id="ip">${ns.map(n=>`<option value="${esc(Store.keyOf(n.name))}" ${Store.keyOf(n.name)===key?'selected':''}>${esc(n.name)} (${n.n})</option>`).join('')}</select>`; }
 const avg=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:null;
@@ -47,33 +47,51 @@ routes.fx=(v,key)=>{
   $('#ip').onchange=e=>location.hash='#fx/'+encodeURIComponent(e.target.value);
   $('#cm').onchange=e=>{ chartM=e.target.value; routes.fx(v,key); }; $('#cdays').onchange=e=>{ chartDays=+e.target.value; routes.fx(v,key); };
 };
-/* ---- what may happen: a projection of your own patterns, labelled as such ---- */
+/* ---- Forecast: projections from your own logs (with a minimum-data rule and confidence), plus the FDA label ---- */
 function slope(pts){ if(pts.length<3) return null; const n=pts.length, mx=avg(pts.map(p=>p[0])), my=avg(pts.map(p=>p[1])); let a=0,b=0; for(const [x,y] of pts){ a+=(x-mx)*(y-my); b+=(x-mx)**2; } return b?a/b:null; }
-function conf(nu,no,eff){ if(nu>=15&&no>=10&&eff>=0.8) return ['high','Higher confidence']; if(nu>=6&&no>=4&&eff>=0.5) return ['med','Medium confidence']; return ['low','Low confidence']; }
-function predict(key){ const A=analyze(key), out=[];
-  for(const [m,l] of M()){ const c=A.cmp[m]; if(c.u==null||c.o==null||c.nu<3||c.no<2) continue; const d=c.u-c.o; if(Math.abs(d)<0.4) continue;
-    const up=d>0, lw=l.toLowerCase(); const cf=conf(c.nu,c.no,Math.abs(d));
-    out.push({cf,txt:`If this pattern keeps up, your ${lw} may keep running <b>${up?'higher':'lower'}</b> on days you take it: about ${Math.abs(d).toFixed(1)} point${Math.abs(d)>=1.05?'s':''} ${up?'above':'below'} your other days (1–5 scale).`,why:`${c.nu} days with it vs ${c.no} days without, average ${f1(c.u)} vs ${f1(c.o)}.`}); }
-  const cutoff=Date.now()-42*864e5;
-  for(const [m,l] of M()){ const pts=Object.keys(A.D).filter(k=>A.use.has(k)&&A.D[k][m]!=null&&new Date(k+'T12:00').getTime()>=cutoff).map(k=>[(new Date(k+'T12:00').getTime()-cutoff)/(7*864e5),A.D[k][m]]); if(pts.length<5) continue; const s=slope(pts); if(s==null||Math.abs(s)<0.2) continue;
-    const span=(Math.max(...pts.map(p=>p[0]))-Math.min(...pts.map(p=>p[0]))); if(span<2) continue;
-    const cf=pts.length>=12&&Math.abs(s)>=0.35?['med','Medium confidence']:['low','Low confidence'];
-    out.push({cf,txt:`On days you take it, your ${l.toLowerCase()} has been <b>${s>0?'rising':'falling'}</b> about ${Math.abs(s).toFixed(1)} a week lately. If that continues, it may keep ${s>0?'rising':'falling'} for a while, though trends like this often level off.`,why:`Straight-line trend through ${pts.length} use days over the last 6 weeks.`}); }
-  for(const [f,n] of Object.entries(A.fx)){ if(A.n<3||n/A.n<0.3) continue; out.push({cf:A.n>=10&&n/A.n>=0.5?['med','Medium confidence']:['low','Low confidence'],txt:`<b>${esc(f)}</b> showed up in ${n} of ${A.n} of your logs, so it may keep showing up when you take it.`,why:'Share of your logs where you tagged it.'}); }
-  out.sort((a,b)=>({high:0,med:1,low:2})[a.cf[0]]-({high:0,med:1,low:2})[b.cf[0]]); return {A,out}; }
+function conf(na,nb,eff){ if(na>=15&&nb>=10&&eff>=0.8) return ['high','Higher confidence']; if(na>=6&&nb>=4&&eff>=0.5) return ['med','Medium confidence']; return ['low','Low confidence']; }
+const MIN_LOGS=7, MIN_DAYS=14;
+const pts_=d=>Math.abs(d).toFixed(1)+' point'+(Math.abs(d)>=1.05?'s':'');
+function predict(key){ const A=analyze(key), out=[]; const ts=A.es.map(x=>x.t); const span=ts.length?(Math.max(...ts)-Math.min(...ts))/864e5:0;
+  const enough=A.n>=MIN_LOGS&&span>=MIN_DAYS-1; if(!enough) return {A,out,enough,span};
+  const dayAfter=k=>{ const d=new Date(k+'T12:00'); d.setDate(d.getDate()+1); return Store.dayKey(d); };
+  for(const [m,l] of M()){ const lw=l.toLowerCase(), c=A.cmp[m];
+    /* 1) use days vs other days */
+    if(c.u!=null&&c.o!=null&&c.nu>=3&&c.no>=3){ const d=c.u-c.o; if(Math.abs(d)>=0.4){ const up=d>0;
+      out.push({cf:conf(c.nu,c.no,Math.abs(d)),n:c.nu+c.no,txt:`If your pattern stays like this, your logged ${lw} may keep running <b>${up?'higher':'lower'}</b> on days you take it, about ${pts_(d)} ${up?'above':'below'} your other days.`,why:`${c.nu} days with it vs ${c.no} without: average ${f1(c.u)} vs ${f1(c.o)} (1–5).`}); } }
+    /* 2) the day after */
+    const aft=[],oth=[]; for(const k in A.D){ const v=A.D[k][m]; if(v==null) continue; const prev=new Date(k+'T12:00'); prev.setDate(prev.getDate()-1); const pk=Store.dayKey(prev); if(A.use.has(k)) continue; (A.use.has(pk)?aft:oth).push(v); }
+    if(aft.length>=3&&oth.length>=3){ const d=avg(aft)-avg(oth); if(Math.abs(d)>=0.4) out.push({cf:conf(aft.length,oth.length,Math.abs(d)),n:aft.length+oth.length,txt:`The <b>day after</b> you take it, your logged ${lw} has been ${pts_(d)} ${d>0?'higher':'lower'} than other days off it. That may keep happening if your pattern holds.`,why:`${aft.length} day-after days vs ${oth.length} other days off it: ${f1(avg(aft))} vs ${f1(avg(oth))}.`}); } }
+  /* 3) heavier vs lighter weeks */
+  const wk={}; const wkOf=t=>{ const d=new Date(t); d.setHours(0,0,0,0); d.setDate(d.getDate()-d.getDay()); return Store.dayKey(d); };
+  for(const x of A.es){ const w=wkOf(x.t); (wk[w]=wk[w]||{u:0,f:{}}).u++; }
+  for(const k in A.D){ const w=wkOf(new Date(k+'T12:00').getTime()); const o=wk[w]=wk[w]||{u:0,f:{}}; for(const m in A.D[k]) (o.f[m]=o.f[m]||[]).push(A.D[k][m]); }
+  const weeks=Object.values(wk).filter(w=>Object.keys(w.f).length); const uses=weeks.map(w=>w.u).sort((a,b)=>a-b);
+  if(weeks.length>=4){ const cutN=uses.filter(u=>u>=5).length>=2&&uses.filter(u=>u<5).length>=2?5:uses[Math.floor(uses.length/2)]||1;
+    for(const [m,l] of M()){ const hi=weeks.filter(w=>w.u>=cutN&&w.f[m]).map(w=>avg(w.f[m])), lo=weeks.filter(w=>w.u<cutN&&w.f[m]).map(w=>avg(w.f[m])); if(hi.length<2||lo.length<2) continue; const d=avg(hi)-avg(lo); if(Math.abs(d)<0.4) continue;
+      out.push({cf:conf(hi.length*3,lo.length*3,Math.abs(d)),n:hi.length+lo.length,txt:`On weeks you log it ${cutN}+ times, your logged ${l.toLowerCase()} averages <b>${f1(avg(hi))}</b> vs ${f1(avg(lo))} in lighter weeks. If next week is a ${cutN}+ week, it may look more like ${f1(avg(hi))}.`,why:`${hi.length} heavier weeks vs ${lo.length} lighter weeks.`}); } }
+  /* 4) trend lately */
+  const cutoff=Date.now()-28*864e5;
+  for(const [m,l] of M()){ const pts=Object.keys(A.D).filter(k=>A.use.has(k)&&A.D[k][m]!=null&&new Date(k+'T12:00').getTime()>=cutoff).map(k=>[(new Date(k+'T12:00').getTime()-cutoff)/(7*864e5),A.D[k][m]]); if(pts.length<6) continue; const s=slope(pts); if(s==null||Math.abs(s)<0.2) continue;
+    const last=avg(pts.slice(-3).map(p=>p[1])), next=Math.max(1,Math.min(5,last+s));
+    out.push({cf:pts.length>=12&&Math.abs(s)>=0.35?['med','Medium confidence']:['low','Low confidence'],n:pts.length,txt:`Over the last 4 weeks, your logged ${l.toLowerCase()} on days you take it has been <b>${s>0?'rising':'falling'}</b> about ${Math.abs(s).toFixed(1)} a week. If that keeps up, next week may land near ${f1(next)}, though trends like this often level off.`,why:`Straight-line trend through ${pts.length} use days.`}); }
+  /* 5) effects you keep tagging */
+  for(const [f,n] of Object.entries(A.fx)){ if(n/A.n<0.3||n<3) continue; out.push({cf:A.n>=10&&n/A.n>=0.5?['med','Medium confidence']:['low','Low confidence'],n:A.n,txt:`<b>${esc(f)}</b> showed up in ${n} of ${A.n} of your logs, so it may keep showing up when you take it.`,why:'Share of your logs where you tagged it.'}); }
+  out.sort((a,b)=>({high:0,med:1,low:2})[a.cf[0]]-({high:0,med:1,low:2})[b.cf[0]]); return {A,out,enough,span}; }
 window.TrcPredict=predict;
-routes.may=async(v,key)=>{
-  if(!P()) return TrcPro.locked(v,'What may happen','A projection from your own logs of what may keep happening if your patterns continue, with a confidence level, plus what the FDA label says about longer-term use.');
-  const ns=Store.names(); if(!ns.length) return emptyNames(v,'may'); key=key||Store.keyOf(ns[0].name); const nm=(ns.find(n=>Store.keyOf(n.name)===key)||{name:key}).name; const {A,out}=predict(key);
-  v.innerHTML=nav('may',key)+`${picker(key)}
-   <div class="note warn"><b>A prediction, not medical advice.</b> This is what <i>may</i> happen if the patterns in your own logs keep going. It can’t know what causes what, it isn’t a dose guide, and it doesn’t use body type. For any change to a medicine, talk to a doctor or pharmacist.</div>
-   <div class="card"><h3>From your logs</h3>${A.n<3?`<p class="muted">Log ${esc(nm)} a few more times, with how you felt, and add some “just how I feel” check-ins on other days. Predictions start at 3+ days.</p>`:out.length?out.map(o=>`<div style="padding:10px 0;border-bottom:1px solid #222a35"><p style="margin:0 0 4px">${o.txt}</p><span class="conf ${o.cf[0]}">${o.cf[1]}</span> <span class="muted small">${esc(o.why)}</span></div>`).join(''):'<p class="muted">No clear pattern yet. Your days with and without it look about the same so far.</p>'}
-    <details class="fold" style="background:#0f141b;margin-top:12px"><summary>How this is worked out</summary><p class="muted small" style="margin-top:0">Three plain checks on your own logs: (1) the average difference between days you logged it and days you didn’t, shown if it’s 0.4+ points; (2) a straight-line trend over the last 6 weeks of use days, shown if it moves 0.2+ points a week; (3) effects you tagged in 30%+ of logs. Confidence goes up with more days on both sides and bigger differences: low under 6 use days, higher only with 15+ use days, 10+ other days and a 0.8+ point gap. Sleep, stress, school and everything else you didn’t log can also move these numbers.</p></details></div>
-   <h3>What the label says about longer-term use</h3><div class="card" id="mfd"><p class="muted">Looking it up…</p></div>`;
-  $('#ip').onchange=e=>location.hash='#may/'+encodeURIComponent(e.target.value);
+const BANNER='<div class="note warn"><b>A prediction of what MAY happen</b>, based on your own logs and public label info. <b>Not medical advice.</b> Talk to a doctor or pharmacist about anything that worries you. No dose advice, and nothing here uses body type.</div>';
+routes.forecast=async(v,key)=>{
+  if(!P()) return TrcPro.locked(v,'Forecast','Predictions of what may happen if your patterns keep going, built only from your own logs, with how confident they are, plus what the FDA label says about longer-term use.');
+  const ns=Store.names(); if(!ns.length) return emptyNames(v,'forecast'); key=key||Store.keyOf(ns[0].name); const nm=(ns.find(n=>Store.keyOf(n.name)===key)||{name:key}).name; const {A,out,enough,span}=predict(key);
+  v.innerHTML=nav('forecast',key)+`${picker(key)}${BANNER}
+   <div class="card"><h3>From your logs <span class="muted small" style="font-weight:400">· ${A.n} logs over ${Math.round(span)+1} days</span></h3>${!enough?`<p><b>Not enough data yet.</b></p><p class="muted">Forecasts start once ${esc(nm)} has at least ${MIN_LOGS} logs over ${MIN_DAYS}+ days (now ${A.n} logs over ${Math.round(span)+1} days). Log how you feel too, and add “just how I feel” check-ins on other days so there’s something to compare.</p>`:out.length?out.map(o=>`<div style="padding:10px 0;border-bottom:1px solid #222a35"><p style="margin:0 0 4px">${o.txt}</p><span class="conf ${o.cf[0]}">${o.cf[1]}</span> <span class="muted small">${esc(o.why)}</span></div>`).join(''):'<p class="muted">No clear pattern yet. Your days with and without it look about the same so far, so there’s nothing honest to forecast.</p>'}
+    <details class="fold" style="background:#0f141b;margin-top:12px"><summary>How this is worked out</summary><p class="muted small" style="margin-top:0">Simple checks on your own logs, nothing hidden: (1) the average gap between days you logged it and days you didn’t; (2) the day after vs other days off it; (3) heavier weeks (5+ logs, or above your usual) vs lighter weeks; (4) a straight-line trend over the last 4 weeks of use days, projected one week ahead; (5) effects you tagged in 30%+ of logs. A gap has to be 0.4+ points on the 1–5 scale to show. Confidence rises with more days on both sides and bigger gaps: higher needs 15+ days with it, 10+ without and a 0.8+ gap. Nothing starts before ${MIN_LOGS} logs over ${MIN_DAYS} days. Sleep, stress, school, food and everything you didn’t log move these numbers too, so this is correlation, not cause.</p></details></div>
+   <h3>What longer-term use may involve <span class="muted small" style="font-weight:400">· FDA label</span></h3><div class="card" id="mfd"><p class="muted">Looking it up…</p></div>`;
+  $('#ip').onchange=e=>location.hash='#forecast/'+encodeURIComponent(e.target.value);
   try{ const x=await TrcFDA.lookup(nm); const b=$('#mfd'); if(!b) return; if(!x){ b.innerHTML=`<p class="muted" style="margin:0">No FDA drug label for “${esc(nm)}”, so there’s no official long-term info to show.</p>`; return; }
-    const parts=[x.boxed&&['Boxed warning',x.boxed],x.dep&&['Dependence & abuse',x.dep],x.warn&&['Warnings',x.warn]].filter(Boolean);
-    b.innerHTML=(parts.length?parts.map(([h,t])=>`<p style="margin:0 0 4px"><b>${h}</b></p><p class="fda" style="margin-top:0">${esc(TrcFDA.cut(t,600))}</p>`).join(''):`<p class="muted">This label has no boxed warning or dependence section.</p>`)+TrcFDA.cite(x);
+    const parts=[x.boxed&&['Boxed warning',x.boxed,420],x.dep&&['Dependence, abuse & tolerance',x.dep,600],x.warn&&['Warnings',x.warn,600],x.adverse&&['Side effects the label lists',x.adverse,500]].filter(Boolean);
+    b.innerHTML=`<p class="muted small" style="margin-top:0">Quoted from the label’s own sections, shortened. It covers everyone who takes it, not you specifically.</p>`+parts.map(([h,t,n])=>`<p style="margin:8px 0 4px"><b>${h}</b></p><p class="fda" style="margin-top:0">${esc(TrcFDA.cut(t,n))}</p>`).join('')+TrcFDA.cite(x);
   }catch(e){ const b=$('#mfd'); if(b) b.innerHTML='<p class="muted">Couldn’t reach the FDA database right now.</p>'; }
 };
+routes.may=(v,key)=>routes.forecast(v,key);
 })();
