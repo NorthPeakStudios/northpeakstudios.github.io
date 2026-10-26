@@ -178,33 +178,34 @@
   }
 
 
-  /* ---------- 1.3 (Oct 26 2026): Labs — 8 experiments. Free: Today vs usual, Social battery planner, answering a friend's Rate me link. Pro (needs scores): Rate me, Friend compare, Stretch goal, Talk-to-me card, Drift chart, Decision coach. ---------- */
-  var LABS = [
-    ['today', '\ud83c\udf21\ufe0f', 'Today vs usual', 'rate how you were today; see your range move around your trait scores', 0],
-    ['battery', '\ud83d\udd0b', 'Social battery planner', 'plan your week and see when your social battery would run low', 0],
-    ['rate', '\ud83e\ude9e', 'Rate me', 'friends rate you on 10 quick items; find your blind spots', 1],
-    ['compare', '\ud83e\udd1d', 'Friend compare', 'swap codes with a friend, see where you click and where you might clash', 1],
-    ['stretch', '\ud83c\udf31', 'Stretch goal', 'pick a trait to grow, get 4 weeks of small challenges', 1],
-    ['card', '\ud83d\udcac', 'Talk-to-me card', 'a shareable card: how to text you, argue with you, help you', 1],
-    ['drift', '\ud83d\udcc8', 'Drift chart', 'your Big Five across every quiz you\u2019ve taken', 1],
-    ['decide', '\ud83e\udded', 'Decision coach', 'a decision checklist tuned to how you decide', 1],
-    ['prompt', '\ud83d\udcdd', 'Daily prompt', 'one journal question a day, tuned to your traits; your answers stay on this phone', 0, '1.4'],
-    ['study', '\ud83d\udcda', 'Study style', 'a study plan built around your focus, structure and stress scores', 1, '1.4'],
-    ['talk', '\ud83d\udde3\ufe0f', 'Hard talk helper', 'plan a tough conversation around your conflict style, with words to start it', 1, '1.4']
+  /* ---------- results tools (1.3 as Labs; 1.5: Labs removed, each tool lives on the screen it belongs to — Home: Daily prompt + Today vs usual; Results page: study, hard talk, decisions, stretch goal, social battery, talk-to-me card, rate me, friend compare; History: drift chart). Originally 8 experiments. Free: Today vs usual, Social battery planner, answering a friend's Rate me link. Pro (needs scores): Rate me, Friend compare, Stretch goal, Talk-to-me card, Drift chart, Decision coach. ---------- */
+  var TOOLS = [
+    ['today', '\ud83c\udf21\ufe0f', 'Today vs usual', 'rate how you were today; see your range move around your trait scores', 0, '', 'home'],
+    ['battery', '\ud83d\udd0b', 'Social battery planner', 'plan your week and see when your social battery would run low', 0, '', 'results'],
+    ['rate', '\ud83e\ude9e', 'Rate me', 'friends rate you on 10 quick items; find your blind spots', 1, '', 'results'],
+    ['compare', '\ud83e\udd1d', 'Friend compare', 'swap codes with a friend, see where you click and where you might clash', 1, '', 'results'],
+    ['stretch', '\ud83c\udf31', 'Stretch goal', 'pick a trait to grow, get 4 weeks of small challenges', 1, '', 'results'],
+    ['card', '\ud83d\udcac', 'Talk-to-me card', 'a shareable card: how to text you, argue with you, help you', 1, '', 'results'],
+    ['drift', '\ud83d\udcc8', 'Drift chart', 'your Big Five across every quiz you\u2019ve taken', 1, '', 'history'],
+    ['decide', '\ud83e\udded', 'Decision coach', 'a decision checklist tuned to how you decide', 1, '', 'results'],
+    ['prompt', '\ud83d\udcdd', 'Daily prompt', 'one journal question a day, tuned to your traits; your answers stay on this phone', 0, '', 'home'],
+    ['study', '\ud83d\udcda', 'Study style', 'a study plan built around your focus, structure and stress scores', 1, '', 'results'],
+    ['talk', '\ud83d\udde3\ufe0f', 'Hard talk helper', 'plan a tough conversation around your conflict style, with words to start it', 1, '', 'results']
   ];
   var B5 = ['O', 'C', 'E', 'A', 'N'];
-  function labHead(id) { var l = LABS.filter(function (x) { return x[0] === id; })[0]; return '<a class="back" href="#labs">\u2190 Labs</a><h1 class="pt">' + l[1] + ' ' + esc(l[2]) + '</h1><p class="muted">' + esc(l[3].charAt(0).toUpperCase() + l[3].slice(1)) + '.</p>'; }
-  function labsPage() {
-    var p = full(); LS.set('seen13', 1); LS.set('seen14', 1);
-    V.innerHTML = '<a class="back" href="#home">\u2190 Home</a><p class="eyebrow">3 new in 1.4</p><h1 class="pt">\ud83e\uddea Labs</h1><p class="muted">Eleven experiments built on your answers. Anything you add here stays on this phone.</p><div class="card nlist">' +
-      LABS.map(function (l) { return '<a class="nrow" href="#lab/' + l[0] + '"><span class="ni" aria-hidden="true">' + l[1] + '</span><span class="nt"><b>' + esc(l[2]) + (l[5] ? ' <span class="lb-newtag">new</span>' : '') + (l[4] && !p ? ' ' + LOCK : '') + '</b><small>' + esc(l[3]) + '</small></span><i aria-hidden="true">\u203a</i></a>'; }).join('') + '</div>' +
-      '<p class="muted small center">' + DISC + ' Tips and matches here are rules of thumb built on your scores, labelled as such.</p>';
-  }
-  function labLock(id) { var l = LABS.filter(function (x) { return x[0] === id; })[0];
+  function toolBack(l) { var h = l[6], last = results('main')[0];
+    if (h === 'home') return '<a class="back" href="#home">\u2190 Home</a>';
+    if (h === 'history') return '<a class="back" href="#history">\u2190 Results</a>';
+    return '<a class="back" href="' + (last ? '#results/' + encodeURIComponent(last.id) : '#history') + '">\u2190 Your results</a>'; }
+  function labHead(id) { var l = TOOLS.filter(function (x) { return x[0] === id; })[0]; return toolBack(l) + '<h1 class="pt">' + l[1] + ' ' + esc(l[2]) + '</h1><p class="muted">' + esc(l[3].charAt(0).toUpperCase() + l[3].slice(1)) + '.</p>'; }
+  /* rows for a given home screen (results page / home / history), Pro lock shown the same way everywhere */
+  function toolRows(home) { var p = full(); return TOOLS.filter(function (l) { return l[6] === home; }).map(function (l) { return '<a class="nrow" href="#' + l[0] + '"><span class="ni" aria-hidden="true">' + l[1] + '</span><span class="nt"><b>' + esc(l[2]) + (l[4] && !p ? ' ' + LOCK : '') + '</b><small>' + esc(l[3]) + '</small></span><i aria-hidden="true">\u203a</i></a>'; }).join(''); }
+  function toolRow(id) { var p = full(), l = TOOLS.filter(function (x) { return x[0] === id; })[0]; return '<a class="nrow" href="#' + l[0] + '"><span class="ni" aria-hidden="true">' + l[1] + '</span><span class="nt"><b>' + esc(l[2]) + (l[4] && !p ? ' ' + LOCK : '') + '</b><small>' + esc(l[3]) + '</small></span><i aria-hidden="true">\u203a</i></a>'; }
+  function labLock(id) { var l = TOOLS.filter(function (x) { return x[0] === id; })[0];
     V.innerHTML = labHead(id) + '<div class="card"><p class="tag">Mindprint Pro</p><h2>' + LOCK + ' ' + esc(l[2]) + ' uses your full scores</h2><p class="muted">Your full results unlock with Mindprint Pro ($10). If you\u2019ve already taken the quiz, nothing needs retaking.</p><a class="btn big block" href="#pro">See Pro</a></div>'; }
-  function labNeedQuiz(id) { V.innerHTML = labHead(id) + '<div class="card"><p>Take the quiz first. This lab is built from your results.</p><a class="btn big block" href="#start">Start the quiz</a></div>'; }
+  function labNeedQuiz(id) { V.innerHTML = labHead(id) + '<div class="card"><p>Take the quiz first. This is built from your results.</p><a class="btn big block" href="#start">Start the quiz</a></div>'; }
   function labPage(id) {
-    var l = LABS.filter(function (x) { return x[0] === id; })[0]; if (!l) { location.hash = '#labs'; return; }
+    var l = TOOLS.filter(function (x) { return x[0] === id; })[0]; if (!l) { location.replace('#home'); return; }
     if (l[4] && !full()) return labLock(id);
     var r = results('main')[0], sc = r && full() ? scoreOf(r) : null;
     if (l[4] && !sc) return labNeedQuiz(id);
@@ -314,7 +315,7 @@
     var me = parseCode(myCode(sc)), saved = LS.get('lab.friend', '');
     V.innerHTML = labHead('compare') + '<div class="card"><p class="tag">Your code</p><p class="lb-code">' + esc(myCode(sc)) + '</p><button class="btn block" id="csh">Share my code</button><p class="muted small">It carries your 5 trait scores, attachment scores, top conflict style, top value and your first name. Nothing else.</p></div>' +
       '<div class="card"><p class="tag">Friend\u2019s code</p><input id="cc" placeholder="MP1.\u2026" autocapitalize="none" spellcheck="false" value="' + esc(saved) + '"><button class="btn ghost block" id="cgo">Compare</button><p id="cmsg" class="muted small"></p></div><div id="cout"></div>';
-    $('#csh').onclick = function () { var c = myCode(sc); if (navigator.share) navigator.share({ text: 'My Mindprint code, paste it in Labs \u2192 Friend compare: ' + c }).catch(function () {}); else if (navigator.clipboard) navigator.clipboard.writeText(c).then(function () { toast('Copied'); }); };
+    $('#csh').onclick = function () { var c = myCode(sc); if (navigator.share) navigator.share({ text: 'My Mindprint code, paste it in Mindprint \u2192 Your results \u2192 Friend compare: ' + c }).catch(function () {}); else if (navigator.clipboard) navigator.clipboard.writeText(c).then(function () { toast('Copied'); }); };
     function go() {
       var f = parseCode($('#cc').value); if (!f) { $('#cmsg').textContent = 'That code doesn\u2019t look right. It starts with MP1.'; return; } LS.set('lab.friend', $('#cc').value.trim()); $('#cmsg').textContent = '';
       var rows = B5.map(function (t) { return '<div class="lb-rg"><div class="bl"><span>' + BNAME[t] + '</span><b>you ' + me[t] + ' \u00b7 ' + esc(f.who) + ' ' + f[t] + '</b></div><div class="lb-track"><i class="lb-q" style="left:' + me[t] + '%"></i><i class="lb-dot" style="left:' + f[t] + '%"></i></div></div>'; }).join('');
@@ -515,8 +516,10 @@
     var tb = $('.top'); if (tb) document.documentElement.style.setProperty('--toph', tb.offsetHeight + 'px');
     var h = (location.hash || '#home').slice(1).split('#')[0].split('/'), r = h[0] || 'home', arg = (function (s) { try { return decodeURIComponent(s); } catch (e) { return s; } })(h.slice(1).join('/')); // a mangled %-escape in a shared link used to leave the page stuck on Loading
     document.querySelectorAll('.tabbar a').forEach(function (a) { var t = a.getAttribute('href').slice(1); var on = t === r || (a.dataset.also || '').split(' ').indexOf(r) >= 0; a.classList.toggle('on', on); if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
-    var f = { home: home, start: start, quiz: quiz, results: resultsPage, history: history, deep: deepIntro, deepq: deepQ, deepres: deepResults, report: report, account: account, pro: proPage, types: typesHub, sharpen: sharpen, retake: retake, pick: pick, diag: diag, diagq: diagQ, lens: typesHub, map: mapPage, sim: simPage, guess: guessPage, labs: labsPage, lab: labPage, rateme: rateFriend }[r] || home;
-    Promise.all([loadQ(), cloudReady, r.indexOf('deep') === 0 || r === 'report' || r === 'history' ? loadD() : null, /^(types|sharpen|retake|pick|diag|diagq|results|report|history|home|map|sim|guess|labs|lab)$/.test(r) ? loadA() : null]).then(ensureKey).then(function () { f(arg); }).catch(function (e) { try { console.error('route', e && e.stack || e); } catch (x) {} V.innerHTML = '<div class="card"><p>Couldn\u2019t load Mindprint. Check your connection and try again.</p></div>'; });
+    var f = { home: home, start: start, quiz: quiz, results: resultsPage, history: history, deep: deepIntro, deepq: deepQ, deepres: deepResults, report: report, account: account, pro: proPage, types: typesHub, sharpen: sharpen, retake: retake, pick: pick, diag: diag, diagq: diagQ, lens: typesHub, map: mapPage, sim: simPage, guess: guessPage, lab: function (a) { location.replace('#' + (a || 'home')); }, labs: function () { location.replace('#home'); }, rateme: rateFriend }[r];
+    if (!f && TOOLS.some(function (l) { return l[0] === r; })) { f = function () { labPage(r); }; }
+    f = f || home;
+    Promise.all([loadQ(), cloudReady, r.indexOf('deep') === 0 || r === 'report' || r === 'history' ? loadD() : null, /^(types|sharpen|retake|pick|diag|diagq|results|report|history|home|map|sim|guess|lab|today|battery|rate|compare|stretch|card|drift|decide|prompt|study|talk)$/.test(r) ? loadA() : null]).then(ensureKey).then(function () { f(arg); }).catch(function (e) { try { console.error('route', e && e.stack || e); } catch (x) {} V.innerHTML = '<div class="card"><p>Couldn\u2019t load Mindprint. Check your connection and try again.</p></div>'; });
   }
   window.addEventListener('hashchange', route);
 
@@ -528,7 +531,6 @@
     var h = '<section class="hero"><p class="eyebrow">Mindprint</p><h1>What do your answers say about <span class="grad">you</span>?</h1>' +
       '<p class="lede">77 questions on the Big Five, attachment, conflict, values, stress and decisions. About 10 minutes, free to take.</p>' +
       (prog && prog.i > 0 ? '<a class="btn big block" href="#quiz">Continue the quiz (' + Math.min(prog.i + 1, Q.questions.length) + ' of ' + Q.questions.length + ')</a>' : '<a class="btn big block" href="#start">' + (last ? 'Take it again' : 'Start the quiz') + '</a>') + '</section>';
-    if (!LS.get('seen14', 0)) h += '<a class="card lb-new" href="#labs"><p class="tag">What\u2019s new in 1.4</p><b>\ud83e\uddea 3 more Labs</b><small>Daily prompt (free), Study style and Hard talk helper (Pro).</small></a>';
     if (ty && ty.four && ty.cluster) h += '<a class="card mehome" href="#types"><span class="mec">' + esc(ty.four.code) + '</span><span class="nt"><small>Your type</small><b>' + esc(ty.four.name) + ' \u00b7 ' + esc(ty.cluster.emoji + ' ' + ty.cluster.name) + '</b></span><i aria-hidden="true">\u203a</i></a>';
     h += '<div class="card nav">' +
       (last ? row('#results/' + encodeURIComponent(last.id), '\ud83d\udcca', 'Your results', 'Your latest quiz, sorted by system') : '') +
@@ -536,9 +538,9 @@
       row('#map', '\ud83d\udd78\ufe0f', 'Mindprint Map', 'How every system connects, with deep explanations' + (pro() ? '' : ' \u00b7 Pro')) +
       (dg && dg.i > 0 ? row('#diagq', '\u23f8\ufe0f', 'Continue the quick diagnostic', 'Pick up where you left off') : '') +
       (dprog && dprog.i > 0 ? row('#deepq', '\u23f8\ufe0f', 'Continue your Deep Dive', 'Pick up where you left off') : row(pro() ? '#deep' : '#pro', '\ud83c\udf00', 'Deep Dive', 'Childhood + family, 50 skippable questions' + (pro() ? '' : ' \u00b7 Pro'))) +
-      row('#labs', '\ud83e\uddea', 'Labs', '8 new experiments: rate me, friend compare, drift chart\u2026') +
       row('#history', '\ud83d\uddc2\ufe0f', 'History', 'Every quiz you\u2019ve taken') +
       row(pro() ? '#account' : '#pro', '\u2b50', pro() ? 'Mindprint Pro is on' : 'Mindprint Pro \u00b7 $10', pro() ? 'Your account and plan' : 'Full results, Deep Dive, report, PDF and spreadsheet') + '</div>';
+    h += '<div class="card nav"><p class="tag">Today</p>' + toolRows('home') + '</div>';
     h += '<div class="card"><details class="fold hiw"><summary>How it works</summary><ol class="steps"><li>Answer honestly. There are no right or wrong answers. Taking it is free.</li><li>See your top trait, 4-letter type and cluster right away. Your full results, across every system, come with Mindprint Pro ($10).</li><li>Sign in to keep every result in your account and retake it any time.</li></ol></details></div>' +
       '<p class="muted small center">' + DISC + '</p>';
     V.innerHTML = h;
@@ -1091,6 +1093,8 @@
       '<a class="btn big block" href="#pro">Unlock your full Mindprint \u2014 $10</a><a class="btn ghost block" href="#pro">Northpeak All-Access \u2014 $100, every app</a><a class="small center codeln" href="#pro">Have a code?</a></div>';
     html += '<div class="card lockl"><div class="lockhd">' + LOCK + '<h2>In your full results</h2><span class="pill">Pro</span></div><p class="muted small">Tap one to see what it covers.</p>' + locked.map(function (x) { return '<div class="lrow" data-x="lock:' + esc(x[0]) + '">' + LOCK + '<span>' + esc(x[1]) + '</span><i aria-hidden="true">\u203a</i></div>'; }).join('') +
       '<a class="btn block" href="#pro">Unlock all of it \u2014 $10</a></div>';
+    html += '<div class="card nlist"><p class="tag">Put it to use</p>' + ['battery', 'study', 'talk', 'decide', 'stretch', 'card'].map(toolRow).join('') + '</div>';
+    html += '<div class="card nlist"><p class="tag">With friends</p>' + ['rate', 'compare'].map(toolRow).join('') + '</div>';
     html += signed() ? '<p class="muted small center">Saved to your account.</p>' : '<div class="card"><p><b>Keep these results.</b> Sign in or create a free Northpeak account to keep them in your history on any device.</p><a class="btn ghost block" href="#account">Sign in to save</a></div>';
     html += '<div class="row2"><a class="btn ghost" href="#start">Retake</a><a class="btn ghost" href="#history">History</a></div><p class="muted small center">Not a diagnosis \u2014 for fun and self-reflection.</p>';
     V.innerHTML = html; if (tz.types) tyBindShare(tz.types.four, tz.types.cluster); xSetFree(r, tz.types);
@@ -1117,7 +1121,9 @@
       else inner = '<p' + (s.id === 'attach' && TT ? ' data-x="attach"' : '') + '>' + esc(s.text) + '</p>' + (s.id === 'attach' ? bars(sc, ['att_anxiety', 'att_avoidance']) : bars(sc, s.keys.slice(0, 6)));
       html += sec('r' + s.id, RI[s.id] || '\u2022', s.title, RV[s.id] || '', inner);
     });
-    html += '<div class="card x12"><p class="tag">New</p><a class="x12a" href="#sim/' + encodeURIComponent(r.id) + '"><span>\ud83d\udd2e</span><b>What would you do?</b><small>8 real situations, predicted from your scores</small></a><a class="x12a" href="#guess/' + encodeURIComponent(r.id) + '"><span>\ud83c\udfaf</span><b>How well do you know yourself?</b><small>guess your scores, find your blind spot</small></a><a class="x12a" href="#labs"><span>\ud83e\uddea</span><b>Labs</b><small>11 experiments built on these results</small></a></div>';
+    html += '<div class="card x12"><p class="tag">Test yourself</p><a class="x12a" href="#sim/' + encodeURIComponent(r.id) + '"><span>\ud83d\udd2e</span><b>What would you do?</b><small>8 real situations, predicted from your scores</small></a><a class="x12a" href="#guess/' + encodeURIComponent(r.id) + '"><span>\ud83c\udfaf</span><b>How well do you know yourself?</b><small>guess your scores, find your blind spot</small></a></div>';
+    html += '<div class="card nlist"><p class="tag">Put it to use</p>' + ['study', 'talk', 'decide', 'stretch', 'battery', 'card'].map(toolRow).join('') + '</div>';
+    html += '<div class="card nlist"><p class="tag">With friends</p>' + ['rate', 'compare'].map(toolRow).join('') + '</div>';
     html += '<div class="card deepcard"><p class="tag">Pro</p><h2>Go deeper</h2><p>Get the full written report: what your results say about your strengths, blind spots, relationships, stress and school or work fit, plus the Deep Dive into your childhood and family, a spreadsheet of every answer and a printable PDF.</p>' +
       (pro() ? '<a class="btn block" href="#report/' + encodeURIComponent(r.id) + '">Open your full report</a><a class="btn ghost block" href="#deep">Deep Dive</a>' : '<a class="btn block" href="#pro">Unlock Mindprint Pro \u00b7 $10</a>') + '</div>';
     html += signed() ? '<p class="muted small center">Saved to your account.</p>' : '<div class="card"><p><b>Keep these results.</b> Sign in or create a free Northpeak account to keep them in your history on any device.</p><a class="btn ghost block" href="#account">Sign in to save</a></div>';
@@ -1128,7 +1134,7 @@
     return t && t.four ? ' \u00b7 ' + esc(t.four.code + ' ' + t.cluster.emoji) : ''; } catch (e) { return ''; } }
   function history() {
     var rs = results();
-    V.innerHTML = '<h1 class="pt">Your results</h1>' + (rs.length && !full() && results('main').length ? '<div class="card cta"><p>Your answers are saved. Unlock Pro and your full results show up here instantly, no retake.</p><a class="btn block" href="#pro">Unlock your full Mindprint \u2014 $10</a></div>' : '') + (rs.length ? rs.map(function (r) {
+    V.innerHTML = '<h1 class="pt">Your results</h1>' + (results('main').length > 0 ? '<div class="card nlist">' + toolRow('drift') + '</div>' : '') + (rs.length && !full() && results('main').length ? '<div class="card cta"><p>Your answers are saved. Unlock Pro and your full results show up here instantly, no retake.</p><a class="btn block" href="#pro">Unlock your full Mindprint \u2014 $10</a></div>' : '') + (rs.length ? rs.map(function (r) {
       var lk = r.kind === 'main' && !full(), t = r.kind === 'deep' ? 'Deep Dive' : lk ? ((r.teaser && r.teaser.title) || 'Mindprint') : (function () { var h = S.headlines(scoreOf(r)); return h.length ? h[0].title : 'Mindprint'; })();
       return '<a class="hrow" href="' + (r.kind === 'deep' ? deepLink(r) : '#results/' + encodeURIComponent(r.id)) + '"><b>' + esc(t) + (lk ? ' <span class="pill">' + LOCK + ' Full results locked</span>' : '') + '</b><span>' + (r.kind === 'deep' ? 'Childhood & family' : r.diag ? 'Quick diagnostic' : 'Main quiz') + ' \u00b7 ' + fmtDate(r.at) + tyTag(r, lk) + '</span></a>'; }).join('')
       : '<div class="card"><p>No results yet.</p><a class="btn block" href="#start">Take the quiz</a></div>') +
