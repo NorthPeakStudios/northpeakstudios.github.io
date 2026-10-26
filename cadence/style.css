@@ -296,3 +296,8 @@ p.center{margin:14px 0}
 .x27-c{display:flex;justify-content:center;margin-top:6px}
 .x27-set label{display:flex!important}.x27-set label b{margin-left:auto;font-variant-numeric:tabular-nums}
 .x27-set label input[type=range]{flex:1 1 100%;width:100%}
+
+/* 1.8 · practice-this-week line on Today */
+.x28-wk{display:flex;align-items:center;justify-content:space-between;gap:10px;text-decoration:none;color:inherit;padding:12px 14px}
+.x28-wk em{font-style:normal;color:var(--acc,#f5b041);white-space:nowrap;font-size:14px}
+.x28-wk span{min-width:0}

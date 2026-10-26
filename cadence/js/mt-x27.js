@@ -1,8 +1,8 @@
-// Cadence 1.7 · three more Labs: Practice log + Tempo trainer (free) · Sight-reading (Pro). Original Northpeak code.
+// Cadence 1.7 · three more tools: Practice log + Tempo trainer (free) · Sight-reading (Pro). Original Northpeak code.
 (() => {
   const pro = () => !!(window.CadPro && CadPro.pro());
   const lockV = (v, what, why) => (window.CadPro && CadPro.locked ? CadPro.locked : window.locked)(v, what, why);
-  const back = '<a class="back" href="#labs">← Labs</a>';
+  const back = '<a class="back" href="#tools">← Tools</a>';
   const alive = el => el && document.body.contains(el);
   const ls = (k, d) => { try { const v = localStorage.getItem('cad.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
   const lset = (k, v) => { try { localStorage.setItem('cad.' + k, JSON.stringify(v)); } catch (e) {} };
@@ -117,4 +117,15 @@
     fresh();
   };
   window.CadX27 = { routes: ['plog', 'tempo', 'sight'] };
+})();
+
+/* 1.8 · the practice log shows up where practice happens: a "this week" line on Today */
+(function () {
+  const base = routes.today; if (!base) return;
+  routes.today = function (v) { base.apply(this, arguments); try {
+    const L = JSON.parse(localStorage.getItem('cad.plog') || '[]'), d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    const wk = L.filter(e => e.t >= d.getTime()).reduce((a, e) => a + (+e.min || 0), 0), goal = +(localStorage.getItem('cad.pgoal') || 0);
+    const st = v.querySelector('.card.stats'); if (!st) return;
+    st.insertAdjacentHTML('afterend', `<a class="card x28-wk" href="#plog"><span>⏱️ <b>${wk} min</b> practiced this week${goal ? ` of ${goal}` : ''}</span><em>${wk ? 'log more' : 'log practice'} →</em></a>`);
+  } catch (e) {} };
 })();

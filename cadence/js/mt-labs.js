@@ -1,10 +1,10 @@
-// Cadence 1.6–1.7 · Labs: eleven experiments (1.7 adds Practice log + Tempo trainer: free · Sight-reading: Pro, in mt-x27.js); (Draw a melody, Scale detective, Dissonance curve: free · Tuning lab, Polyrhythm lab, Mode morph, Pivot finder, Jam loops: Pro). Original Northpeak code.
+// Cadence 1.6–1.8 · eleven tools (shown in Tools › Practice / Explore sound; no Labs screen since 1.8) (1.7 adds Practice log + Tempo trainer: free · Sight-reading: Pro, in mt-x27.js); (Draw a melody, Scale detective, Dissonance curve: free · Tuning lab, Polyrhythm lab, Mode morph, Pivot finder, Jam loops: Pro). Original Northpeak code.
 (() => {
   const pro = () => !!(window.CadPro && CadPro.pro());
   const lockV = (v, what, why) => (window.CadPro && CadPro.locked ? CadPro.locked : window.locked)(v, what, why);
   const PC = p => T.spell.pc(((p % 12) + 12) % 12);
   const nOf = (m, name) => T.parse(T.spell.midiName(m, name || PC(m)));
-  const back = '<a class="back" href="#labs">← Labs</a>';
+  const back = '<a class="back" href="#tools">← Tools</a>';
   const KEYSEL = (id, cur) => `<select id="${id}">${T.spell.MAJ.map((k, i) => `<option value="${i}"${i === cur ? ' selected' : ''}>${k}</option>`).join('')}</select>`;
   const alive = el => el && document.body.contains(el);
   /* own little synth for exact frequencies (tuning + dissonance need real overtones) */
@@ -12,9 +12,9 @@
   function ax() { if (!AX) { AX = new (window.AudioContext || window.webkitAudioContext)(); const n = 9, re = new Float32Array(n), im = new Float32Array(n); for (let k = 1; k < n; k++) im[k] = 1 / k; WAVE = AX.createPeriodicWave(re, im); } if (AX.state === 'suspended') AX.resume(); return AX; }
   function tone(f, t0, dur, vol) { const c = ax(), t = c.currentTime + 0.04 + t0, o = c.createOscillator(), g = c.createGain(), lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 5000; o.setPeriodicWave(WAVE); o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol || 0.12, t + 0.05); g.gain.setValueAtTime(vol || 0.12, t + dur - 0.25); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(lp); lp.connect(g); g.connect(c.destination); o.start(t); o.stop(t + dur + 0.05); }
   const LABS = [
-    ['#plog', '⏱️ Practice log', 'time your practice, note what you worked on, see your week · new', 0],
-    ['#tempo', '🥁 Tempo trainer', 'a metronome that speeds up every few bars until you hit your goal · new', 0],
-    ['#sight', '👀 Sight-reading', 'a fresh 4-bar melody in any key and clef, at your level · new', 1],
+    ['#plog', '⏱️ Practice log', 'time your practice, note what you worked on, see your week', 0],
+    ['#tempo', '🥁 Tempo trainer', 'a metronome that speeds up every few bars until you hit your goal', 0],
+    ['#sight', '👀 Sight-reading', 'a fresh 4-bar melody in any key and clef, at your level', 1],
     ['#drawmel', '✏️ Draw a melody', 'drag a line with your finger, hear it as a tune in any key', 0],
     ['#scaledet', '🔎 Scale detective', 'tap the notes you hear, see every scale that fits them', 0],
     ['#dissonance', '〽️ Dissonance curve', 'why some intervals sound smooth: the roughness model, live', 0],
@@ -24,7 +24,8 @@
     ['#pivot', '🔀 Pivot finder', 'chords two keys share, for smooth key changes', 1],
     ['#jam', '🔁 Jam loops', 'famous progressions on loop to improvise over', 1]
   ];
-  routes.labs = v => { v.innerHTML = `<a class="back" href="#tools">← Tools</a><h2>🧪 Labs</h2><p class="muted intro">New in Cadence 1.7: practice log, tempo trainer and sight-reading. Each one runs on your phone.</p><div class="grid">${LABS.map(([h, t, d, p]) => `<a class="tile${p && !pro() ? ' locked' : ''}" href="${h}"><b>${t}${p && !pro() ? ' 🔒' : ''}</b><span>${d}</span></a>`).join('')}</div>`; };
+  /* 1.8: no Labs screen — these live in Tools (Practice + Explore sections); old #labs links land on Tools */
+  routes.labs = v => routes.tools(v);
 
   /* ---------- 1. Draw a melody (free) ---------- */
   const SC = { major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10], 'pentatonic': [0, 2, 4, 7, 9], 'blues': [0, 3, 5, 6, 7, 10] };
@@ -223,6 +224,6 @@
   };
   /* sound stops on page change in app.js route() (1.7) */
 
-  window.EXTRA_TOOLS = [['#labs', '🧪 Labs', '11 experiments: practice log, tempo trainer, sight-reading, tuning, polyrhythms…']].concat(window.EXTRA_TOOLS || []);
+  window.CAD_TOOL_SECTIONS = [['Practice', LABS.filter(x => ['#plog', '#tempo', '#sight', '#jam'].includes(x[0]))], ['Explore sound', LABS.filter(x => !['#plog', '#tempo', '#sight', '#jam'].includes(x[0]))]];
   window.CadLabs = { diss, SCALES, PROGS };
 })();

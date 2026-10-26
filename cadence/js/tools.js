@@ -9,6 +9,7 @@ function spellMidis(ms){ const ci=chordId(ms); const names=ci?T.spell.chordNotes
 routes.tools = v => { const X=(window.EXTRA_TOOLS||[]).filter(x=>x[0]!=='#mt');
   const L=xs=>`<div class="grid">${xs.map(([h,t,d])=>`<a class="tile" href="${h}"><b>${t}</b><span>${d}</span></a>`).join('')}</div>`;
   v.innerHTML = `<h2>Tools</h2><h3 class="sec">Instruments</h3>${L([['#piano','🎹 Piano','play, name chords, MIDI'],['#fretboard','🎸 Fretboard','scales and chords on guitar/bass'],['#sing','🎤 Tuner','cents sharp or flat'],['#transposer','🎺 Transposer','concert ↔ trumpet, sax, horn']])}
+  ${(window.CAD_TOOL_SECTIONS||[]).map(([s,xs])=>`<h3 class="sec">${s}</h3><div class="grid">${xs.map(([h,t,d,p])=>{ const lk=p&&!(window.CadPro&&CadPro.pro()); return `<a class="tile${lk?' locked':''}" href="${h}"><b>${t}${lk?' 🔒':''}</b><span>${d}</span></a>`; }).join('')}</div>`).join('')}
   <h3 class="sec">Theory</h3>${L([['#staffview','𝄞 Staff viewer','any scale or chord, notated'],['#viz','〰️ Waveform & spectrum','see a note’s overtones']].concat(X))}`; };
 routes.piano = v => {
   v.innerHTML = `<a class="back" href="#tools">← Tools</a><h2>Piano</h2><div class="card"><div class="chordname" id="cn">Play some notes</div><div id="pz"></div><p class="muted" id="midistat">Tap keys, or connect a MIDI keyboard (Chrome/Edge on desktop; iOS Safari doesn’t support Web MIDI).</p>
