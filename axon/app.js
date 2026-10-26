@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.15.0 */
+/* Axon · Northpeak Studios · v1.16.0 */
 (function () {
   'use strict';
-  var VERSION = '1.15.0';
+  var VERSION = '1.16.0';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -5417,8 +5417,8 @@
   function l8Lock(key) { var t = L8T.filter(function (x) { return x[0] === key; })[0]; return l8Page(key, '<button class="bignew" data-act="xgetpro" data-f="' + esc(t[1]) + '"><span>Get Axon Pro</span></button>'); }
   function l8Gate(key, fn) { return function (arg) { var t = L8T.filter(function (x) { return x[0] === key; })[0]; if (t[3] && !isPro()) return l8Lock(key); return fn(arg); }; }
   XV.labs = function () {
-    return '<div class="page"><div class="nav stick"><button class="back" data-act="back" data-to="#/">' + I.back + '<span>Notes</span></button><div class="acts"></div></div><div class="eyebrow">New in 1.15</div><h1 class="h1">Labs</h1><p class="xp">Experimental tools that read your whole vault in new ways. Everything runs on this phone.</p><div class="rows">' +
-      L8T.map(function (t) { return '<button class="row l8-row" data-act="xgo" data-to="x:' + t[0] + '"><span class="l8-rt"><span class="nm">' + esc(t[1]) + (t[3] && !isPro() ? ' <i class="l8-pro">Pro</i>' : '') + '</span><span class="l8-sub">' + esc(t[2]) + '</span></span><span class="chev">' + I.chev + '</span></button>'; }).join('') + '</div></div>';
+    return '<div class="page"><div class="nav stick"><button class="back" data-act="back" data-to="#/">' + I.back + '<span>Notes</span></button><div class="acts"></div></div><div class="eyebrow">Updated in 1.16</div><h1 class="h1">Labs</h1><p class="xp">Experimental tools that read your whole vault in new ways. Everything runs on this phone.</p><div class="rows">' +
+      L8T.map(function (t) { return '<button class="row l8-row" data-act="xgo" data-to="x:' + t[0] + '"><span class="l8-rt"><span class="nm">' + esc(t[1]) + (t[3] && !isPro() ? ' <i class="l8-pro">Pro</i>' : '') + (t[4] ? ' <i class="l8-pro l9-new">New</i>' : '') + '</span><span class="l8-sub">' + esc(t[2]) + '</span></span><span class="chev">' + I.chev + '</span></button>'; }).join('') + '</div></div>';
   };
   document.addEventListener('change', function (e) { var s = e.target.closest && e.target.closest('[data-l8pick]'); if (s && s.value) go('#/x/' + s.dataset.l8pick + '/' + encodeURIComponent(s.value), true); });
 
@@ -5589,6 +5589,99 @@
     if (n) { var e = l8Echo(n); body += e.list.length ? '<div class="l8-k">Repeated close together</div><div class="nf-chips">' + e.list.map(function (x) { return '<span class="nf-c no">' + esc(x[0]) + '\u2026 \u00d7' + x[1] + '</span>'; }).join('') + '</div><div class="l8-echo">' + e.html.replace(/\n/g, '<br>') + '</div>' : xEmpty('No echoes', ' No word shows up 3+ times within about 80 words. Clean.'); body += '<div class="nf-btns"><button data-act="open" data-id="' + n.id + '">Open the note to edit</button></div><p class="xp nf-fine">Flags any word (4+ letters, not a filler word) used 3 or more times within roughly 80 words. Sometimes repeating is right (a key term), so it\u2019s a nudge, not a rule.</p>'; }
     return l8Page('echo', body);
   };
+
+  /* ---------- v1.16 · three more Labs tools (Resurface: free · Card maker, Compare two notes: Pro) ---------- */
+  L8T.push(
+    ['resurface', 'Resurface', 'Three notes you haven\u2019t touched in a month, picked fresh each day. Re-read them, then mark them still true or open one to fix it.', 0, 1],
+    ['cardmaker', 'Card maker', 'Finds \u201cterm: definition\u201d lines and bold terms in a note and turns the ones you pick into Recall cards (question :: answer).', 1, 1],
+    ['compare', 'Compare two notes', 'Pick two notes and see the ideas they share, what only one of them covers, and the links they have in common.', 1, 1]
+  );
+  function l9Day() { var d = new Date(); return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate(); }
+  function l9Hash(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+  function l9Ex(n, len) { var t = l8Plain(n.body).split('\n').filter(function (l) { return !/^\s*(#|```|\||---)/.test(l); }).map(l8Line).filter(Boolean).join(' '); return t.length > len ? t.slice(0, len).replace(/\s+\S*$/, '') + '\u2026' : t; }
+
+  /* 9 · resurface (free) */
+  XV.resurface = function () {
+    var seen = xLS('l9seen', {}), now = Date.now(), cut = now - 30 * 864e5, day = l9Day();
+    var old = l8Sorted().filter(function (n) { return n.folder !== ARCHIVE && (n.updated || 0) < cut && l8Plain(n.body).trim().length > 40; });
+    var pool = old.filter(function (n) { return !(seen[n.id] && now - seen[n.id] < 60 * 864e5); });
+    pool.sort(function (a, b) { return l9Hash(day + a.id) - l9Hash(day + b.id); });
+    var pick = pool.slice(0, 3), body = '';
+    if (pick.length) body = '<div class="l8-k">Today\u2019s three \u00b7 ' + old.length + ' note' + (old.length === 1 ? '' : 's') + ' older than a month</div>' + pick.map(function (n) {
+      return '<div class="l8-cf l9-card"><div class="l9-meta">Last edited ' + esc(agoLong(n.updated)) + (n.folder ? ' \u00b7 ' + esc(n.folder) : '') + '</div><b class="l9-t">' + esc(n.title) + '</b><p class="l9-ex">' + esc(l9Ex(n, 240)) + '</p><div class="nf-btns"><button data-act="l9ok" data-id="' + esc(n.id) + '">Still true \u2713</button><button class="acc" data-act="open" data-id="' + esc(n.id) + '">Open to fix</button></div></div>';
+    }).join('');
+    else body = xEmpty(old.length ? 'All caught up' : 'Nothing old yet', old.length ? ' You\u2019ve re-read every older note lately. New picks show up as notes turn a month old.' : ' Notes show up here once you haven\u2019t edited them for a month.');
+    return l8Page('resurface', body + '<p class="xp nf-fine">A note you mark \u201cstill true\u201d stays out of the picks for 2 months. Picks change every day. Nothing leaves this phone.</p>');
+  };
+  act.l9ok = function (el) { var d = xLS('l9seen', {}); d[el.dataset.id] = Date.now(); var ks = Object.keys(d); if (ks.length > 2000) ks.sort(function (a, b) { return d[a] - d[b]; }).slice(0, ks.length - 2000).forEach(function (k) { delete d[k]; }); xLSset('l9seen', d); var c = el.closest('.l9-card'); if (c) c.classList.add('l8-gone'); toast('Nice. It\u2019ll come back in 2 months.'); setTimeout(render, 380); };
+
+  /* 10 · card maker (pro) */
+  function l9Cands(n) {
+    var out = [], have = {}, inCode = false;
+    MD.cards(n.body).forEach(function (c) { have[norm(c.q)] = 1; });
+    var add = function (q, a) { q = q.replace(/\s+/g, ' ').trim().replace(/[:\-\u2013\u2014=]+$/, '').trim(); a = a.replace(/\s+/g, ' ').trim(); if (q.length < 2 || q.length > 80 || a.length < 3 || a.length > 260 || have[norm(q)] || /\]\]|https?:/.test(q)) return; have[norm(q)] = 1; out.push({ q: q, a: a }); };
+    l8Plain(n.body).split('\n').forEach(function (raw) {
+      if (/^\s*```/.test(raw)) { inCode = !inCode; return; }
+      if (inCode || raw.indexOf(' :: ') >= 0 || /\{\{c\d*::/.test(raw) || /^\s*(#|\||>\s*\[!)/.test(raw)) return;
+      var t = raw.replace(/^\s*(?:>\s*)*/, '').replace(/^(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?/, '');
+      var m = /^\*\*([^*]{2,60})\*\*\s*(?:[:=\u2013\u2014]|\s-\s)\s*(.+)$/.exec(t) || /^([A-Za-z\u00c0-\u024f(][^:*=\u2013\u2014\[\]`]{1,49}?)\s*(?::\s|\s=\s|\s[\u2013\u2014]\s)\s*(.+)$/.exec(t);
+      if (m && !/^\s*\*\*[^*]+\*\*\s*$/.test(m[2])) { add(l8Line(m[1]), l8Line(m[2])); return; }
+      var b = /\*\*([^*]{2,50})\*\*\s+((?:is|are|was|were|means|refers to|causes|treats|blocks)\b[^.!?]{4,220})/i.exec(t);
+      if (b) add(l8Line(b[1]), l8Line(b[2]));
+    });
+    return out.slice(0, 60);
+  }
+  XV.cardmaker = l8Gate('cardmaker', function (arg) {
+    var n = l8Def(arg), body = l8Pick('cardmaker', n && n.id);
+    if (!n) return l8Page('cardmaker', body + xEmpty('Pick a note', ' Class notes, glossaries and study guides work best.'));
+    var c = l9Cands(n), have = MD.cards(n.body).length;
+    if (!c.length) body += xEmpty('No new cards found', ' Axon looks for lines like \u201cAgonist: binds and activates a receptor\u201d, \u201cterm \u2014 meaning\u201d, or \u201c**Term** is \u2026\u201d. ' + (have ? 'This note already has ' + have + ' card' + (have === 1 ? '' : 's') + '.' : ''));
+    else body += '<div class="l8-k">' + c.length + ' possible card' + (c.length === 1 ? '' : 's') + (have ? ' \u00b7 ' + have + ' already in this note' : '') + '</div><div class="l9-cands">' + c.map(function (x, i) {
+      return '<label class="l9-cand"><input type="checkbox" data-l9c="' + i + '" checked><span><b>' + esc(x.q) + '</b><i>' + esc(x.a) + '</i></span></label>';
+    }).join('') + '</div><div class="nf-btns"><button class="acc" data-act="l9add" data-id="' + esc(n.id) + '">Add picked cards to the note</button></div>';
+    return l8Page('cardmaker', body + '<p class="xp nf-fine">Cards go in a \u201cRecall cards\u201d section at the end of the note as \u201cquestion :: answer\u201d lines, so they show up in Recall like any card you write. Undo is in the note\u2019s History. It reads patterns, not meaning, so untick anything odd.</p>');
+  });
+  act.l9add = function (el) {
+    var n = notes.get(el.dataset.id); if (!n) return;
+    var c = l9Cands(n), pick = [];
+    document.querySelectorAll('[data-l9c]').forEach(function (b) { if (b.checked && c[+b.dataset.l9c]) pick.push(c[+b.dataset.l9c]); });
+    if (!pick.length) { toast('Tick at least one card'); return; }
+    if (editing && editing.n === n) stopEditing(true);
+    snapshot(n, n.body, true);
+    var lines = pick.map(function (x) { return x.q + ' :: ' + x.a; }).join('\n'), b0 = n.body.replace(/\s+$/, '');
+    n.body = /\n## Recall cards\s*(\n|$)/.test(b0) && !/\n## Recall cards[\s\S]*\n#{1,2} /.test(b0) ? b0 + '\n' + lines + '\n' : b0 + '\n\n## Recall cards\n' + lines + '\n';
+    lastSaved[n.id] = n.body; touch(n);
+    toast(pick.length + ' card' + (pick.length === 1 ? '' : 's') + ' added', { label: 'Open', fn: function () { go('#/n/' + n.id); } });
+    render();
+  };
+
+  /* 11 · compare two notes (pro) */
+  function l9Freq(n) { var f = {}, show = {}; l8Words(n.title + ' ' + l8Plain(n.body).replace(/\[\[([^\]|]+)(\|[^\]]+)?\]\]/g, '$1')).forEach(function (w) { if (w.length < 4 || L8_STOP[w] || /^\d+$/.test(w)) return; var k = l8Stem(w); f[k] = (f[k] || 0) + 1; if (!show[k] || w.length < show[k].length) show[k] = w; }); return { f: f, show: show }; }
+  XV.compare = l8Gate('compare', function (arg) {
+    var ps = String(arg || '').split('~'), a = notes.get(ps[0]), b = notes.get(ps[1]), list = l8Sorted().slice(0, 400);
+    var sel = function (w, cur) { return '<label class="l8-pk"><span>' + (w ? 'Note B' : 'Note A') + '</span><select data-l9cmp="' + w + '"><option value="">Choose a note\u2026</option>' + list.map(function (n) { return '<option value="' + esc(n.id) + '"' + (cur && n.id === cur.id ? ' selected' : '') + '>' + esc(n.title) + '</option>'; }).join('') + '</select></label>'; };
+    var body = sel(0, a) + sel(1, b);
+    if (a && b && a === b) body += xEmpty('Same note twice', ' Pick two different notes.');
+    else if (a && b) {
+      var A = l9Freq(a), B = l9Freq(b), sh = [], oa = [], ob = [];
+      Object.keys(A.f).forEach(function (k) { if (B.f[k]) sh.push(k); else oa.push(k); });
+      Object.keys(B.f).forEach(function (k) { if (!A.f[k]) ob.push(k); });
+      var uni = sh.length + oa.length + ob.length, pct = uni ? Math.round(100 * sh.length / uni) : 0;
+      sh.sort(function (x, y) { return (A.f[y] + B.f[y]) - (A.f[x] + B.f[x]); }); oa.sort(function (x, y) { return A.f[y] - A.f[x]; }); ob.sort(function (x, y) { return B.f[y] - B.f[x]; });
+      var chips = function (ks, F) { return ks.length ? '<div class="l9-chips">' + ks.slice(0, 24).map(function (k) { return '<span>' + esc((F || A).show[k] || k) + '</span>'; }).join('') + (ks.length > 24 ? '<span class="l9-more">+' + (ks.length - 24) + '</span>' : '') + '</div>' : '<p class="xp">None</p>'; };
+      var la = {}, lb = {}, both = []; outNotes(a).forEach(function (x) { la[x.id] = x; }); outNotes(b).forEach(function (x) { lb[x.id] = x; }); Object.keys(la).forEach(function (k) { if (lb[k]) both.push(la[k]); });
+      var direct = la[b.id] ? 'A links to B' : '', back = lb[a.id] ? 'B links to A' : '';
+      body += '<div class="l9-ov"><div class="l9-bar"><i style="width:' + pct + '%"></i></div><span>' + pct + '% overlap in key words' + (direct || back ? ' \u00b7 ' + [direct, back].filter(Boolean).join(', ') : '') + '</span></div>' +
+        '<div class="l8-k">Both cover \u00b7 ' + sh.length + '</div>' + chips(sh) +
+        '<div class="l8-k">Only in \u201c' + esc(a.title) + '\u201d \u00b7 ' + oa.length + '</div>' + chips(oa, A) +
+        '<div class="l8-k">Only in \u201c' + esc(b.title) + '\u201d \u00b7 ' + ob.length + '</div>' + chips(ob, B) +
+        '<div class="l8-k">Links both notes make \u00b7 ' + both.length + '</div>' + (both.length ? '<div class="rows">' + both.slice(0, 20).map(function (n) { return '<button class="row" data-act="open" data-id="' + esc(n.id) + '"><span class="nm">' + esc(n.title) + '</span><span class="chev">' + I.chev + '</span></button>'; }).join('') + '</div>' : '<p class="xp">None yet.</p>') +
+        '<div class="nf-btns"><button data-act="open" data-id="' + esc(a.id) + '">Open A</button><button data-act="open" data-id="' + esc(b.id) + '">Open B</button></div>';
+    }
+    return l8Page('compare', body + '<p class="xp nf-fine">Compares the key words of each note (4+ letters, filler words and word endings ignored), so it shows topic overlap, not whether the notes agree. For that, try Conflict finder.</p>');
+  });
+  document.addEventListener('change', function (e) { var s = e.target.closest && e.target.closest('[data-l9cmp]'); if (!s) return; var r = route(), ps = String(r.arg || '').split('~'); ps[+s.dataset.l9cmp] = s.value; go('#/x/compare/' + encodeURIComponent(ps[0] || '') + '~' + encodeURIComponent(ps[1] || ''), true); });
+
   XSTRIP.unshift(['labs', '\u2728 Labs', 'x:labs']);
   COMMANDS.push(['Labs', 'labs experimental new tools', function () { go('#/x/labs'); }]);
   L8T.forEach(function (t) { COMMANDS.push([t[1], 'labs ' + t[2].toLowerCase().slice(0, 60), function () { go('#/x/' + t[0]); }]); });
