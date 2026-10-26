@@ -41,7 +41,7 @@
       q.options.forEach(function (op) { for (var k in (op.v || {})) keys[k] = 1; });
       for (var k in keys) { var mx = Math.max.apply(null, q.options.map(function (op) { return Math.abs((op.v || {})[k] || 0); })) || 1, w = o && o.v ? (o.v[k] || 0) : null;
         if (w == null) continue; // Other: unscored
-        if (/^(e\d|ar_|ds_|cg_|ls_)/.test(k)) { cat[k] = (cat[k] || 0) + wt * Math.max(0, w); catMax[k] = (catMax[k] || 0) + wt * mx; }
+        if (/^(e\d|ar_|ds_|cg_|ls_|tr_)/.test(k)) { cat[k] = (cat[k] || 0) + wt * Math.max(0, w); catMax[k] = (catMax[k] || 0) + wt * mx; }
         else { ax[k] = (ax[k] || 0) + wt * w; axMax[k] = (axMax[k] || 0) + wt * mx; } } });
     var axis = {}, cats = {};
     for (var a in ax) axis[a] = { pct: clamp(50 + 50 * ax[a] / axMax[a], 0, 100), n: axMax[a] };
@@ -342,9 +342,31 @@
     else if (sys === 'cluster') { var c = r.ranked.filter(function (x) { return x.key === ov; })[0]; r = Object.assign({}, r, { key: c.key, name: c.name, emoji: c.emoji, color: c.color, text: c.text, match: c.match, similar: r.ranked.filter(function (x) { return x.key !== ov; }).slice(0, 2) }); }
     r.self = true; r.inferred = { code: code(r0), name: r0.name, conf: r0.conf }; r.same = code(r0) === code(r); t[sys] = r;
   }
+  /* ---- 16. Thinking style (1.1.6): a cognitive-style lens on two research ideas, wholist vs analytic and words vs pictures (Riding's cognitive-style model), plus
+     field-dependent vs independent (Witkin). Our version is a rough, for-fun estimate from your answers, not a validated test. Axis scores: ts_whole (100 = big-picture),
+     ts_visual (100 = pictures), ts_field (100 = independent). Base estimates come from the main quiz; the optional 6-question quiz (sys "thinking") blends in. ---- */
+  var TSN = { wv: ['Big-picture talker', '\ud83d\uddfa\ufe0f', 'You grab the whole shape of an idea fast, then think it through by putting it into words.'],
+    wi: ['Big-picture visualizer', '\ud83c\udf04', 'You see the whole thing at once, like a map or a picture in your head.'],
+    av: ['Step-by-step explainer', '\ud83e\uddfe', 'You break things into parts and lay them out in words, one step at a time.'],
+    ai: ['Detail visualizer', '\ud83d\udd2c', 'You zoom into the parts and picture exactly how each piece fits.'] };
+  function thinking(p, ev) {
+    var w = Math.round(p.ts_whole), v = Math.round(p.ts_visual), f = Math.round(p.ts_field), k = (w >= 50 ? 'w' : 'a') + (v >= 50 ? 'i' : 'v'), x = TSN[k];
+    var lead = (Math.abs(w - 50) + Math.abs(v - 50)) / 2;
+    return { key: k, name: x[0], emoji: x[1], text: x[2], whole: w, visual: v, field: f,
+      fieldName: f >= 55 ? 'Independent' : f <= 45 ? 'Context-led' : 'In between', fieldText: f >= 55 ? 'you go by your own read and ignore the noise around a problem' : f <= 45 ? 'you read the room and the bigger context before you decide' : 'you mix your own read with the context around you',
+      conf: C(18 + lead * 1.2 + ev('thinking')) };
+  }
+  /* ---- 17. Team role (1.1.6): the 8 group roles from the lenses, ranked, with the optional 6-question team quiz (sys "team", categories tr_<key>) blended in.
+     Our own role names; not the Belbin Team Roles test. ---- */
+  var TRK = ['leader', 'ideas', 'organizer', 'peace', 'hype', 'research', 'critic', 'support'], TRE = ['\ud83e\udded', '\ud83d\udca1', '\ud83d\udccb', '\ud83d\udd4a\ufe0f', '\ud83d\udce3', '\ud83d\udd0e', '\ud83e\uddd0', '\ud83e\udec2'];
+  function team(p, ev, cat) {
+    var rank = ROLES.map(function (r, i) { return { key: TRK[i], name: r[0], emoji: TRE[i], text: r[1], score: blend(Math.round(r[2].reduce(function (s, k) { return s + val(p, k); }, 0) / r[2].length), cat['tr_' + TRK[i]]) }; }).sort(function (a, b) { return b.score - a.score; });
+    return { key: rank[0].key, name: rank[0].name, emoji: rank[0].emoji, text: rank[0].text.charAt(0).toUpperCase() + rank[0].text.slice(1) + '.', second: rank[1], ranked: rank, conf: C(22 + (rank[0].score - rank[1].score) * 1.5 + ev('team')) };
+  }
   function core(p, style, ev, tl, deepUsed) {
     var t = { four: four(p, ev), ennea: ennea(p, ev, tl.cat), temper: temper(p, ev), arche: arche(p, ev, tl.cat), disc: disc(p, ev, tl.cat), attach: attach(p, ev), cognitive: cognitive(p, ev, tl.cat), learning: learning(p, ev, tl.cat), sloan: sloan(p, ev), cluster: cluster(p, ev) };
     if (style && ATTN[style] && !tl.per.attach && !deepUsed) { t.attach.key = style; t.attach.name = ATTN[style][0]; t.attach.emoji = ATTN[style][1]; }
+    t.thinking = thinking(p, ev); t.team = team(p, ev, tl.cat);
     t.socionics = socionics(t.four); return t;
   }
   function all(p0, style, opt) {
@@ -355,6 +377,8 @@
       'cope_tackle', 'cope_support', 'cope_distract', 'cope_reframe', 'cope_withdraw', 'cope_express', 'dm_rational', 'dm_intuitive', 'dm_dependent', 'dm_avoidant', 'dm_spontaneous', 'dm_maximizer', 'dm_risk'];
     var missing = 0; KEYS.forEach(function (x) { if (!num(p[x])) { p[x] = 50; missing++; } });
     var deepUsed = deepNudge(p, opt.deep), tl = addonTally(opt.addon, opt.AQ);
+    /* 1.1.6 thinking-style base estimates (rough, from the main quiz) so the optional quiz can blend into them */
+    p.ts_whole = mean([p.O_fantasy, p.dm_intuitive, inv(p.C_order), inv(p.dm_rational)]); p.ts_visual = mean([p.O_fantasy, p.O_adventure, inv(p.E_sociability)]); p.ts_field = mean([p.v_self_direction, inv(p.v_conformity), inv(p.dm_dependent)]);
     for (k in tl.axis) if (num(p[k])) p[k] = blend(p[k], tl.axis[k]);
     if (!num(p.v_tradition)) p.v_tradition = p.v_conformity;
     var ev = function (sys) { return (deepUsed ? 4 : 0) + Math.min(30, 5 * (tl.per[sys] || 0)) - (missing > 20 ? 15 : missing > 8 ? 6 : 0); };
@@ -376,5 +400,5 @@
       disc: t.disc.code + ' (' + t.disc.color + ')', cognitive: t.cognitive.name, learning: t.learning.name, cluster: t.cluster.name, clusterEmoji: t.cluster.emoji, clusterMatch: t.cluster.match, family: t.four.group, tags: t.tags };
   }
   function line(b) { return b ? [b.four + ' ' + b.fourName, b.clusterEmoji + ' ' + b.cluster + ' ' + b.clusterMatch + '%', 'Enneagram ' + b.ennea, b.temper, b.arche, b.sloan, b.attach, 'DISC ' + b.disc].join(' \u00b7 ') : ''; }
-  window.MPTypes = { all: all, fromScore: fromScore, fromCompact: fromCompact, brief: brief, line: line, CLUSTERS: CL, FOUR: FOUR, DEEP: DEEP, SOC: SOC, EN: EN, AR: AR, DISC: DISC, TEMP: TEMP, ATTN: ATTN, CG: CG, LS: LS, OVSYS: OVSYS, cleanOv: cleanOv, socToMbti: socToMbti, mbtiToSoc: mbtiToSoc, TG: TG, ROLES: ROLES, STEREO: STEREO, GROUP: GROUP, BF: BF, SL: SL, DUAL: DUAL, QUADRA: QUADRA, K: K };
+  window.MPTypes = { all: all, fromScore: fromScore, fromCompact: fromCompact, brief: brief, line: line, CLUSTERS: CL, FOUR: FOUR, DEEP: DEEP, SOC: SOC, EN: EN, AR: AR, DISC: DISC, TEMP: TEMP, ATTN: ATTN, CG: CG, LS: LS, OVSYS: OVSYS, cleanOv: cleanOv, socToMbti: socToMbti, mbtiToSoc: mbtiToSoc, TG: TG, ROLES: ROLES, TSN: TSN, TRK: TRK, STEREO: STEREO, GROUP: GROUP, BF: BF, SL: SL, DUAL: DUAL, QUADRA: QUADRA, K: K };
 })();

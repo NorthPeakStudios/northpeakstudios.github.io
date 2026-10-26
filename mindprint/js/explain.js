@@ -212,6 +212,25 @@
     why += quotes([['dm_' + cg.key, 1], ['cg_' + cg.key, 1]], 3) + confLine(cg.self ? (cg.inferred && cg.inferred.conf) : cg.conf);
     return { kicker: 'Decision / thinking style', title: cg.emoji + ' ' + cg.name, mean: mean, why: why, sys: 'cognitive', x: cg };
   };
+  M.thinking = function () {
+    var T = CTX.T; if (!T || !T.thinking) return null; var th = T.thinking;
+    var mean = para('Cognitive style is <i>how</i> you tend to take in and organise information. Psychologists have studied a few versions: <b>wholist vs analytic</b> (see the whole shape first, or the parts first) and <b>verbal vs imager</b> (think in words or in pictures), from Riding\u2019s cognitive-style model, and <b>field dependence</b> (go by the context around you, or your own read), from Witkin.') +
+      '<div class="xs-warn"><b>For fun:</b> Mindprint\u2019s version is a rough estimate from your answers, not a validated cognitive-style test, and no style is better than another.</div>' + para('<b>' + esc(th.name) + '</b>: ' + esc(th.text));
+    var n = (T.used && T.used.addonPer && T.used.addonPer.thinking) || 0;
+    var why = '<div class="xs-rows">' + row('Big-picture (vs step-by-step)', th.whole + '/100') + row('Pictures (vs words)', th.visual + '/100') + row('Independent (vs context-led)', th.field + '/100', th.fieldName) + '</div>' +
+      para(n ? 'Built from your main quiz plus <b>' + n + '</b> thinking-style answer' + (n > 1 ? 's' : '') + '. Above 50 on the first two picks the second half of your name.' : 'Right now this is a <b>rough guess</b> from your main quiz (imagination, gut vs reasoning, how much you like order, how social you are). Take the 6 quick questions to make it yours.') +
+      quotes([[(th.whole >= 50 ? '' : '-') + 'ts_whole', 1], [(th.visual >= 50 ? '' : '-') + 'ts_visual', 1], [(th.field >= 50 ? '' : '-') + 'ts_field', 1]], 3) + confLine(th.conf);
+    return { kicker: 'Thinking style \u00b7 for fun', title: th.emoji + ' ' + th.name, mean: mean, why: why, sys: 'thinking', x: th };
+  };
+  M.team = function () {
+    var T = CTX.T; if (!T || !T.team) return null; var tm = T.team, L = T.lenses || {};
+    var mean = para('A team role is the part you naturally play in a group: leading, coming up with ideas, organising, keeping the peace, hyping, researching, critiquing or supporting. It\u2019s the \u201cpersona\u201d or \u201cniche\u201d you fill. These are Mindprint\u2019s own names, not the Belbin Team Roles test.') + para('<b>' + esc(tm.name) + '</b>: ' + esc(tm.text));
+    var n = (T.used && T.used.addonPer && T.used.addonPer.team) || 0;
+    var why = '<div class="xs-rows">' + tm.ranked.map(function (x) { return row(x.emoji + ' ' + x.name, x.score + '/100'); }).join('') + '</div>' +
+      para('Each role averages a few of your trait scores' + (n ? ', blended with your <b>' + n + '</b> team-role answer' + (n > 1 ? 's' : '') : '') + '. Your top one wins (' + (tm.ranked[0].score - tm.ranked[1].score) + ' points ahead of ' + esc(tm.ranked[1].name) + ').') +
+      (L.niche ? para('Where you\u2019d fit best: ' + esc(L.niche.join(', ')) + '.') : '') + quotes([['tr_' + tm.key, 1]], 3) + confLine(tm.conf);
+    return { kicker: 'Team role \u00b7 persona \u00b7 niche', title: tm.emoji + ' ' + tm.name, mean: mean, why: why, sys: 'team', x: tm };
+  };
   var LSK = { visual: ['O_fantasy', 'O'], reading: ['O_ideas', '-E_sociability', 'dm_rational'], hands: ['E_excitement', '-O_ideas', 'cope_tackle'], social: ['E_sociability', 'dm_dependent', 'cope_support'] };
   M.learning = function () {
     var T = CTX.T; if (!T) return null; var ls = T.learning, keys = LSK[ls.key] || [];
@@ -312,6 +331,8 @@
     clusters: ['Clusters', 'All 8 cluster profiles and how close you are to each, plus who you\u2019re most similar to.'],
     hier: ['Hierarchy', 'Your path down a personality tree: family \u2192 cluster \u2192 type \u2192 subtype.'],
     styles: ['Styles + tags', 'Your decision style, learning-style preference (not research-backed) and auto tags for your most extreme traits.'],
+    think: ['Thinking style + team role', 'Your cognitive style on three sliders (big-picture vs step-by-step, words vs pictures, context-led vs independent) and your role in a group, each with an optional 6-question quiz. For fun, not validated tests.'],
+    classified: ['Your Mindprint, classified', 'Your results run through the classification words: kingdom → phylum → class → order → family → genus → species, your quadrant, latent class, tier, phenotype, genotype, prototype and more. Made up for fun, built from your real results.'],
     sharpen: ['Sharpen', 'A few extra questions for any result, plus retakes with a different question set so you can correct a part.'],
     maps: ['Maps', 'Where you sit on a 2D personality map (the Big Five\u2019s higher-order axes), your 5D trait vector and score bins.'],
     groups: ['Groups', 'Soft membership across clusters (like a mixture model), your tribe, guild, school and group role.'],

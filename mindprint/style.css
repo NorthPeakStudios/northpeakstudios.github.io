@@ -254,3 +254,8 @@ details.hiw{margin-top:0;border-top:0;padding-top:0}
 .tyclm:active{opacity:.75}
 .lockl .lrow small{display:block;color:var(--mute);font-weight:500;font-size:13px}
 .lockl>.lrow:first-child{border-top:0;padding:4px 0}
+
+/* 1.1.6 classified specimen card */
+.clx{padding:2px 0}.clsp{font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:24px;font-weight:600;margin:2px 0 0;color:var(--ink)}
+.clch{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:10px 0 8px;font-size:13.5px;font-weight:650;cursor:pointer}.clch span{display:inline-flex;flex-direction:column;line-height:1.15}.clch small{font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--mute)}.clch i{color:var(--mute);font-style:normal}
+.clr{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:9px 0;border-top:1px solid var(--line);cursor:pointer}.clr span{color:var(--mute);font-size:13px;font-weight:600;flex:none}.clr b{text-align:right;font-size:14.5px;font-weight:650;min-width:0;overflow-wrap:anywhere}.clv{cursor:default}

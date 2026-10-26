@@ -1,1 +1,1915 @@
-{"version":1,"note":"Optional sharpen questions for the Your types hub. Each option votes on trait axes or system categories. For fun, not official tests.","systems":{"four":{"name":"4-letter type","emoji":"🔤"},"ennea":{"name":"Enneagram-style","emoji":"⭕"},"arche":{"name":"Archetype","emoji":"🎭"},"disc":{"name":"DISC-style","emoji":"🎨"},"attach":{"name":"Attachment","emoji":"🫶"},"temper":{"name":"Temperament","emoji":"🌗"},"cognitive":{"name":"Decision style","emoji":"🧠"},"learning":{"name":"Learning style","emoji":"📚"}},"sharpen":3,"questions":[{"id":"f1","sys":"four","text":"Friday night after a long week. You’d rather…","options":[{"t":"Go out with a big group","v":{"E":2}},{"t":"Hang with one or two close friends","v":{"E":-1}},{"t":"Have the night to yourself","v":{"E":-2}},{"t":"Whatever comes up last minute","v":{"E":1,"C":-1}}]},{"id":"f2","sys":"four","text":"At a party where you only know the host, you…","options":[{"t":"Introduce yourself to people","v":{"E":2}},{"t":"Stick near the host","v":{"E":-1}},{"t":"Find one person and talk all night","v":{"E":-1,"A":1}},{"t":"Leave early","v":{"E":-2}}]},{"id":"f3","sys":"four","text":"When you learn something new, you care more about…","options":[{"t":"The big idea behind it","v":{"O":2}},{"t":"How to actually use it","v":{"O":-2}},{"t":"Both about the same","v":{"O":0}},{"t":"Whether it’s interesting","v":{"O":1}}]},{"id":"f4","sys":"four","text":"You’d rather read…","options":[{"t":"A story set in a made-up world","v":{"O":2}},{"t":"A how-to or true story","v":{"O":-2}},{"t":"Something that makes you think differently","v":{"O":2}},{"t":"Honestly, I’d rather do than read","v":{"O":-1}}]},{"id":"f5","sys":"four","text":"A friend shows you something they made and it’s not great. You…","options":[{"t":"Focus on what’s good about it","v":{"A":2}},{"t":"Tell them honestly what needs fixing","v":{"A":-2}},{"t":"Ask what they think first","v":{"A":1}},{"t":"Give quick, practical tips","v":{"A":-1}}]},{"id":"f6","sys":"four","text":"Making a group decision, what matters more?","options":[{"t":"Everyone feels okay with it","v":{"A":2}},{"t":"It’s the logical choice","v":{"A":-2}},{"t":"It’s fair","v":{"A":0}},{"t":"It’s fast","v":{"A":-1,"C":-1}}]},{"id":"f7","sys":"four","text":"A big project is due in two weeks. You…","options":[{"t":"Make a plan and start now","v":{"C":2}},{"t":"Start a bit, finish in a rush","v":{"C":-1}},{"t":"Do it all the night before","v":{"C":-2}},{"t":"Start when I feel inspired","v":{"C":-1,"O":1}}]},{"id":"f8","sys":"four","text":"Your room or desk is usually…","options":[{"t":"Neat and organized","v":{"C":2}},{"t":"Messy, but I know where things are","v":{"C":-1}},{"t":"Chaos","v":{"C":-2}},{"t":"Neat for a day, then messy again","v":{"C":0}}]},{"id":"n1","sys":"ennea","text":"Deep down, what drives you most?","options":[{"t":"Doing things the right way","v":{"e1":2}},{"t":"Being needed and loved","v":{"e2":2}},{"t":"Being successful and admired","v":{"e3":2}},{"t":"Being truly myself","v":{"e4":2}},{"t":"Understanding how things work","v":{"e5":2}},{"t":"Feeling safe and supported","v":{"e6":2}},{"t":"Having fun and freedom","v":{"e7":2}},{"t":"Being strong and in control","v":{"e8":2}},{"t":"Keeping the peace","v":{"e9":2}}],"typeOnly":true},{"id":"n2","sys":"ennea","text":"What bugs you most about yourself?","options":[{"t":"I’m too hard on myself","v":{"e1":2,"e3":1}},{"t":"I say yes too much","v":{"e2":2,"e9":1}},{"t":"I care too much what people think","v":{"e3":2,"e6":1}},{"t":"I get stuck in my feelings","v":{"e4":2}},{"t":"I pull away from people","v":{"e5":2,"e4":1}},{"t":"I worry too much","v":{"e6":2}},{"t":"I get bored and quit things","v":{"e7":2}},{"t":"I can come on too strong","v":{"e8":2}},{"t":"I avoid conflict even when I shouldn’t","v":{"e9":2,"e2":1}}]},{"id":"n3","sys":"ennea","text":"When you’re stressed, you’re most likely to…","options":[{"t":"Get critical and picky","v":{"e1":2}},{"t":"Feel unappreciated","v":{"e2":2}},{"t":"Work even harder","v":{"e3":2,"e1":1}},{"t":"Withdraw and feel misunderstood","v":{"e4":2,"e5":1}},{"t":"Hide away and overthink","v":{"e5":2,"e6":1}},{"t":"Expect the worst","v":{"e6":2}},{"t":"Distract myself with fun stuff","v":{"e7":2}},{"t":"Get angry and push back","v":{"e8":2}},{"t":"Zone out and put it off","v":{"e9":2}}]},{"id":"n4","sys":"ennea","text":"Friends would say you’re the one who…","options":[{"t":"Keeps everyone honest","v":{"e1":2,"e8":1}},{"t":"Always shows up for them","v":{"e2":2,"e6":1}},{"t":"Gets things done","v":{"e3":2,"e8":1}},{"t":"Gets deep","v":{"e4":2,"e5":1}},{"t":"Knows random facts","v":{"e5":2}},{"t":"Is loyal no matter what","v":{"e6":2,"e2":1}},{"t":"Plans the fun","v":{"e7":2}},{"t":"Takes charge","v":{"e8":2,"e3":1}},{"t":"Calms everyone down","v":{"e9":2}}]},{"id":"n5","sys":"ennea","text":"Your biggest fear is closest to…","options":[{"t":"Being bad or wrong","v":{"e1":2}},{"t":"Being unwanted","v":{"e2":2}},{"t":"Being a failure","v":{"e3":2}},{"t":"Being ordinary","v":{"e4":2}},{"t":"Being useless or clueless","v":{"e5":2}},{"t":"Being on my own with no support","v":{"e6":2}},{"t":"Being stuck or bored","v":{"e7":2}},{"t":"Being controlled","v":{"e8":2}},{"t":"Conflict and losing people","v":{"e9":2}}],"typeOnly":true},{"id":"n6","sys":"ennea","text":"You walk into a messy group project. You first…","options":[{"t":"Fix what’s being done wrong","v":{"e1":2}},{"t":"Check if everyone’s okay","v":{"e2":2}},{"t":"Figure out how to make it look great","v":{"e3":2}},{"t":"Add my own creative angle","v":{"e4":2}},{"t":"Research before saying anything","v":{"e5":2}},{"t":"Ask what the teacher actually wants","v":{"e6":2}},{"t":"Make it fun","v":{"e7":2}},{"t":"Take over","v":{"e8":2}},{"t":"Go along with what people want","v":{"e9":2}}]},{"id":"a1","sys":"arche","text":"Pick the story you’d want to star in.","options":[{"t":"Saving the day against the odds","v":{"ar_hero":2}},{"t":"Uncovering a hidden truth","v":{"ar_sage":2}},{"t":"Breaking out of a system","v":{"ar_rebel":2}},{"t":"A road trip to somewhere unknown","v":{"ar_explorer":2}},{"t":"Building something amazing","v":{"ar_creator":2}},{"t":"Protecting someone you love","v":{"ar_caregiver":2,"ar_lover":1}},{"t":"Leading a kingdom","v":{"ar_ruler":2}},{"t":"A comedy where everything goes wrong","v":{"ar_jester":2}},{"t":"A love story","v":{"ar_lover":2}},{"t":"A cozy story where good wins","v":{"ar_innocent":2}},{"t":"Discovering you have powers","v":{"ar_magician":2}},{"t":"A group of friends sticking together","v":{"ar_everyperson":2}}],"typeOnly":true},{"id":"a2","sys":"arche","text":"The compliment that would mean the most:","options":[{"t":"You’re brave","v":{"ar_hero":2}},{"t":"You’re wise","v":{"ar_sage":2}},{"t":"You don’t care what anyone thinks","v":{"ar_rebel":2}},{"t":"You’ve done so much","v":{"ar_explorer":2}},{"t":"You’re so creative","v":{"ar_creator":2}},{"t":"You’re so caring","v":{"ar_caregiver":2}},{"t":"You’re a natural leader","v":{"ar_ruler":2}},{"t":"You’re hilarious","v":{"ar_jester":2}},{"t":"You make people feel special","v":{"ar_lover":2}},{"t":"You’re genuinely good","v":{"ar_innocent":2}},{"t":"You make things happen","v":{"ar_magician":2}},{"t":"You’re so easy to be around","v":{"ar_everyperson":2}}]},{"id":"a3","sys":"arche","text":"In a group, you naturally end up as…","options":[{"t":"The one who steps up when it’s hard","v":{"ar_hero":2,"ar_ruler":1}},{"t":"The advisor","v":{"ar_sage":2}},{"t":"The one who questions everything","v":{"ar_rebel":2}},{"t":"The one always suggesting somewhere new","v":{"ar_explorer":2}},{"t":"The ideas person","v":{"ar_creator":2,"ar_magician":1}},{"t":"The mom/dad friend","v":{"ar_caregiver":2}},{"t":"The organizer","v":{"ar_ruler":2}},{"t":"The funny one","v":{"ar_jester":2}},{"t":"The glue","v":{"ar_everyperson":2,"ar_lover":1}}]},{"id":"a4","sys":"arche","text":"What would you hate most?","options":[{"t":"Being seen as weak","v":{"ar_hero":2}},{"t":"Being fooled","v":{"ar_sage":2}},{"t":"Being forced to fit in","v":{"ar_rebel":2}},{"t":"Being trapped in one place","v":{"ar_explorer":2}},{"t":"A life with nothing to show for it","v":{"ar_creator":2}},{"t":"Someone I love getting hurt","v":{"ar_caregiver":2,"ar_lover":1}},{"t":"Chaos with no one in charge","v":{"ar_ruler":2}},{"t":"Being bored","v":{"ar_jester":2}},{"t":"Being alone","v":{"ar_lover":2,"ar_everyperson":1}},{"t":"People being cruel","v":{"ar_innocent":2}},{"t":"Nothing ever changing","v":{"ar_magician":2}}]},{"id":"s1","sys":"disc","text":"Your group has a problem. You…","options":[{"t":"Take charge and decide","v":{"ds_D":2}},{"t":"Get everyone hyped and talking","v":{"ds_I":2}},{"t":"Make sure everyone’s on board","v":{"ds_S":2}},{"t":"Look at the facts first","v":{"ds_C":2}}]},{"id":"s2","sys":"disc","text":"People get on your nerves when they’re…","options":[{"t":"Slow and indecisive","v":{"ds_D":2}},{"t":"Boring","v":{"ds_I":2}},{"t":"Pushy","v":{"ds_S":2}},{"t":"Sloppy","v":{"ds_C":2}}]},{"id":"s3","sys":"disc","text":"You do your best work when…","options":[{"t":"There’s a challenge to win","v":{"ds_D":2}},{"t":"I’m with people I like","v":{"ds_I":2}},{"t":"Things are calm and steady","v":{"ds_S":2}},{"t":"I have clear rules and time to get it right","v":{"ds_C":2}}]},{"id":"s4","sys":"disc","text":"In an argument you tend to…","options":[{"t":"Push until I win","v":{"ds_D":2}},{"t":"Talk my way out of it","v":{"ds_I":2}},{"t":"Give in to keep things nice","v":{"ds_S":2}},{"t":"Bring receipts","v":{"ds_C":2}}]},{"id":"t1","sys":"attach","text":"Someone you’re close to hasn’t texted back in hours. You…","options":[{"t":"Don’t really notice","v":{"att_anxiety":-2}},{"t":"Figure they’re busy","v":{"att_anxiety":-1}},{"t":"Wonder if I did something","v":{"att_anxiety":2}},{"t":"Feel relieved to have space","v":{"att_avoidance":2}}]},{"id":"t2","sys":"attach","text":"When someone wants to get really close to you, you…","options":[{"t":"Love it","v":{"att_avoidance":-2}},{"t":"Like it, slowly","v":{"att_avoidance":0}},{"t":"Get a bit uncomfortable","v":{"att_avoidance":2}},{"t":"Want it but don’t trust it","v":{"att_avoidance":1,"att_anxiety":2}}]},{"id":"t3","sys":"attach","text":"When you’re upset, you’d rather…","options":[{"t":"Talk to someone right away","v":{"att_avoidance":-2}},{"t":"Talk once I’ve calmed down","v":{"att_avoidance":0}},{"t":"Deal with it on my own","v":{"att_avoidance":2}},{"t":"Have someone notice without me saying","v":{"att_anxiety":2}}]},{"id":"t4","sys":"attach","text":"After a fight with a friend, you…","options":[{"t":"Reach out to fix it","v":{"att_avoidance":-1,"att_anxiety":0}},{"t":"Wait for them to reach out","v":{"att_avoidance":1}},{"t":"Can’t stop thinking about it","v":{"att_anxiety":2}},{"t":"Move on like it didn’t happen","v":{"att_avoidance":2}}]},{"id":"m1","sys":"temper","text":"Something goes wrong right before a big event. You…","options":[{"t":"Shrug it off","v":{"N":-2}},{"t":"Get frustrated, then fix it","v":{"N":1,"E":1}},{"t":"Feel it for the rest of the day","v":{"N":2,"E":-1}},{"t":"Calmly make a plan B","v":{"N":-1,"E":-1}}]},{"id":"m2","sys":"temper","text":"Your energy on a normal day is…","options":[{"t":"Loud and bubbly","v":{"E":2,"N":-1}},{"t":"Intense and focused","v":{"E":1,"N":1}},{"t":"Quiet and thoughtful","v":{"E":-2,"N":1}},{"t":"Chill and easygoing","v":{"E":-1,"N":-2}}]},{"id":"m3","sys":"temper","text":"When you get mad, it…","options":[{"t":"Blows over in minutes","v":{"N":-1,"E":1}},{"t":"Comes out fast and loud","v":{"N":2,"E":2}},{"t":"Stays inside for a long time","v":{"N":2,"E":-2}},{"t":"Rarely happens","v":{"N":-2}}]},{"id":"c1","sys":"cognitive","text":"Picking a new phone, you…","options":[{"t":"Compare specs and reviews","v":{"cg_rational":2}},{"t":"Go with the one that feels right","v":{"cg_intuitive":2}},{"t":"Ask friends what they have","v":{"cg_dependent":2}},{"t":"Grab one fast","v":{"cg_spontaneous":2}},{"t":"Put it off as long as I can","v":{"cg_avoidant":2}}]},{"id":"c2","sys":"cognitive","text":"A choice you’re proudest of was made by…","options":[{"t":"Thinking it through","v":{"cg_rational":2}},{"t":"Following my gut","v":{"cg_intuitive":2}},{"t":"Talking it out with someone","v":{"cg_dependent":2}},{"t":"Just going for it","v":{"cg_spontaneous":2}}]},{"id":"c3","sys":"cognitive","text":"When a decision is hard, you…","options":[{"t":"Make a pros and cons list","v":{"cg_rational":2}},{"t":"Sleep on it and see how I feel","v":{"cg_intuitive":2}},{"t":"Ask someone I trust","v":{"cg_dependent":2}},{"t":"Flip a coin","v":{"cg_spontaneous":2}},{"t":"Wait until it decides itself","v":{"cg_avoidant":2}}]},{"id":"l1","sys":"learning","text":"Learning something hard, what helps most?","options":[{"t":"A diagram or video","v":{"ls_visual":2}},{"t":"Reading it and taking notes","v":{"ls_reading":2}},{"t":"Trying it myself","v":{"ls_hands":2}},{"t":"Someone explaining it","v":{"ls_social":2}}]},{"id":"l2","sys":"learning","text":"In class you remember best when you…","options":[{"t":"See it drawn out","v":{"ls_visual":2}},{"t":"Read the textbook","v":{"ls_reading":2}},{"t":"Do a lab or activity","v":{"ls_hands":2}},{"t":"Discuss it in a group","v":{"ls_social":2}}]},{"id":"l3","sys":"learning","text":"To study for a test, you’d rather…","options":[{"t":"Make color-coded notes or mind maps","v":{"ls_visual":2}},{"t":"Reread and rewrite notes","v":{"ls_reading":2}},{"t":"Do practice problems","v":{"ls_hands":2}},{"t":"Quiz each other with a friend","v":{"ls_social":2}}]}]}
+{
+ "version": 2,
+ "note": "Optional sharpen questions for the Your types hub. Each option votes on trait axes or system categories. For fun, not official tests.",
+ "systems": {
+  "four": {
+   "name": "4-letter type",
+   "emoji": "🔤"
+  },
+  "ennea": {
+   "name": "Enneagram-style",
+   "emoji": "⭕"
+  },
+  "arche": {
+   "name": "Archetype",
+   "emoji": "🎭"
+  },
+  "disc": {
+   "name": "DISC-style",
+   "emoji": "🎨"
+  },
+  "attach": {
+   "name": "Attachment",
+   "emoji": "🫶"
+  },
+  "temper": {
+   "name": "Temperament",
+   "emoji": "🌗"
+  },
+  "cognitive": {
+   "name": "Decision style",
+   "emoji": "🧠"
+  },
+  "learning": {
+   "name": "Learning style",
+   "emoji": "📚"
+  },
+  "thinking": {
+   "name": "Thinking style",
+   "emoji": "🌄"
+  },
+  "team": {
+   "name": "Team role",
+   "emoji": "🧭"
+  }
+ },
+ "sharpen": 3,
+ "questions": [
+  {
+   "id": "f1",
+   "sys": "four",
+   "text": "Friday night after a long week. You’d rather…",
+   "options": [
+    {
+     "t": "Go out with a big group",
+     "v": {
+      "E": 2
+     }
+    },
+    {
+     "t": "Hang with one or two close friends",
+     "v": {
+      "E": -1
+     }
+    },
+    {
+     "t": "Have the night to yourself",
+     "v": {
+      "E": -2
+     }
+    },
+    {
+     "t": "Whatever comes up last minute",
+     "v": {
+      "E": 1,
+      "C": -1
+     }
+    }
+   ]
+  },
+  {
+   "id": "f2",
+   "sys": "four",
+   "text": "At a party where you only know the host, you…",
+   "options": [
+    {
+     "t": "Introduce yourself to people",
+     "v": {
+      "E": 2
+     }
+    },
+    {
+     "t": "Stick near the host",
+     "v": {
+      "E": -1
+     }
+    },
+    {
+     "t": "Find one person and talk all night",
+     "v": {
+      "E": -1,
+      "A": 1
+     }
+    },
+    {
+     "t": "Leave early",
+     "v": {
+      "E": -2
+     }
+    }
+   ]
+  },
+  {
+   "id": "f3",
+   "sys": "four",
+   "text": "When you learn something new, you care more about…",
+   "options": [
+    {
+     "t": "The big idea behind it",
+     "v": {
+      "O": 2
+     }
+    },
+    {
+     "t": "How to actually use it",
+     "v": {
+      "O": -2
+     }
+    },
+    {
+     "t": "Both about the same",
+     "v": {
+      "O": 0
+     }
+    },
+    {
+     "t": "Whether it’s interesting",
+     "v": {
+      "O": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "f4",
+   "sys": "four",
+   "text": "You’d rather read…",
+   "options": [
+    {
+     "t": "A story set in a made-up world",
+     "v": {
+      "O": 2
+     }
+    },
+    {
+     "t": "A how-to or true story",
+     "v": {
+      "O": -2
+     }
+    },
+    {
+     "t": "Something that makes you think differently",
+     "v": {
+      "O": 2
+     }
+    },
+    {
+     "t": "Honestly, I’d rather do than read",
+     "v": {
+      "O": -1
+     }
+    }
+   ]
+  },
+  {
+   "id": "f5",
+   "sys": "four",
+   "text": "A friend shows you something they made and it’s not great. You…",
+   "options": [
+    {
+     "t": "Focus on what’s good about it",
+     "v": {
+      "A": 2
+     }
+    },
+    {
+     "t": "Tell them honestly what needs fixing",
+     "v": {
+      "A": -2
+     }
+    },
+    {
+     "t": "Ask what they think first",
+     "v": {
+      "A": 1
+     }
+    },
+    {
+     "t": "Give quick, practical tips",
+     "v": {
+      "A": -1
+     }
+    }
+   ]
+  },
+  {
+   "id": "f6",
+   "sys": "four",
+   "text": "Making a group decision, what matters more?",
+   "options": [
+    {
+     "t": "Everyone feels okay with it",
+     "v": {
+      "A": 2
+     }
+    },
+    {
+     "t": "It’s the logical choice",
+     "v": {
+      "A": -2
+     }
+    },
+    {
+     "t": "It’s fair",
+     "v": {
+      "A": 0
+     }
+    },
+    {
+     "t": "It’s fast",
+     "v": {
+      "A": -1,
+      "C": -1
+     }
+    }
+   ]
+  },
+  {
+   "id": "f7",
+   "sys": "four",
+   "text": "A big project is due in two weeks. You…",
+   "options": [
+    {
+     "t": "Make a plan and start now",
+     "v": {
+      "C": 2
+     }
+    },
+    {
+     "t": "Start a bit, finish in a rush",
+     "v": {
+      "C": -1
+     }
+    },
+    {
+     "t": "Do it all the night before",
+     "v": {
+      "C": -2
+     }
+    },
+    {
+     "t": "Start when I feel inspired",
+     "v": {
+      "C": -1,
+      "O": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "f8",
+   "sys": "four",
+   "text": "Your room or desk is usually…",
+   "options": [
+    {
+     "t": "Neat and organized",
+     "v": {
+      "C": 2
+     }
+    },
+    {
+     "t": "Messy, but I know where things are",
+     "v": {
+      "C": -1
+     }
+    },
+    {
+     "t": "Chaos",
+     "v": {
+      "C": -2
+     }
+    },
+    {
+     "t": "Neat for a day, then messy again",
+     "v": {
+      "C": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "n1",
+   "sys": "ennea",
+   "text": "Deep down, what drives you most?",
+   "options": [
+    {
+     "t": "Doing things the right way",
+     "v": {
+      "e1": 2
+     }
+    },
+    {
+     "t": "Being needed and loved",
+     "v": {
+      "e2": 2
+     }
+    },
+    {
+     "t": "Being successful and admired",
+     "v": {
+      "e3": 2
+     }
+    },
+    {
+     "t": "Being truly myself",
+     "v": {
+      "e4": 2
+     }
+    },
+    {
+     "t": "Understanding how things work",
+     "v": {
+      "e5": 2
+     }
+    },
+    {
+     "t": "Feeling safe and supported",
+     "v": {
+      "e6": 2
+     }
+    },
+    {
+     "t": "Having fun and freedom",
+     "v": {
+      "e7": 2
+     }
+    },
+    {
+     "t": "Being strong and in control",
+     "v": {
+      "e8": 2
+     }
+    },
+    {
+     "t": "Keeping the peace",
+     "v": {
+      "e9": 2
+     }
+    }
+   ],
+   "typeOnly": true
+  },
+  {
+   "id": "n2",
+   "sys": "ennea",
+   "text": "What bugs you most about yourself?",
+   "options": [
+    {
+     "t": "I’m too hard on myself",
+     "v": {
+      "e1": 2,
+      "e3": 1
+     }
+    },
+    {
+     "t": "I say yes too much",
+     "v": {
+      "e2": 2,
+      "e9": 1
+     }
+    },
+    {
+     "t": "I care too much what people think",
+     "v": {
+      "e3": 2,
+      "e6": 1
+     }
+    },
+    {
+     "t": "I get stuck in my feelings",
+     "v": {
+      "e4": 2
+     }
+    },
+    {
+     "t": "I pull away from people",
+     "v": {
+      "e5": 2,
+      "e4": 1
+     }
+    },
+    {
+     "t": "I worry too much",
+     "v": {
+      "e6": 2
+     }
+    },
+    {
+     "t": "I get bored and quit things",
+     "v": {
+      "e7": 2
+     }
+    },
+    {
+     "t": "I can come on too strong",
+     "v": {
+      "e8": 2
+     }
+    },
+    {
+     "t": "I avoid conflict even when I shouldn’t",
+     "v": {
+      "e9": 2,
+      "e2": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "n3",
+   "sys": "ennea",
+   "text": "When you’re stressed, you’re most likely to…",
+   "options": [
+    {
+     "t": "Get critical and picky",
+     "v": {
+      "e1": 2
+     }
+    },
+    {
+     "t": "Feel unappreciated",
+     "v": {
+      "e2": 2
+     }
+    },
+    {
+     "t": "Work even harder",
+     "v": {
+      "e3": 2,
+      "e1": 1
+     }
+    },
+    {
+     "t": "Withdraw and feel misunderstood",
+     "v": {
+      "e4": 2,
+      "e5": 1
+     }
+    },
+    {
+     "t": "Hide away and overthink",
+     "v": {
+      "e5": 2,
+      "e6": 1
+     }
+    },
+    {
+     "t": "Expect the worst",
+     "v": {
+      "e6": 2
+     }
+    },
+    {
+     "t": "Distract myself with fun stuff",
+     "v": {
+      "e7": 2
+     }
+    },
+    {
+     "t": "Get angry and push back",
+     "v": {
+      "e8": 2
+     }
+    },
+    {
+     "t": "Zone out and put it off",
+     "v": {
+      "e9": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "n4",
+   "sys": "ennea",
+   "text": "Friends would say you’re the one who…",
+   "options": [
+    {
+     "t": "Keeps everyone honest",
+     "v": {
+      "e1": 2,
+      "e8": 1
+     }
+    },
+    {
+     "t": "Always shows up for them",
+     "v": {
+      "e2": 2,
+      "e6": 1
+     }
+    },
+    {
+     "t": "Gets things done",
+     "v": {
+      "e3": 2,
+      "e8": 1
+     }
+    },
+    {
+     "t": "Gets deep",
+     "v": {
+      "e4": 2,
+      "e5": 1
+     }
+    },
+    {
+     "t": "Knows random facts",
+     "v": {
+      "e5": 2
+     }
+    },
+    {
+     "t": "Is loyal no matter what",
+     "v": {
+      "e6": 2,
+      "e2": 1
+     }
+    },
+    {
+     "t": "Plans the fun",
+     "v": {
+      "e7": 2
+     }
+    },
+    {
+     "t": "Takes charge",
+     "v": {
+      "e8": 2,
+      "e3": 1
+     }
+    },
+    {
+     "t": "Calms everyone down",
+     "v": {
+      "e9": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "n5",
+   "sys": "ennea",
+   "text": "Your biggest fear is closest to…",
+   "options": [
+    {
+     "t": "Being bad or wrong",
+     "v": {
+      "e1": 2
+     }
+    },
+    {
+     "t": "Being unwanted",
+     "v": {
+      "e2": 2
+     }
+    },
+    {
+     "t": "Being a failure",
+     "v": {
+      "e3": 2
+     }
+    },
+    {
+     "t": "Being ordinary",
+     "v": {
+      "e4": 2
+     }
+    },
+    {
+     "t": "Being useless or clueless",
+     "v": {
+      "e5": 2
+     }
+    },
+    {
+     "t": "Being on my own with no support",
+     "v": {
+      "e6": 2
+     }
+    },
+    {
+     "t": "Being stuck or bored",
+     "v": {
+      "e7": 2
+     }
+    },
+    {
+     "t": "Being controlled",
+     "v": {
+      "e8": 2
+     }
+    },
+    {
+     "t": "Conflict and losing people",
+     "v": {
+      "e9": 2
+     }
+    }
+   ],
+   "typeOnly": true
+  },
+  {
+   "id": "n6",
+   "sys": "ennea",
+   "text": "You walk into a messy group project. You first…",
+   "options": [
+    {
+     "t": "Fix what’s being done wrong",
+     "v": {
+      "e1": 2
+     }
+    },
+    {
+     "t": "Check if everyone’s okay",
+     "v": {
+      "e2": 2
+     }
+    },
+    {
+     "t": "Figure out how to make it look great",
+     "v": {
+      "e3": 2
+     }
+    },
+    {
+     "t": "Add my own creative angle",
+     "v": {
+      "e4": 2
+     }
+    },
+    {
+     "t": "Research before saying anything",
+     "v": {
+      "e5": 2
+     }
+    },
+    {
+     "t": "Ask what the teacher actually wants",
+     "v": {
+      "e6": 2
+     }
+    },
+    {
+     "t": "Make it fun",
+     "v": {
+      "e7": 2
+     }
+    },
+    {
+     "t": "Take over",
+     "v": {
+      "e8": 2
+     }
+    },
+    {
+     "t": "Go along with what people want",
+     "v": {
+      "e9": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "a1",
+   "sys": "arche",
+   "text": "Pick the story you’d want to star in.",
+   "options": [
+    {
+     "t": "Saving the day against the odds",
+     "v": {
+      "ar_hero": 2
+     }
+    },
+    {
+     "t": "Uncovering a hidden truth",
+     "v": {
+      "ar_sage": 2
+     }
+    },
+    {
+     "t": "Breaking out of a system",
+     "v": {
+      "ar_rebel": 2
+     }
+    },
+    {
+     "t": "A road trip to somewhere unknown",
+     "v": {
+      "ar_explorer": 2
+     }
+    },
+    {
+     "t": "Building something amazing",
+     "v": {
+      "ar_creator": 2
+     }
+    },
+    {
+     "t": "Protecting someone you love",
+     "v": {
+      "ar_caregiver": 2,
+      "ar_lover": 1
+     }
+    },
+    {
+     "t": "Leading a kingdom",
+     "v": {
+      "ar_ruler": 2
+     }
+    },
+    {
+     "t": "A comedy where everything goes wrong",
+     "v": {
+      "ar_jester": 2
+     }
+    },
+    {
+     "t": "A love story",
+     "v": {
+      "ar_lover": 2
+     }
+    },
+    {
+     "t": "A cozy story where good wins",
+     "v": {
+      "ar_innocent": 2
+     }
+    },
+    {
+     "t": "Discovering you have powers",
+     "v": {
+      "ar_magician": 2
+     }
+    },
+    {
+     "t": "A group of friends sticking together",
+     "v": {
+      "ar_everyperson": 2
+     }
+    }
+   ],
+   "typeOnly": true
+  },
+  {
+   "id": "a2",
+   "sys": "arche",
+   "text": "The compliment that would mean the most:",
+   "options": [
+    {
+     "t": "You’re brave",
+     "v": {
+      "ar_hero": 2
+     }
+    },
+    {
+     "t": "You’re wise",
+     "v": {
+      "ar_sage": 2
+     }
+    },
+    {
+     "t": "You don’t care what anyone thinks",
+     "v": {
+      "ar_rebel": 2
+     }
+    },
+    {
+     "t": "You’ve done so much",
+     "v": {
+      "ar_explorer": 2
+     }
+    },
+    {
+     "t": "You’re so creative",
+     "v": {
+      "ar_creator": 2
+     }
+    },
+    {
+     "t": "You’re so caring",
+     "v": {
+      "ar_caregiver": 2
+     }
+    },
+    {
+     "t": "You’re a natural leader",
+     "v": {
+      "ar_ruler": 2
+     }
+    },
+    {
+     "t": "You’re hilarious",
+     "v": {
+      "ar_jester": 2
+     }
+    },
+    {
+     "t": "You make people feel special",
+     "v": {
+      "ar_lover": 2
+     }
+    },
+    {
+     "t": "You’re genuinely good",
+     "v": {
+      "ar_innocent": 2
+     }
+    },
+    {
+     "t": "You make things happen",
+     "v": {
+      "ar_magician": 2
+     }
+    },
+    {
+     "t": "You’re so easy to be around",
+     "v": {
+      "ar_everyperson": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "a3",
+   "sys": "arche",
+   "text": "In a group, you naturally end up as…",
+   "options": [
+    {
+     "t": "The one who steps up when it’s hard",
+     "v": {
+      "ar_hero": 2,
+      "ar_ruler": 1
+     }
+    },
+    {
+     "t": "The advisor",
+     "v": {
+      "ar_sage": 2
+     }
+    },
+    {
+     "t": "The one who questions everything",
+     "v": {
+      "ar_rebel": 2
+     }
+    },
+    {
+     "t": "The one always suggesting somewhere new",
+     "v": {
+      "ar_explorer": 2
+     }
+    },
+    {
+     "t": "The ideas person",
+     "v": {
+      "ar_creator": 2,
+      "ar_magician": 1
+     }
+    },
+    {
+     "t": "The mom/dad friend",
+     "v": {
+      "ar_caregiver": 2
+     }
+    },
+    {
+     "t": "The organizer",
+     "v": {
+      "ar_ruler": 2
+     }
+    },
+    {
+     "t": "The funny one",
+     "v": {
+      "ar_jester": 2
+     }
+    },
+    {
+     "t": "The glue",
+     "v": {
+      "ar_everyperson": 2,
+      "ar_lover": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "a4",
+   "sys": "arche",
+   "text": "What would you hate most?",
+   "options": [
+    {
+     "t": "Being seen as weak",
+     "v": {
+      "ar_hero": 2
+     }
+    },
+    {
+     "t": "Being fooled",
+     "v": {
+      "ar_sage": 2
+     }
+    },
+    {
+     "t": "Being forced to fit in",
+     "v": {
+      "ar_rebel": 2
+     }
+    },
+    {
+     "t": "Being trapped in one place",
+     "v": {
+      "ar_explorer": 2
+     }
+    },
+    {
+     "t": "A life with nothing to show for it",
+     "v": {
+      "ar_creator": 2
+     }
+    },
+    {
+     "t": "Someone I love getting hurt",
+     "v": {
+      "ar_caregiver": 2,
+      "ar_lover": 1
+     }
+    },
+    {
+     "t": "Chaos with no one in charge",
+     "v": {
+      "ar_ruler": 2
+     }
+    },
+    {
+     "t": "Being bored",
+     "v": {
+      "ar_jester": 2
+     }
+    },
+    {
+     "t": "Being alone",
+     "v": {
+      "ar_lover": 2,
+      "ar_everyperson": 1
+     }
+    },
+    {
+     "t": "People being cruel",
+     "v": {
+      "ar_innocent": 2
+     }
+    },
+    {
+     "t": "Nothing ever changing",
+     "v": {
+      "ar_magician": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "s1",
+   "sys": "disc",
+   "text": "Your group has a problem. You…",
+   "options": [
+    {
+     "t": "Take charge and decide",
+     "v": {
+      "ds_D": 2
+     }
+    },
+    {
+     "t": "Get everyone hyped and talking",
+     "v": {
+      "ds_I": 2
+     }
+    },
+    {
+     "t": "Make sure everyone’s on board",
+     "v": {
+      "ds_S": 2
+     }
+    },
+    {
+     "t": "Look at the facts first",
+     "v": {
+      "ds_C": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "s2",
+   "sys": "disc",
+   "text": "People get on your nerves when they’re…",
+   "options": [
+    {
+     "t": "Slow and indecisive",
+     "v": {
+      "ds_D": 2
+     }
+    },
+    {
+     "t": "Boring",
+     "v": {
+      "ds_I": 2
+     }
+    },
+    {
+     "t": "Pushy",
+     "v": {
+      "ds_S": 2
+     }
+    },
+    {
+     "t": "Sloppy",
+     "v": {
+      "ds_C": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "s3",
+   "sys": "disc",
+   "text": "You do your best work when…",
+   "options": [
+    {
+     "t": "There’s a challenge to win",
+     "v": {
+      "ds_D": 2
+     }
+    },
+    {
+     "t": "I’m with people I like",
+     "v": {
+      "ds_I": 2
+     }
+    },
+    {
+     "t": "Things are calm and steady",
+     "v": {
+      "ds_S": 2
+     }
+    },
+    {
+     "t": "I have clear rules and time to get it right",
+     "v": {
+      "ds_C": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "s4",
+   "sys": "disc",
+   "text": "In an argument you tend to…",
+   "options": [
+    {
+     "t": "Push until I win",
+     "v": {
+      "ds_D": 2
+     }
+    },
+    {
+     "t": "Talk my way out of it",
+     "v": {
+      "ds_I": 2
+     }
+    },
+    {
+     "t": "Give in to keep things nice",
+     "v": {
+      "ds_S": 2
+     }
+    },
+    {
+     "t": "Bring receipts",
+     "v": {
+      "ds_C": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "t1",
+   "sys": "attach",
+   "text": "Someone you’re close to hasn’t texted back in hours. You…",
+   "options": [
+    {
+     "t": "Don’t really notice",
+     "v": {
+      "att_anxiety": -2
+     }
+    },
+    {
+     "t": "Figure they’re busy",
+     "v": {
+      "att_anxiety": -1
+     }
+    },
+    {
+     "t": "Wonder if I did something",
+     "v": {
+      "att_anxiety": 2
+     }
+    },
+    {
+     "t": "Feel relieved to have space",
+     "v": {
+      "att_avoidance": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "t2",
+   "sys": "attach",
+   "text": "When someone wants to get really close to you, you…",
+   "options": [
+    {
+     "t": "Love it",
+     "v": {
+      "att_avoidance": -2
+     }
+    },
+    {
+     "t": "Like it, slowly",
+     "v": {
+      "att_avoidance": 0
+     }
+    },
+    {
+     "t": "Get a bit uncomfortable",
+     "v": {
+      "att_avoidance": 2
+     }
+    },
+    {
+     "t": "Want it but don’t trust it",
+     "v": {
+      "att_avoidance": 1,
+      "att_anxiety": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "t3",
+   "sys": "attach",
+   "text": "When you’re upset, you’d rather…",
+   "options": [
+    {
+     "t": "Talk to someone right away",
+     "v": {
+      "att_avoidance": -2
+     }
+    },
+    {
+     "t": "Talk once I’ve calmed down",
+     "v": {
+      "att_avoidance": 0
+     }
+    },
+    {
+     "t": "Deal with it on my own",
+     "v": {
+      "att_avoidance": 2
+     }
+    },
+    {
+     "t": "Have someone notice without me saying",
+     "v": {
+      "att_anxiety": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "t4",
+   "sys": "attach",
+   "text": "After a fight with a friend, you…",
+   "options": [
+    {
+     "t": "Reach out to fix it",
+     "v": {
+      "att_avoidance": -1,
+      "att_anxiety": 0
+     }
+    },
+    {
+     "t": "Wait for them to reach out",
+     "v": {
+      "att_avoidance": 1
+     }
+    },
+    {
+     "t": "Can’t stop thinking about it",
+     "v": {
+      "att_anxiety": 2
+     }
+    },
+    {
+     "t": "Move on like it didn’t happen",
+     "v": {
+      "att_avoidance": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "m1",
+   "sys": "temper",
+   "text": "Something goes wrong right before a big event. You…",
+   "options": [
+    {
+     "t": "Shrug it off",
+     "v": {
+      "N": -2
+     }
+    },
+    {
+     "t": "Get frustrated, then fix it",
+     "v": {
+      "N": 1,
+      "E": 1
+     }
+    },
+    {
+     "t": "Feel it for the rest of the day",
+     "v": {
+      "N": 2,
+      "E": -1
+     }
+    },
+    {
+     "t": "Calmly make a plan B",
+     "v": {
+      "N": -1,
+      "E": -1
+     }
+    }
+   ]
+  },
+  {
+   "id": "m2",
+   "sys": "temper",
+   "text": "Your energy on a normal day is…",
+   "options": [
+    {
+     "t": "Loud and bubbly",
+     "v": {
+      "E": 2,
+      "N": -1
+     }
+    },
+    {
+     "t": "Intense and focused",
+     "v": {
+      "E": 1,
+      "N": 1
+     }
+    },
+    {
+     "t": "Quiet and thoughtful",
+     "v": {
+      "E": -2,
+      "N": 1
+     }
+    },
+    {
+     "t": "Chill and easygoing",
+     "v": {
+      "E": -1,
+      "N": -2
+     }
+    }
+   ]
+  },
+  {
+   "id": "m3",
+   "sys": "temper",
+   "text": "When you get mad, it…",
+   "options": [
+    {
+     "t": "Blows over in minutes",
+     "v": {
+      "N": -1,
+      "E": 1
+     }
+    },
+    {
+     "t": "Comes out fast and loud",
+     "v": {
+      "N": 2,
+      "E": 2
+     }
+    },
+    {
+     "t": "Stays inside for a long time",
+     "v": {
+      "N": 2,
+      "E": -2
+     }
+    },
+    {
+     "t": "Rarely happens",
+     "v": {
+      "N": -2
+     }
+    }
+   ]
+  },
+  {
+   "id": "c1",
+   "sys": "cognitive",
+   "text": "Picking a new phone, you…",
+   "options": [
+    {
+     "t": "Compare specs and reviews",
+     "v": {
+      "cg_rational": 2
+     }
+    },
+    {
+     "t": "Go with the one that feels right",
+     "v": {
+      "cg_intuitive": 2
+     }
+    },
+    {
+     "t": "Ask friends what they have",
+     "v": {
+      "cg_dependent": 2
+     }
+    },
+    {
+     "t": "Grab one fast",
+     "v": {
+      "cg_spontaneous": 2
+     }
+    },
+    {
+     "t": "Put it off as long as I can",
+     "v": {
+      "cg_avoidant": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "c2",
+   "sys": "cognitive",
+   "text": "A choice you’re proudest of was made by…",
+   "options": [
+    {
+     "t": "Thinking it through",
+     "v": {
+      "cg_rational": 2
+     }
+    },
+    {
+     "t": "Following my gut",
+     "v": {
+      "cg_intuitive": 2
+     }
+    },
+    {
+     "t": "Talking it out with someone",
+     "v": {
+      "cg_dependent": 2
+     }
+    },
+    {
+     "t": "Just going for it",
+     "v": {
+      "cg_spontaneous": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "c3",
+   "sys": "cognitive",
+   "text": "When a decision is hard, you…",
+   "options": [
+    {
+     "t": "Make a pros and cons list",
+     "v": {
+      "cg_rational": 2
+     }
+    },
+    {
+     "t": "Sleep on it and see how I feel",
+     "v": {
+      "cg_intuitive": 2
+     }
+    },
+    {
+     "t": "Ask someone I trust",
+     "v": {
+      "cg_dependent": 2
+     }
+    },
+    {
+     "t": "Flip a coin",
+     "v": {
+      "cg_spontaneous": 2
+     }
+    },
+    {
+     "t": "Wait until it decides itself",
+     "v": {
+      "cg_avoidant": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "l1",
+   "sys": "learning",
+   "text": "Learning something hard, what helps most?",
+   "options": [
+    {
+     "t": "A diagram or video",
+     "v": {
+      "ls_visual": 2
+     }
+    },
+    {
+     "t": "Reading it and taking notes",
+     "v": {
+      "ls_reading": 2
+     }
+    },
+    {
+     "t": "Trying it myself",
+     "v": {
+      "ls_hands": 2
+     }
+    },
+    {
+     "t": "Someone explaining it",
+     "v": {
+      "ls_social": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "l2",
+   "sys": "learning",
+   "text": "In class you remember best when you…",
+   "options": [
+    {
+     "t": "See it drawn out",
+     "v": {
+      "ls_visual": 2
+     }
+    },
+    {
+     "t": "Read the textbook",
+     "v": {
+      "ls_reading": 2
+     }
+    },
+    {
+     "t": "Do a lab or activity",
+     "v": {
+      "ls_hands": 2
+     }
+    },
+    {
+     "t": "Discuss it in a group",
+     "v": {
+      "ls_social": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "l3",
+   "sys": "learning",
+   "text": "To study for a test, you’d rather…",
+   "options": [
+    {
+     "t": "Make color-coded notes or mind maps",
+     "v": {
+      "ls_visual": 2
+     }
+    },
+    {
+     "t": "Reread and rewrite notes",
+     "v": {
+      "ls_reading": 2
+     }
+    },
+    {
+     "t": "Do practice problems",
+     "v": {
+      "ls_hands": 2
+     }
+    },
+    {
+     "t": "Quiz each other with a friend",
+     "v": {
+      "ls_social": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "th1",
+   "sys": "thinking",
+   "text": "Someone explains a new board game. You want…",
+   "options": [
+    {
+     "t": "The goal first, rules later",
+     "v": {
+      "ts_whole": 2
+     }
+    },
+    {
+     "t": "Every rule in order before we start",
+     "v": {
+      "ts_whole": -2
+     }
+    },
+    {
+     "t": "To just play a round and figure it out",
+     "v": {
+      "ts_whole": 1,
+      "ts_field": 1
+     }
+    },
+    {
+     "t": "Someone to show me a turn",
+     "v": {
+      "ts_visual": 1,
+      "ts_field": -1
+     }
+    }
+   ]
+  },
+  {
+   "id": "th2",
+   "sys": "thinking",
+   "text": "Studying for a big test, your notes look like…",
+   "options": [
+    {
+     "t": "Diagrams, arrows and doodles",
+     "v": {
+      "ts_visual": 2
+     }
+    },
+    {
+     "t": "Neat written summaries",
+     "v": {
+      "ts_visual": -2
+     }
+    },
+    {
+     "t": "A mind map of how it all connects",
+     "v": {
+      "ts_visual": 1,
+      "ts_whole": 2
+     }
+    },
+    {
+     "t": "Numbered steps and lists",
+     "v": {
+      "ts_visual": -1,
+      "ts_whole": -2
+     }
+    }
+   ]
+  },
+  {
+   "id": "th3",
+   "sys": "thinking",
+   "text": "Giving a friend directions, you…",
+   "options": [
+    {
+     "t": "Draw a quick map",
+     "v": {
+      "ts_visual": 2
+     }
+    },
+    {
+     "t": "Text step-by-step turns",
+     "v": {
+      "ts_visual": -2,
+      "ts_whole": -1
+     }
+    },
+    {
+     "t": "Name a landmark and the general direction",
+     "v": {
+      "ts_whole": 2
+     }
+    },
+    {
+     "t": "Send a pin and let the app do it",
+     "v": {
+      "ts_field": -1
+     }
+    }
+   ]
+  },
+  {
+   "id": "th4",
+   "sys": "thinking",
+   "text": "In a group project the plan isn’t working. You…",
+   "options": [
+    {
+     "t": "Go with my own read, even if others disagree",
+     "v": {
+      "ts_field": 2
+     }
+    },
+    {
+     "t": "Check what everyone else thinks first",
+     "v": {
+      "ts_field": -2
+     }
+    },
+    {
+     "t": "Step back and rethink the whole thing",
+     "v": {
+      "ts_whole": 2
+     }
+    },
+    {
+     "t": "Find the one part that’s broken",
+     "v": {
+      "ts_whole": -2
+     }
+    }
+   ]
+  },
+  {
+   "id": "th5",
+   "sys": "thinking",
+   "text": "Remembering a movie you loved, you mostly remember…",
+   "options": [
+    {
+     "t": "Scenes and images",
+     "v": {
+      "ts_visual": 2
+     }
+    },
+    {
+     "t": "Lines and quotes",
+     "v": {
+      "ts_visual": -2
+     }
+    },
+    {
+     "t": "How it made me feel overall",
+     "v": {
+      "ts_whole": 2
+     }
+    },
+    {
+     "t": "The details of how the plot worked",
+     "v": {
+      "ts_whole": -2
+     }
+    }
+   ]
+  },
+  {
+   "id": "th6",
+   "sys": "thinking",
+   "text": "A teacher gives vague instructions. You…",
+   "options": [
+    {
+     "t": "Do it my own way and own it",
+     "v": {
+      "ts_field": 2
+     }
+    },
+    {
+     "t": "Look at what classmates are doing",
+     "v": {
+      "ts_field": -2
+     }
+    },
+    {
+     "t": "Ask for an example",
+     "v": {
+      "ts_visual": 1,
+      "ts_field": -1
+     }
+    },
+    {
+     "t": "Ask exactly what they want, point by point",
+     "v": {
+      "ts_whole": -1
+     }
+    }
+   ]
+  },
+  {
+   "id": "tm1",
+   "sys": "team",
+   "text": "New group project, first meeting. You’re the one who…",
+   "options": [
+    {
+     "t": "Says “ok, here’s the plan”",
+     "v": {
+      "tr_leader": 2
+     }
+    },
+    {
+     "t": "Throws out ten wild ideas",
+     "v": {
+      "tr_ideas": 2
+     }
+    },
+    {
+     "t": "Makes the shared doc and deadlines",
+     "v": {
+      "tr_organizer": 2
+     }
+    },
+    {
+     "t": "Makes sure the quiet kid gets a say",
+     "v": {
+      "tr_support": 1,
+      "tr_peace": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "tm2",
+   "sys": "team",
+   "text": "Two people in the group start arguing. You…",
+   "options": [
+    {
+     "t": "Calm it down and find the middle",
+     "v": {
+      "tr_peace": 2
+     }
+    },
+    {
+     "t": "Make the call so we can move on",
+     "v": {
+      "tr_leader": 2
+     }
+    },
+    {
+     "t": "Crack a joke to break the tension",
+     "v": {
+      "tr_hype": 2
+     }
+    },
+    {
+     "t": "Point out which idea actually works",
+     "v": {
+      "tr_critic": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "tm3",
+   "sys": "team",
+   "text": "The project is due tomorrow and half done. You…",
+   "options": [
+    {
+     "t": "Hype everyone up for one last push",
+     "v": {
+      "tr_hype": 2
+     }
+    },
+    {
+     "t": "Split what’s left and track it",
+     "v": {
+      "tr_organizer": 2
+     }
+    },
+    {
+     "t": "Check everything for mistakes",
+     "v": {
+      "tr_critic": 2
+     }
+    },
+    {
+     "t": "Quietly pick up whatever’s left",
+     "v": {
+      "tr_support": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "tm4",
+   "sys": "team",
+   "text": "The part of a project you enjoy most is…",
+   "options": [
+    {
+     "t": "Researching and digging into it",
+     "v": {
+      "tr_research": 2
+     }
+    },
+    {
+     "t": "Coming up with the concept",
+     "v": {
+      "tr_ideas": 2
+     }
+    },
+    {
+     "t": "Presenting it",
+     "v": {
+      "tr_leader": 1,
+      "tr_hype": 1
+     }
+    },
+    {
+     "t": "Making it look and run clean",
+     "v": {
+      "tr_organizer": 1,
+      "tr_critic": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "tm5",
+   "sys": "team",
+   "text": "Friends would say that in a group you’re the…",
+   "options": [
+    {
+     "t": "Boss",
+     "v": {
+      "tr_leader": 2
+     }
+    },
+    {
+     "t": "Fact-checker",
+     "v": {
+      "tr_research": 1,
+      "tr_critic": 1
+     }
+    },
+    {
+     "t": "Mom/dad friend",
+     "v": {
+      "tr_support": 2
+     }
+    },
+    {
+     "t": "Energy",
+     "v": {
+      "tr_hype": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "tm6",
+   "sys": "team",
+   "text": "Someone pitches a plan with a big flaw. You…",
+   "options": [
+    {
+     "t": "Say it straight, better now than later",
+     "v": {
+      "tr_critic": 2
+     }
+    },
+    {
+     "t": "Suggest a better version",
+     "v": {
+      "tr_ideas": 2
+     }
+    },
+    {
+     "t": "Look up whether it would actually work",
+     "v": {
+      "tr_research": 2
+     }
+    },
+    {
+     "t": "Bring it up gently so nobody feels bad",
+     "v": {
+      "tr_peace": 2
+     }
+    }
+   ]
+  }
+ ]
+}
