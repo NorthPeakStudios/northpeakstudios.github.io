@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.17.0 */
+/* Axon · Northpeak Studios · v1.18.0 */
 (function () {
   'use strict';
-  var VERSION = '1.17.0';
+  var VERSION = '1.18.0';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -971,6 +971,7 @@
     document.body.classList.add('editing');
     setFab(false);
     viewEl.innerHTML = '<div class="page"><div class="nav stick"><button class="back" data-act="donebtn">' + I.back + '<span>' + esc(n.folder ? folderName(n.folder) : 'Notes') + '</span></button><div class="acts">' +
+      '<button class="ib" aria-label="Commands" data-act="qs">' + I.cmd + '</button>' +
       '<button class="ib" aria-label="Find and replace" data-act="findrep">' + I.search + '</button>' +
       '<button class="ib" aria-label="Outline" data-act="outline">' + I.outline + '</button>' +
       '<button class="ib on" aria-label="Preview" data-act="donebtn">' + I.eye + '</button></div></div>' +
@@ -3155,16 +3156,21 @@
     var box = document.createElement('div'); box.className = 'qs'; box.setAttribute('role', 'dialog');
     box.innerHTML = '<label class="qsin">' + I.search + '<input id="qsq" type="text" placeholder="Jump to a note, or type a command" autocomplete="off" autocapitalize="none" spellcheck="false" enterkeyhint="go"><button class="qsx" aria-label="Close">Cancel</button></label><div class="qsl" id="qsl"></div>';
     layer.appendChild(scrim); layer.appendChild(box);
-    var inp = $('#qsq', box), list = $('#qsl', box), items = [], sel = 0;
+    var inp = $('#qsq', box), list = $('#qsl', box), items = [], sel = 0, inFold = null;
     function close() { if (!qsOpen) return; qsOpen = false; inp.blur(); scrim.classList.remove('show'); box.classList.remove('show'); setTimeout(function () { scrim.remove(); box.remove(); }, 200); }
     function draw() {
+      if (inFold) return drawFold();
       var q = inp.value.trim(), nq = norm(q.replace(/^>\s*/, '')), cmdOnly = /^>/.test(q);
       var ns = cmdOnly ? [] : Array.from(notes.values()).map(function (n) {
         var t = norm(n.title), sc = !nq ? 1 : t === nq ? 100 : t.indexOf(nq) === 0 ? 60 : t.indexOf(nq) >= 0 ? 30 : fuzzy(nq, t) ? 8 : 0;
         return { n: n, sc: sc ? sc + (n.pinned ? 3 : 0) + n.updated / 1e14 : 0 };
       }).filter(function (x) { return x.sc > 0; }).sort(function (a, b) { return b.sc - a.sc; }).slice(0, nq ? 8 : 6);
-      var cs = COMMANDS.filter(function (c) { return !nq || norm(c[0]).indexOf(nq) >= 0 || c[1].indexOf(nq) >= 0 || fuzzy(nq, norm(c[0])); }).slice(0, nq ? 6 : 5);
-      items = ns.map(function (x) { return { t: 'n', n: x.n }; });
+      var cs = COMMANDS.filter(function (c) { return !nq || norm(c[0]).indexOf(nq) >= 0 || c[1].indexOf(nq) >= 0 || fuzzy(nq, norm(c[0])); });
+      cs.sort(function (a, b) { var sa = norm(a[0]).indexOf(nq) === 0 ? 0 : norm(a[0]).indexOf(nq) > 0 ? 1 : 2, sb = norm(b[0]).indexOf(nq) === 0 ? 0 : norm(b[0]).indexOf(nq) > 0 ? 1 : 2; return sa - sb; });
+      cs = cs.slice(0, nq ? 8 : 5);
+      var fs = CF.l.filter(function (f) { return !nq || norm(f.name).indexOf(nq) >= 0 || fuzzy(nq, norm(f.name)); }).slice(0, nq ? 4 : 3);
+      items = fs.map(function (f) { return { t: 'fold', f: f }; });
+      items = items.concat(ns.map(function (x) { return { t: 'n', n: x.n }; }));
       if (q && !cmdOnly && !byTitle(q) && !checkTitle(q)) items.push({ t: 'create', q: q });
       if (q && !cmdOnly) items.push({ t: 'search', q: q });
       items = items.concat(cs.map(function (c) { return { t: 'c', c: c }; }));
@@ -3172,21 +3178,39 @@
       sel = 0;
       var h = '', lastT = '';
       items.forEach(function (it, i) {
-        var grp = it.t === 'n' ? (nq ? 'Notes' : 'Recent') : it.t === 'c' ? 'Commands' : it.t === 'tmpl' ? 'Templates' : 'Notes';
+        var grp = it.t === 'n' ? (nq ? 'Notes' : 'Recent') : it.t === 'c' ? 'Commands' : it.t === 'tmpl' ? 'Templates' : it.t === 'fold' ? 'Command folders' : 'Notes';
         if (grp !== lastT) { h += '<div class="qsh">' + grp + '</div>'; lastT = grp; }
         if (it.t === 'n') h += '<button data-i="' + i + '">' + (it.n.pinned ? I.pin : I.doc) + '<span class="qt">' + esc(it.n.title) + '</span><small>' + esc(it.n.folder ? it.n.folder.toLowerCase() : '') + '</small></button>';
         else if (it.t === 'create') h += '<button data-i="' + i + '">' + I.plus + '<span class="qt">New note \u201c' + esc(it.q) + '\u201d</span></button>';
         else if (it.t === 'search') h += '<button data-i="' + i + '">' + I.search + '<span class="qt">Search text for \u201c' + esc(it.q) + '\u201d</span></button>';
         else if (it.t === 'tmpl') h += '<button data-i="' + i + '">' + I.tmpl + '<span class="qt">New \u201c' + esc(it.tp.name) + '\u201d note</span><small>' + (isPro() ? 'template' : 'Pro') + '</small></button>';
-        else h += '<button data-i="' + i + '">' + I.cmd + '<span class="qt">' + esc(it.c[0]) + '</span>' + (it.c[3] && !isPro() ? '<small>Pro</small>' : '') + '</button>';
+        else if (it.t === 'fold') h += '<button data-i="' + i + '">' + I.folder + '<span class="qt">' + esc(it.f.name) + '</span><small>' + it.f.items.length + ' inside</small></button>';
+        else h += '<button data-i="' + i + '">' + I.cmd + '<span class="qt">' + esc(it.c[0]) + (cmdDesc(it.c) ? '<em class="qd">' + esc(cmdDesc(it.c)) + '</em>' : '') + '</span>' + (it.c[3] && !isPro() ? '<small>Pro</small>' : '') + '</button>';
       });
       list.innerHTML = h || '<div class="qsh">Nothing matches</div>';
       hl1();
     }
+    function drawFold() {
+      var f = inFold, nq = norm(inp.value);
+      items = [{ t: 'up' }].concat(f.items.filter(function (it) { return !nq || norm(it[1]).indexOf(nq) >= 0; }).map(function (it) { return { t: 'fi', it: it }; })).concat([{ t: 'fedit', f: f }]);
+      sel = items.length > 2 ? 1 : 0;
+      var h = '<div class="qsh">' + esc(f.name) + ' · ' + f.items.length + '</div>';
+      items.forEach(function (x, i) {
+        if (x.t === 'up') h += '<button data-i="' + i + '">' + I.back + '<span class="qt">All results</span></button>';
+        else if (x.t === 'fedit') h += '<button data-i="' + i + '">' + I.edit + '<span class="qt">Edit this folder</span></button>';
+        else { var c = x.it[0] === 'c' ? cmdFind(x.it[1]) : null; h += '<button data-i="' + i + '">' + (x.it[0] === 'c' ? I.cmd : I.tmpl) + '<span class="qt">' + esc(x.it[1]) + '<em class="qd">' + esc(c ? cmdDesc(c) : x.it[0] === 't' ? 'Template' : 'Not available') + '</em></span>' + ((c && c[3] || x.it[0] === 't') && !isPro() ? '<small>Pro</small>' : '') + '</button>'; }
+      });
+      if (!f.items.length) h += '<div class="qsh" style="text-transform:none;letter-spacing:0">Empty. Tap Edit this folder to add commands or templates.</div>';
+      list.innerHTML = h; hl1();
+    }
     function hl1() { list.querySelectorAll('button').forEach(function (b) { b.classList.toggle('sel', +b.dataset.i === sel); }); }
     function pick(i) {
       var it = items[i]; if (!it) return;
+      if (it.t === 'fold') { inFold = it.f; inp.value = ''; inp.placeholder = 'Search in ' + it.f.name; draw(); inp.focus(); return; }
+      if (it.t === 'up') { inFold = null; inp.value = ''; inp.placeholder = 'Jump to a note, or type a command'; draw(); inp.focus(); return; }
       close();
+      if (it.t === 'fi') { cfRun(it.it); return; }
+      if (it.t === 'fedit') { go('#/x/cmdf/' + it.f.id); return; }
       if (it.t === 'n') go('#/n/' + it.n.id);
       else if (it.t === 'create') { var n = createNote({ title: it.q.trim().replace(/\s+/g, ' '), folder: '', body: '' }); go('#/n/' + n.id); startEditing(n, false); }
       else if (it.t === 'search') go('#/search/' + encodeURIComponent(it.q));
@@ -3198,7 +3222,8 @@
       if (e.key === 'ArrowDown') { e.preventDefault(); sel = Math.min(items.length - 1, sel + 1); hl1(); }
       else if (e.key === 'ArrowUp') { e.preventDefault(); sel = Math.max(0, sel - 1); hl1(); }
       else if (e.key === 'Enter') { e.preventDefault(); pick(sel); }
-      else if (e.key === 'Escape') close();
+      else if (e.key === 'Escape') { if (inFold) { e.preventDefault(); pick(0); } else close(); }
+      else if (e.key === 'Backspace' && inFold && !inp.value) { e.preventDefault(); pick(0); }
     });
     list.addEventListener('pointerdown', function (e) { if (e.target.closest('button')) e.preventDefault(); });
     list.addEventListener('click', function (e) { var b = e.target.closest('button[data-i]'); if (b) pick(+b.dataset.i); });
@@ -3388,6 +3413,7 @@
     out.push(['f:all', folderPayload()]);
     rc.forEach(function (s) { out.push([rcRec(s.id), rcPayload(s)]); });
     if (rcMeta.log && Object.keys(rcMeta.log).length) out.push(['m:recall', rcMetaPayload()]);
+    if (CF.u) out.push(['c:folders', JSON.stringify({ k: 'c', u: CF.u, l: CF.l })]);
     return out;
   }
   function syImages() {
@@ -3477,6 +3503,10 @@
     }
     if (del) { sy.map[rid] = { s: s, h: 'del' }; return; }
     var q = JSON.parse(text), qh = AXS.hash(text);
+    if (kind === 'c') {
+      if (q && Array.isArray(q.l) && (+q.u || 0) > (CF.u || 0)) { CF = { l: q.l.filter(function (f) { return f && f.id && typeof f.name === 'string' && Array.isArray(f.items); }), u: +q.u }; DB.put('meta', { k: 'cmdfolders', v: CF }).catch(function () {}); stats.upd++; }
+      sy.map[rid] = { s: s, h: qh }; return;
+    }
     if (kind === 'f') {
       sy.fg = sy.fg || {};
       Object.keys(q.g || {}).forEach(function (p) { sy.fg[p] = Math.max(sy.fg[p] || 0, +q.g[p] || 0); });
@@ -4690,6 +4720,7 @@
       else { PRO.grand = !!(ns.length || fs.length || m.settings || m.ui || m.sync || m.seeded || m.starterRemoved); PRO.since = Date.now(); savePro(); }
       try { await syLoad(m); } catch (e) {}
       rebuildIdx();
+      try { cgBoot(m, !ns.length && !fs.length); } catch (e) {}
       if (m.seeded && !m.starterRemoved) { removeOldStarter(); }
       if (!m.starterRemoved) DB.put('meta', { k: 'starterRemoved', v: Date.now() });
     } catch (err) {
@@ -5681,6 +5712,284 @@
 
   /* v1.17: these tools are commands only (search box / pull down / Cmd-K), no Labs screen or chip. Pro ones open the Pro sheet for free users. */
   L8T.forEach(function (t) { COMMANDS.push([t[1], 'tool ' + t[2].toLowerCase().slice(0, 80), function () { if (!t[3] || proOk(t[1])) go('#/x/' + t[0]); }, t[3] ? 1 : 0]); });
+
+
+
+
+  /* ================= v1.18: command folders, 50+ new commands, command guide ================= */
+  /* COMMANDS rows: [name, keywords, run, proFlag, description, category] */
+  var CMD_CATS = ['Folders', 'Help', 'Notes', 'Writing', 'Text tools', 'Lists & tasks', 'Insert', 'Find & info', 'Organize', 'Study', 'View', 'Export & share', 'Go to'];
+  var CMD_INFO = {
+    'New note': ['Notes', 'Start a blank note.'], 'New note from template': ['Notes', 'Start a note from a template.'], 'Today\u2019s note': ['Notes', 'Open (or make) today\u2019s daily note.'],
+    'Calendar': ['Go to', 'Daily notes on a month calendar.'], 'Jot to today\u2019s note': ['Writing', 'Add one quick line to today\u2019s note.'], 'Start Recall review': ['Study', 'Review the flashcards that are due.'],
+    'Open Recall': ['Study', 'Your flashcard decks and stats.'], 'Quiz': ['Study', 'An autograded quiz from your notes.'], 'Discover': ['Go to', 'A learning feed based on your notes.'], 'Graph': ['Go to', 'See how your notes link together.'],
+    'Random note': ['Go to', 'Open a random note.'], 'Auto-link all mentions': ['Organize', 'Turn plain mentions of note titles into links.'], 'Search text': ['Find & info', 'Search inside every note.'], 'All notes': ['Go to', 'Every note in one list.'],
+    'New folder': ['Organize', 'Make a note folder.'], 'Trash': ['Go to', 'Deleted notes, restore them here.'], 'Formatting guide': ['Help', 'How to write headings, lists, links and more.'], 'Settings': ['Go to', 'Preferences, sync and Pro.'],
+    'Find in this note': ['Find & info', 'Find (and replace) text in this note.'], 'Note history': ['Notes', 'Earlier versions of this note.'], 'Share this note': ['Export & share', 'Send this note with the share sheet.'], 'Tasks': ['Lists & tasks', 'Every open checkbox across your notes.'],
+    'Vault stats': ['Find & info', 'Counts for your whole vault.'], 'Export vault (.zip)': ['Export & share', 'Back up every note as Markdown in a zip.'], 'Export flashcards (CSV for Synapse)': ['Export & share', 'Your cards as a CSV for Synapse or Anki.'],
+    'Focus mode': ['View', 'Hide everything but the text.'], 'Study timer': ['Study', 'A focus timer with breaks.'], 'Typewriter scrolling': ['View', 'Keep the line you type in the middle.'], 'Word goal for this note': ['Writing', 'Set a word target with a progress bar.'],
+    'Capture to Inbox': ['Writing', 'Save a quick idea to your Inbox note.'], 'Recently viewed': ['Go to', 'Notes you opened lately.'], 'Tag manager': ['Organize', 'Rename, merge or remove tags.'], 'Color labels': ['Organize', 'Notes by colour label.'],
+    'Orphan notes': ['Organize', 'Notes nothing links to.'], 'Broken links': ['Organize', 'Links to notes that don\u2019t exist yet.'], 'Archive': ['Go to', 'Notes you archived.'], 'Select notes': ['Organize', 'Pick many notes to move or delete.'],
+    'Archive this note': ['Notes', 'Move this note to the Archive.'], 'Reminders': ['Lists & tasks', 'Notes and tasks with due dates.'], 'Writing heatmap': ['Find & info', 'A calendar of the days you wrote.'], 'Glossary': ['Study', 'Every term :: definition in one A\u2013Z list.'],
+    'Self-test this note': ['Study', 'Blur this note and reveal it bit by bit.'], 'Read this note aloud': ['Study', 'Listen to this note.'], 'Print / save as PDF': ['Export & share', 'Print this note or save it as a PDF.'], 'Download this note (.md)': ['Export & share', 'Save this note as a Markdown file.'],
+    'Export this note as a web page': ['Export & share', 'Save this note as an HTML page.'], 'On this day': ['Go to', 'What you wrote on this date before.'], 'Theme': ['View', 'Change the colour theme.'], 'Explain it back': ['Study', 'Explain a note from memory, then compare.'],
+    'Hidden links': ['Organize', 'Notes that talk about the same thing but aren\u2019t linked.'], 'Fog of war': ['Study', 'Graph that fades notes you haven\u2019t touched.']
+  };
+  L8T.forEach(function (t) { CMD_INFO[t[1]] = [/Open questions|Echo/.test(t[1]) ? 'Writing' : 'Study', t[2]]; });
+  function cmdFind(name) { for (var i = 0; i < COMMANDS.length; i++) if (COMMANDS[i][0] === name) return COMMANDS[i]; return null; }
+  function cmdDesc(c) { return c[4] || (CMD_INFO[c[0]] || [])[1] || ''; }
+  function cmdCat(c) { return c[5] || (CMD_INFO[c[0]] || [])[0] || 'Notes'; }
+  function XC(name, cat, desc, kw, fn, pro) {
+    COMMANDS.push([name, (kw + ' ' + desc).toLowerCase(), pro ? function (a) { if (proOk(name)) fn(a); } : fn, pro ? 1 : 0, desc, cat]);
+  }
+
+  /* --- text helpers: work on the selection while editing, else the whole note (front matter kept) --- */
+  function cmNeed() { var n = xCurNote(); if (!n) toast('Open a note first'); return n; }
+  function cmNeedSaved() { if (editing) stopEditing(true); return cmNeed(); }
+  function cmB(n) { var ed = editing ? $('#ed') : null; return ed ? ed.value : n.body; }
+  function cmSplitFront(b) { var m = /^---\n[\s\S]*?\n---(\n|$)/.exec(b); return m ? [m[0], b.slice(m[0].length)] : ['', b]; }
+  function cmSave(n, nb, msg) {
+    if (nb === n.body) { toast('Nothing to change'); return false; }
+    snapshot(n, n.body, true); n.body = nb; touch(n); try { rebuildIdx(); } catch (e) {} render(); if (msg) toast(msg); return true;
+  }
+  function cmXform(fn, msg) {
+    var n = cmNeed(); if (!n) return;
+    var ed = editing ? $('#ed') : null;
+    if (ed) {
+      var s = ed.selectionStart, e = ed.selectionEnd;
+      if (s === e) { var fb = cmSplitFront(ed.value); s = fb[0].length; e = ed.value.length; }
+      var src = ed.value.slice(s, e), out = fn(src);
+      if (out === src) { toast('Nothing to change'); return; }
+      insertText(ed, out, s, e); try { ed.setSelectionRange(s, s + out.length); } catch (x) {}
+      if (msg) toast(msg); return;
+    }
+    var p = cmSplitFront(n.body.replace(/\r\n?/g, '\n'));
+    cmSave(n, p[0] + fn(p[1]), msg);
+  }
+  function cmSortL(dir) { return cmLines(function (ls) { var full = ls.filter(function (l) { return l.trim(); }), empty = ls.length - full.length; full.sort(function (a, b) { return dir * a.replace(CM_BOX, '').replace(/^\s*[-*+]\s+/, '').trim().localeCompare(b.replace(CM_BOX, '').replace(/^\s*[-*+]\s+/, '').trim(), undefined, { numeric: true, sensitivity: 'base' }); }); while (empty-- > 0) full.push(''); return full; }); }
+  function cmLines(fn) { return function (t) { var trail = /\n$/.test(t), ls = t.replace(/\n$/, '').split('\n'); return fn(ls).join('\n') + (trail ? '\n' : ''); }; }
+  function cmInsert(text, block) {
+    var n = cmNeed(); if (!n) return;
+    var ed = editing ? $('#ed') : null;
+    if (ed) {
+      var c = ed.selectionStart, v = ed.value, pre = '';
+      if (block && c > 0 && v[c - 1] !== '\n') pre = '\n';
+      else if (!block && c > 0 && /\S/.test(v[c - 1])) pre = ' ';
+      insertText(ed, pre + text + (block && v[c] && v[c] !== '\n' ? '\n' : ''), c, ed.selectionEnd); return;
+    }
+    var b = n.body.replace(/\s+$/, '');
+    cmSave(n, (b ? b + (block ? '\n\n' : ' ') : '') + text + (block ? '\n' : ''), 'Added to the end of the note');
+  }
+  function cmWrap(a, b2) {
+    var ed = editing ? $('#ed') : null;
+    if (!ed) { toast('Start editing and select some text first'); return; }
+    var s = ed.selectionStart, e = ed.selectionEnd; if (s === e) { toast('Select some text first'); return; }
+    insertText(ed, a + ed.value.slice(s, e) + b2, s, e);
+  }
+  var CM_BOX = /^(\s*)(?:[-*+]\s+)?\[([ xX])\]\s?/, CM_TASK = /^(\s*[-*+]\s+)\[([ xX])\](\s|$)/;
+  function cmTitle(s) { var small = /^(a|an|and|as|at|but|by|for|in|of|on|or|the|to|vs|via)$/i; return s.toLowerCase().replace(/[A-Za-z\u00c0-\u024f][^\s-]*/g, function (w, i) { return s.charAt(i - 1) === '[' && w.length < 3 ? w : i > 0 && small.test(w) && !/[.:!?]\s*$/.test(s.slice(0, i)) ? w : w.charAt(0).toUpperCase() + w.slice(1); }); }
+  function cmPad(x) { return String(x).padStart(2, '0'); }
+  function cmTime(d) { return cmPad(d.getHours()) + ':' + cmPad(d.getMinutes()); }
+  function cmBodyText(n) { return l8Plain(n.body); }
+  function cmShowList(title, msg, rows) {
+    return sheet({ title: title, message: msg, actions: rows.length ? rows.slice(0, 12) : [{ label: 'Nothing here yet', value: null }] });
+  }
+  function cmInfoDialog(title, lines) { return dialog({ title: title, html: '<div class="cm-info">' + lines.map(function (l) { return '<div><span>' + esc(l[0]) + '</span><b>' + esc(String(l[1])) + '</b></div>'; }).join('') + '</div>', ok: 'Done', noCancel: true }); }
+
+  /* --- Writing (selection) --- */
+  XC('Bold selection', 'Writing', 'Make the selected text bold.', 'strong', function () { cmWrap('**', '**'); });
+  XC('Italic selection', 'Writing', 'Make the selected text italic.', 'emphasis', function () { cmWrap('*', '*'); });
+  XC('Strikethrough selection', 'Writing', 'Cross out the selected text.', 'strike delete', function () { cmWrap('~~', '~~'); });
+  XC('Highlight selection', 'Writing', 'Highlight the selected text.', 'mark yellow', function () { cmWrap('==', '=='); });
+  XC('Inline code selection', 'Writing', 'Show the selected text as code.', 'monospace backtick', function () { cmWrap('`', '`'); });
+  XC('Link selection to a note', 'Writing', 'Turn the selected words into a [[link]] to a note with that name.', 'wikilink connect', function () { cmWrap('[[', ']]'); });
+  XC('Make cloze card from selection', 'Study', 'Hide the selected words as a fill-in-the-blank Recall card.', 'cloze blank flashcard', function () { cmWrap('{{c::', '}}'); });
+
+  /* --- Text tools --- */
+  XC('UPPERCASE', 'Text tools', 'Make the text all capitals.', 'upper caps case', function () { cmXform(function (t) { return t.toUpperCase(); }); });
+  XC('lowercase', 'Text tools', 'Make the text all small letters.', 'lower case', function () { cmXform(function (t) { return t.toLowerCase(); }); });
+  XC('Title Case', 'Text tools', 'Capitalize Each Main Word.', 'title case headline', function () { cmXform(cmLines(function (ls) { return ls.map(cmTitle); })); });
+  XC('Sentence case', 'Text tools', 'Lowercase everything, then capitalize the start of each sentence.', 'sentence case', function () { cmXform(function (t) { return t.toLowerCase().replace(/(^\s*[#>*\-+\d.)\s]*|[.!?]\s+)([a-z\u00e0-\u024f])/gm, function (m, a, b) { return a + b.toUpperCase(); }); }); });
+  XC('Sort lines A\u2192Z', 'Text tools', 'Sort lines alphabetically.', 'sort alphabetical order', function () { cmXform(cmSortL(1)); });
+  XC('Sort lines Z\u2192A', 'Text tools', 'Sort lines in reverse alphabetical order.', 'sort reverse descending', function () { cmXform(cmSortL(-1)); });
+  XC('Sort lines by length', 'Text tools', 'Shortest lines first.', 'sort length short long', function () { cmXform(cmLines(function (ls) { return ls.slice().sort(function (a, b) { return a.length - b.length; }); })); });
+  XC('Reverse line order', 'Text tools', 'Flip the lines upside down.', 'reverse flip invert', function () { cmXform(cmLines(function (ls) { return ls.slice().reverse(); })); });
+  XC('Shuffle lines', 'Text tools', 'Put the lines in random order (good for practice lists).', 'random shuffle mix', function () { cmXform(cmLines(function (ls) { var a = ls.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t; } return a; })); });
+  XC('Remove duplicate lines', 'Text tools', 'Keep the first copy of each repeated line.', 'dedupe unique duplicates', function () { cmXform(cmLines(function (ls) { var seen = {}; return ls.filter(function (l) { var k = l.trim().toLowerCase(); if (!k) return true; if (seen[k]) return false; seen[k] = 1; return true; }); })); });
+  XC('Remove blank lines', 'Text tools', 'Delete empty lines.', 'empty blank compact', function () { cmXform(cmLines(function (ls) { return ls.filter(function (l) { return l.trim(); }); })); });
+  XC('Clean up spaces', 'Text tools', 'Remove double spaces and spaces at line ends.', 'trim whitespace spaces tidy', function () { cmXform(function (t) { return t.replace(/([^\s])[ \t]{2,}/g, '$1 ').replace(/[ \t]+$/gm, '').replace(/\n{3,}/g, '\n\n'); }); });
+  XC('Join lines', 'Text tools', 'Merge the lines into one paragraph.', 'join merge combine unwrap', function () { cmXform(function (t) { return t.split('\n').map(function (l) { return l.trim(); }).filter(Boolean).join(' '); }); });
+  XC('One sentence per line', 'Text tools', 'Split paragraphs so each sentence gets its own line.', 'split sentences break', function () { cmXform(function (t) { return t.replace(/([.!?])[ \t]+(?=[A-Z\u00c0-\u024f0-9"\u201c(])/g, '$1\n'); }); });
+  XC('Straighten quotes', 'Text tools', 'Turn curly quotes into straight ones.', 'quotes apostrophe smart', function () { cmXform(function (t) { return t.replace(/[\u2018\u2019]/g, "'").replace(/[\u201c\u201d]/g, '"'); }); });
+  XC('Strip formatting', 'Text tools', 'Remove bold, italics, highlights, code marks and link brackets.', 'plain clear formatting markdown', function () { cmXform(function (t) { return t.replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, '$2').replace(/\[\[([^\]]+)\]\]/g, '$1').replace(/\[([^\]]+)\]\((?:[^)]+)\)/g, '$1').replace(/(\*\*|__|==|~~)(.+?)\1/g, '$2').replace(/(^|[^*\w])\*(?!\s)([^*\n]+?)\*(?!\w)/g, '$1$2').replace(/`([^`\n]+)`/g, '$1'); }); });
+  XC('Indent lines', 'Text tools', 'Push lines in one level.', 'indent tab nest', function () { cmXform(cmLines(function (ls) { return ls.map(function (l) { return l.trim() ? '  ' + l : l; }); })); });
+  XC('Outdent lines', 'Text tools', 'Pull lines out one level.', 'outdent unindent dedent', function () { cmXform(cmLines(function (ls) { return ls.map(function (l) { return l.replace(/^( {1,2}|\t)/, ''); }); })); });
+  XC('Quote lines', 'Text tools', 'Turn lines into a block quote.', 'quote blockquote', function () { cmXform(cmLines(function (ls) { return ls.map(function (l) { return '> ' + l; }); })); });
+  XC('Wrap in code block', 'Text tools', 'Put the text in a code block.', 'code fence pre', function () { cmXform(function (t) { return '```\n' + t.replace(/\n$/, '') + '\n```\n'; }); });
+
+  /* --- Lists & tasks --- */
+  function cmMark(l) { return l.replace(/^(\s*)(?:[-*+]\s+\[[ xX]\]\s?|[-*+]\s+|\d+[.)]\s+)/, '$1'); }
+  XC('Number lines', 'Lists & tasks', 'Turn lines into a numbered list.', 'numbered ordered list 1 2 3', function () { cmXform(cmLines(function (ls) { var k = 0; return ls.map(function (l) { return l.trim() ? (++k) + '. ' + cmMark(l).trim() : l; }); })); });
+  XC('Bullet lines', 'Lists & tasks', 'Turn lines into a bullet list.', 'bulletize bullets list dash', function () { cmXform(cmLines(function (ls) { return ls.map(function (l) { return l.trim() ? '- ' + cmMark(l).trim() : l; }); })); });
+  XC('Turn lines into checkboxes', 'Lists & tasks', 'Make each line a to-do.', 'checkbox todo task checklist', function () { cmXform(cmLines(function (ls) { return ls.map(function (l) { return l.trim() ? '- [ ] ' + cmMark(l).trim() : l; }); })); });
+  XC('Remove list markers', 'Lists & tasks', 'Strip bullets, numbers and checkboxes.', 'unlist plain bullets', function () { cmXform(cmLines(function (ls) { return ls.map(cmMark); })); });
+  XC('Check all boxes', 'Lists & tasks', 'Tick every checkbox in the note.', 'check complete done all', function () { cmXform(cmLines(function (ls) { return ls.map(function (l) { return l.replace(CM_TASK, '$1[x]$3'); }); }), 'All checked'); });
+  XC('Uncheck all boxes', 'Lists & tasks', 'Clear every checkbox (reuse a checklist).', 'uncheck reset clear', function () { cmXform(cmLines(function (ls) { return ls.map(function (l) { return l.replace(CM_TASK, '$1[ ]$3'); }); }), 'All unchecked'); });
+  XC('Flip checkboxes', 'Lists & tasks', 'Checked become unchecked and the other way round.', 'toggle invert checkbox', function () { cmXform(cmLines(function (ls) { return ls.map(function (l) { return l.replace(CM_TASK, function (m, a, x, c) { return a + (x === ' ' ? '[x]' : '[ ]') + c; }); }); })); });
+  XC('Move checked to bottom', 'Lists & tasks', 'Finished to-dos sink below the open ones in each list.', 'sort done bottom', function () { cmXform(cmLines(function (ls) { var out = [], run = []; function flush() { out.push.apply(out, run.filter(function (l) { return !/\[[xX]\]/.test(l.match(CM_TASK) ? l.match(CM_TASK)[0] : ''); }).concat(run.filter(function (l) { var m = l.match(CM_TASK); return m && /[xX]/.test(m[2]); }))); run = []; } ls.forEach(function (l) { if (CM_TASK.test(l)) run.push(l); else { flush(); out.push(l); } }); flush(); return out; })); });
+  XC('Delete checked items', 'Lists & tasks', 'Remove every finished to-do from the note.', 'clear done remove completed', function () { cmXform(cmLines(function (ls) { return ls.filter(function (l) { var m = l.match(CM_TASK); return !(m && /[xX]/.test(m[2])); }); }), 'Done items removed'); }, 1);
+  XC('Task progress', 'Lists & tasks', 'How many to-dos in this note are done.', 'count tasks percent', function () { var n = cmNeed(); if (!n) return; var t = 0, d = 0; cmB(n).split('\n').forEach(function (l) { var m = l.match(CM_TASK); if (m) { t++; if (/[xX]/.test(m[2])) d++; } }); toast(t ? d + ' of ' + t + ' done (' + Math.round(100 * d / t) + '%)' : 'No checkboxes in this note'); });
+
+  /* --- Insert --- */
+  XC('Insert date', 'Insert', 'Today\u2019s date, like 2026-10-26.', 'today date ymd', function () { cmInsert(ymd(new Date())); });
+  XC('Insert time', 'Insert', 'The time right now, like 16:45.', 'clock now time', function () { cmInsert(cmTime(new Date())); });
+  XC('Insert date and time', 'Insert', 'Date and time together.', 'datetime stamp now', function () { var d = new Date(); cmInsert(ymd(d) + ' ' + cmTime(d)); });
+  XC('Insert long date', 'Insert', 'Written-out date, like Monday, October 26, 2026.', 'weekday written date', function () { cmInsert(new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })); });
+  XC('Insert timestamp line', 'Insert', 'A new line starting with the time, for logs and lecture notes.', 'log timestamp line', function () { cmInsert('**' + cmTime(new Date()) + '** \u2014 ', true); });
+  XC('Insert divider', 'Insert', 'A horizontal line.', 'hr rule separator line', function () { cmInsert('---', true); });
+  XC('Insert table', 'Insert', 'A 3-column table to fill in.', 'table grid columns', function () { cmInsert('| Column | Column | Column |\n|---|---|---|\n|  |  |  |\n|  |  |  |', true); });
+  XC('Insert checklist', 'Insert', 'Three empty to-dos.', 'todo checkbox list', function () { cmInsert('- [ ] \n- [ ] \n- [ ] ', true); });
+  XC('Insert callout', 'Insert', 'A coloured tip box.', 'callout tip note box admonition', function () { cmInsert('> [!tip] Tip\n> ', true); });
+  XC('Insert this week', 'Insert', 'Monday to Sunday of this week as headings.', 'week days planner', function () { var d = new Date(), k = (d.getDay() + 6) % 7; d.setDate(d.getDate() - k); var out = []; for (var i = 0; i < 7; i++) { out.push('### ' + d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }) + '\n- '); d.setDate(d.getDate() + 1); } cmInsert(out.join('\n\n'), true); });
+  XC('Insert placeholder text', 'Insert', 'A paragraph of lorem ipsum.', 'lorem ipsum dummy filler', function () { cmInsert('Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.', true); });
+  XC('Insert link to a note', 'Insert', 'Type a note\u2019s name to add a [[link]] to it.', 'wikilink link connect', async function () { if (!cmNeed()) return; var v = await dialog({ title: 'Link to which note?', input: true, placeholder: 'Note title', ok: 'Insert', validate: function (x) { return x ? null : 'Type a name.'; } }); if (!v) return; var t = byTitle(v); cmInsert('[[' + (t ? t.title : v) + ']]'); if (!t) toast('No note called that yet. Tap the link to create it'); });
+  XC('Table of contents', 'Insert', 'A list of this note\u2019s headings at the cursor (or the top).', 'toc contents outline headings', function () { var n = cmNeed(); if (!n) return; var hs = []; cmB(n).split('\n').forEach(function (l) { var m = /^(#{1,4})\s+(.+)/.exec(l); if (m) hs.push('  '.repeat(m[1].length - 1) + '- ' + m[2].replace(/[*_`=]/g, '')); }); if (!hs.length) { toast('No headings in this note yet'); return; } var toc = '**Contents**\n' + hs.join('\n'); if (editing) cmInsert(toc, true); else { var p = cmSplitFront(n.body); cmSave(n, p[0] + toc + '\n\n' + p[1], 'Contents added at the top'); } }, 1);
+
+  /* --- Notes --- */
+  XC('Duplicate note', 'Notes', 'Make a copy of this note.', 'copy clone duplicate', function () { var n = cmNeedSaved(); if (!n) return; var c = createNote({ title: uniqueTitle(n.title + ' copy'), folder: n.folder, body: n.body }); go('#/n/' + c.id); toast('Copied as \u201c' + c.title + '\u201d'); });
+  XC('Pin or unpin note', 'Notes', 'Keep this note at the top of lists.', 'pin unpin favorite star top', function () { var n = cmNeed(); if (!n) return; togglePin(n); render(); });
+  XC('Extract selection to new note', 'Notes', 'Move the selected text into its own note and leave a link behind.', 'split refactor new note from selection', async function () { var ed = editing ? $('#ed') : null; if (!ed || ed.selectionStart === ed.selectionEnd) { toast('Edit a note and select some text first'); return; } var s = ed.selectionStart, e = ed.selectionEnd, txt = ed.value.slice(s, e), first = (txt.trim().split('\n')[0] || '').replace(/^[#>\-*+\s\d.)\[\]xX]+/, '').slice(0, 60).trim(); var t = await dialog({ title: 'Name the new note', input: true, value: first, ok: 'Create', validate: function (v) { return checkTitle(v); } }); if (!t) return; createNote({ title: t, folder: editing.n.folder, body: txt.trim() + '\n' }); insertText(ed, '[[' + t + ']]', s, e); toast('Moved to \u201c' + t + '\u201d'); }, 1);
+  XC('Open last edited note', 'Go to', 'Jump to the note you changed most recently.', 'recent last latest edited', function () { var b = null; notes.forEach(function (n) { if (!inTemplates(n) && (!b || n.updated > b.updated)) b = n; }); if (b) go('#/n/' + b.id); else toast('No notes yet'); });
+  XC('Open oldest note', 'Go to', 'Jump to the note you haven\u2019t touched the longest.', 'old stale forgotten', function () { var b = null; notes.forEach(function (n) { if (!inTemplates(n) && (!b || n.updated < b.updated)) b = n; }); if (b) go('#/n/' + b.id); else toast('No notes yet'); });
+  XC('Jump to top', 'Go to', 'Scroll to the top of the page.', 'scroll start beginning', function () { viewEl.scrollTo({ top: 0, behavior: 'smooth' }); });
+  XC('Jump to bottom', 'Go to', 'Scroll to the end of the page.', 'scroll end bottom', function () { viewEl.scrollTo({ top: viewEl.scrollHeight, behavior: 'smooth' }); });
+  XC('Add a tag', 'Organize', 'Add a tag to this note.', 'tag label hashtag', async function () { var n = cmNeedSaved(); if (!n) return; var v = await dialog({ title: 'Add a tag', input: true, placeholder: 'e.g. pharm', ok: 'Add', validate: function (x) { return /^#?[\w\u00c0-\u024f/-]{1,40}$/.test(x) ? null : 'One word, letters, numbers, - or /'; } }); if (!v) return; v = v.replace(/^#/, ''); var f = MD.front(n.body); if (f) { var cur = fmGet(n, 'tags').replace(/^\[|\]$/g, '').split(',').map(function (x) { return x.trim(); }).filter(Boolean); if (cur.indexOf(v) < 0) cur.push(v); var nn = { body: n.body }; fmSet(nn, 'tags', '[' + cur.join(', ') + ']'); cmSave(n, nn.body, 'Tagged #' + v); } else { if (new RegExp('(^|\\s)#' + v.replace(/[\/-]/g, '\\$&') + '(\\s|$)').test(n.body)) { toast('Already tagged #' + v); return; } cmSave(n, n.body.replace(/\s+$/, '') + (n.body.trim() ? '\n\n' : '') + '#' + v + '\n', 'Tagged #' + v); } });
+
+  /* --- Find & info --- */
+  XC('Replace all in note', 'Find & info', 'Swap every match of a word or phrase in this note.', 'find replace substitute', async function () { var n = cmNeedSaved(); if (!n) return; var a = await dialog({ title: 'Find', input: true, placeholder: 'Text to find', ok: 'Next' }); if (!a) return; var cnt = n.body.split(a).length - 1; if (!cnt) { toast('\u201c' + a + '\u201d isn\u2019t in this note'); return; } var b = await dialog({ title: 'Replace ' + cnt + ' with', input: true, placeholder: 'New text (can be empty)', ok: 'Replace all', validate: function () { return null; } }); if (b === null || b === undefined || b === false) return; cmSave(n, n.body.split(a).join(b), 'Replaced ' + cnt); });
+  XC('Word count', 'Find & info', 'Words, characters and lines in this note or the selection.', 'count words characters length', function () { var n = cmNeed(); if (!n) return; var ed = editing ? $('#ed') : null, t = ed && ed.selectionStart !== ed.selectionEnd ? ed.value.slice(ed.selectionStart, ed.selectionEnd) : cmB(n), plain = MD.plain(t); cmInfoDialog(ed && ed.selectionStart !== ed.selectionEnd ? 'Selection' : n.title, [['Words', words(t)], ['Characters', plain.length], ['Characters (no spaces)', plain.replace(/\s/g, '').length], ['Lines', t.split('\n').length], ['Paragraphs', t.split(/\n\s*\n/).filter(function (p) { return p.trim(); }).length]]); });
+  XC('Reading time', 'Find & info', 'About how long this note takes to read and to say out loud.', 'read minutes speak speech', function () { var n = cmNeed(); if (!n) return; var w = words(cmB(n)); toast(w + ' words \u00b7 ' + Math.max(1, Math.round(w / 230)) + ' min to read \u00b7 ' + Math.max(1, Math.round(w / 140)) + ' min out loud'); });
+  XC('Note info', 'Find & info', 'Created, last edited, folder, links in and out.', 'details properties metadata created', function () { var n = cmNeed(); if (!n) return; var f = function (t) { return new Date(t).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }); }; cmInfoDialog(n.title, [['Created', f(n.created)], ['Last edited', f(n.updated)], ['Folder', n.folder || 'None'], ['Links out', outNotes(n).length], ['Linked from', backlinks(n).length], ['Words', words(cmB(n))]]); });
+  XC('Word frequency', 'Find & info', 'The words you use most in this note.', 'frequency common top words', function () { var n = cmNeed(); if (!n) return; var c = {}, show = {}; l8Words(l8Plain(cmB(n))).forEach(function (w) { if (w.length < 4 || L8_STOP[w]) return; c[w] = (c[w] || 0) + 1; }); var top = Object.keys(c).sort(function (a, b) { return c[b] - c[a]; }).slice(0, 12); if (!top.length) { toast('Not enough words yet'); return; } cmInfoDialog('Top words', top.map(function (w) { return [w, c[w] + '\u00d7']; })); }, 1);
+  XC('Show backlinks', 'Find & info', 'Notes that link to this one.', 'backlinks linked mentions incoming', async function () { var n = cmNeed(); if (!n) return; var bl = backlinks(n); var v = await cmShowList('Linked from', bl.length ? bl.length + ' notes' : 'No notes link here yet', bl.map(function (x) { return { label: x.title, value: x.id }; })); if (v) go('#/n/' + v); });
+  XC('Show outgoing links', 'Find & info', 'Notes this one links to.', 'links outgoing references', async function () { var n = cmNeed(); if (!n) return; var o = outNotes(n); var v = await cmShowList('Links out', o.length ? o.length + ' notes' : 'This note doesn\u2019t link anywhere yet', o.map(function (x) { return { label: x.title, value: x.id }; })); if (v) go('#/n/' + v); });
+  XC('Jump to heading', 'Find & info', 'Pick a heading in this note and go there.', 'outline headings navigate section', async function () { var n = cmNeed(); if (!n) return; var hs = []; cmB(n).split('\n').forEach(function (l, i) { var m = /^(#{1,6})\s+(.+)/.exec(l); if (m) hs.push({ label: '\u2003'.repeat(m[1].length - 1) + m[2].replace(/[*_`=]/g, ''), value: String(i) }); }); if (!hs.length) { toast('No headings in this note yet'); return; } var v = await sheet({ title: 'Headings', actions: hs.slice(0, 14), left: true }); if (v === null || v === undefined) return; if (editing) { var ed = $('#ed'), ls = ed.value.split('\n'), c = 0; for (var i = 0; i < +v; i++) c += ls[i].length + 1; ed.focus(); ed.setSelectionRange(c, c); } else { var t = hs.filter(function (h) { return h.value === v; })[0].label.trim(), el = Array.from(viewEl.querySelectorAll('h1,h2,h3,h4,h5,h6')).filter(function (h) { return h.textContent.trim() === t; })[0]; if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
+
+  /* --- Export & share --- */
+  XC('Copy note as Markdown', 'Export & share', 'Copy the whole note with its formatting marks.', 'copy clipboard markdown', function () { var n = cmNeed(); if (n) copyText(cmB(n), 'Note copied'); });
+  XC('Copy note as plain text', 'Export & share', 'Copy the note without formatting marks.', 'copy clipboard plain text', function () { var n = cmNeed(); if (n) copyText(MD.plain(cmB(n)), 'Plain text copied'); });
+  XC('Copy note title', 'Export & share', 'Copy just the title.', 'copy name title', function () { var n = cmNeed(); if (n) copyText(n.title, 'Title copied'); });
+  XC('Copy link to note', 'Export & share', 'Copy a [[link]] you can paste into another note.', 'copy wikilink reference', function () { var n = cmNeed(); if (n) copyText('[[' + n.title + ']]', 'Link copied'); });
+  XC('Copy checklist as text', 'Export & share', 'Copy this note\u2019s to-dos as a plain list for texting.', 'copy tasks todo share list', function () { var n = cmNeed(); if (!n) return; var out = cmB(n).split('\n').map(function (l) { var m = l.match(CM_TASK); return m ? (/[xX]/.test(m[2]) ? '\u2705 ' : '\u2b1c ') + l.replace(CM_TASK, '').trim() : null; }).filter(Boolean); if (!out.length) { toast('No checkboxes in this note'); return; } copyText(out.join('\n'), out.length + ' to-dos copied'); });
+
+  /* --- View --- */
+  XC('Bigger text', 'View', 'Make note text a size bigger.', 'font size larger zoom increase', function () { settings.fs = Math.min(26, (settings.fs || 17) + 1); saveSettings(); toast('Text size ' + settings.fs); });
+  XC('Smaller text', 'View', 'Make note text a size smaller.', 'font size smaller decrease', function () { settings.fs = Math.max(13, (settings.fs || 17) - 1); saveSettings(); toast('Text size ' + settings.fs); });
+  XC('Reset text size', 'View', 'Back to the normal text size.', 'font size default', function () { settings.fs = 17; saveSettings(); toast('Text size 17'); });
+  XC('Switch light/dark', 'View', 'Flip between the light and dark theme.', 'theme dark light mode night day toggle', function () { settings.theme = xThemeNow() === 'light' || xThemeNow() === 'sepia' ? 'dark' : 'light'; saveSettings(); toast(settings.theme === 'light' ? 'Light theme' : 'Dark theme'); });
+
+  /* ---------- command folders (synced as one record) ---------- */
+  var CF = { l: [], u: 0 };
+  function cfSave() { CF.u = Date.now(); DB.put('meta', { k: 'cmdfolders', v: CF }).catch(function () {}); sySoon(); }
+  function cfGet(id) { return CF.l.filter(function (f) { return f.id === id; })[0] || null; }
+  function cfItemOk(it) { return it[0] === 'c' ? !!cmdFind(it[1]) : allTemplates().some(function (t) { return t.name === it[1]; }); }
+  function cfRun(it) {
+    if (it[0] === 'c') { var c = cmdFind(it[1]); if (c) c[2](''); else toast('That command isn\u2019t here any more'); return; }
+    var t = allTemplates().filter(function (x) { return x.name === it[1]; })[0]; if (t) createFromTemplate(t); else toast('That template isn\u2019t here any more');
+  }
+  async function cfNew(after) {
+    var name = await dialog({ title: 'New command folder', message: 'Group commands and templates you use together. Type the folder\u2019s name in search to open it.', input: true, placeholder: 'e.g. Study, Cleanup, Lab day', ok: 'Create', validate: function (v) { return !v ? 'Type a name.' : v.length > 40 ? 'Keep it under 40 letters.' : CF.l.some(function (f) { return norm(f.name) === norm(v); }) ? 'You already have a folder with that name.' : null; } });
+    if (!name) return null;
+    var f = { id: 'cf' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name, items: [] };
+    CF.l.push(f); cfSave(); if (after !== false) go('#/x/cmdf/' + f.id); return f;
+  }
+  function cfPicker(f, kind) {
+    return overlay(function (done) {
+      var el = document.createElement('div'); el.className = 'qs cf-pick'; el.setAttribute('role', 'dialog');
+      var pool = kind === 'c' ? COMMANDS.map(function (c) { return { n: c[0], d: cmdDesc(c), p: c[3] }; }) : allTemplates().map(function (t) { return { n: t.name, d: t.mine ? 'Your template' : (t.group || 'Template'), p: 1 }; });
+      var picked = {}; f.items.forEach(function (it) { if (it[0] === kind) picked[it[1]] = 1; });
+      el.innerHTML = '<label class="qsin">' + I.search + '<input type="text" placeholder="' + (kind === 'c' ? 'Find commands' : 'Find templates') + '" autocomplete="off" autocapitalize="none" spellcheck="false"><button class="qsx" data-done="1">Done</button></label><div class="qsl"></div>';
+      var inp = $('input', el), list = $('.qsl', el);
+      function draw() {
+        var q = norm(inp.value);
+        list.innerHTML = pool.filter(function (x) { return !q || norm(x.n).indexOf(q) >= 0 || norm(x.d).indexOf(q) >= 0; }).map(function (x) {
+          return '<button data-n="' + esc(x.n) + '" class="' + (picked[x.n] ? 'on' : '') + '"><span class="cf-ck">' + (picked[x.n] ? '\u2713' : '') + '</span><span class="qt">' + esc(x.n) + '<em class="qd">' + esc(x.d) + '</em></span>' + (x.p && !isPro() ? '<small>Pro</small>' : '') + '</button>';
+        }).join('') || '<div class="qsh">Nothing matches</div>';
+      }
+      inp.addEventListener('input', draw);
+      list.addEventListener('click', function (e) { var b = e.target.closest('button[data-n]'); if (!b) return; var n = b.dataset.n; if (picked[n]) delete picked[n]; else picked[n] = 1; draw(); });
+      $('[data-done]', el).addEventListener('click', function () { done(picked); });
+      draw(); setTimeout(function () { try { inp.focus(); } catch (e) {} }, 80);
+      return el;
+    }).then(function (pk) {
+      if (!pk) return;
+      var keep = f.items.filter(function (it) { return it[0] !== kind || pk[it[1]]; }), have = {}; keep.forEach(function (it) { have[it[0] + ':' + it[1]] = 1; });
+      Object.keys(pk).forEach(function (n) { if (!have[kind + ':' + n]) keep.push([kind, n]); });
+      f.items = keep; cfSave(); render();
+    });
+  }
+  XV.cmdfolders = function () {
+    var rows = CF.l.map(function (f) { return '<button class="row" data-act="xgo" data-to="x:cmdf/' + esc(f.id) + '">' + I.folder + '<span class="nm">' + esc(f.name) + '</span><span class="ct">' + f.items.length + '</span><span class="chev">' + I.chev + '</span></button>'; }).join('');
+    return xPage('Command folders', CF.l.length + ' folder' + (CF.l.length === 1 ? '' : 's'), '<p class="xp">Group commands and templates you use together. Type a folder\u2019s name in the command search and it opens with everything inside, ready to run.</p>' +
+      (rows ? '<div class="rows">' + rows + '</div>' : xEmpty('No folders yet', 'Make one for a class, a cleanup routine or a lab day.')) +
+      '<div class="nf-btns"><button data-act="cfnew">New folder</button><button data-act="xgo" data-to="x:cmdguide">Command guide</button></div>');
+  };
+  XV.cmdf = function (id) {
+    var f = cfGet(id); if (!f) { setTimeout(function () { go('#/x/cmdfolders', true); }, 0); return '<div class="page"></div>'; }
+    var rows = f.items.map(function (it, i) {
+      var c = it[0] === 'c' ? cmdFind(it[1]) : null, ok = cfItemOk(it), d = it[0] === 'c' ? (c ? cmdDesc(c) : 'Not available') : 'Template';
+      return '<div class="cf-row"><button class="row" data-act="cfrun" data-f="' + esc(f.id) + '" data-i="' + i + '"' + (ok ? '' : ' disabled') + '>' + (it[0] === 'c' ? I.cmd : I.tmpl) + '<span class="nm">' + esc(it[1]) + '<em class="qd">' + esc(d) + '</em></span>' + (c && c[3] && !isPro() ? '<span class="ct">Pro</span>' : '') + '</button><button class="cf-x" aria-label="Remove" data-act="cfdel" data-f="' + esc(f.id) + '" data-i="' + i + '">\u2715</button></div>';
+    }).join('');
+    return '<div class="page"><div class="nav stick"><button class="back" data-act="back" data-to="#/x/cmdfolders">' + I.back + '<span>Folders</span></button><div class="acts"></div></div><div class="eyebrow">Command folder \u00b7 ' + f.items.length + '</div><h1 class="h1">' + esc(f.name) + '</h1>' +
+      (rows ? '<div class="rows cf-rows">' + rows + '</div>' : xEmpty('Empty folder', 'Add commands or templates, then type \u201c' + f.name + '\u201d in search.')) +
+      '<div class="nf-btns"><button data-act="cfadd" data-k="c" data-f="' + esc(f.id) + '">Add commands</button><button data-act="cfadd" data-k="t" data-f="' + esc(f.id) + '">Add templates</button></div>' +
+      '<div class="nf-btns"><button data-act="cfren" data-f="' + esc(f.id) + '">Rename</button><button data-act="cfrm" data-f="' + esc(f.id) + '" class="danger">Delete folder</button></div></div>';
+  };
+  act.cfnew = function () { cfNew(); };
+  act.cfrun = function (el) { var f = cfGet(el.dataset.f), it = f && f.items[+el.dataset.i]; if (it) cfRun(it); };
+  act.cfdel = function (el) { var f = cfGet(el.dataset.f); if (!f) return; f.items.splice(+el.dataset.i, 1); cfSave(); render(); };
+  act.cfadd = function (el) { var f = cfGet(el.dataset.f); if (f) cfPicker(f, el.dataset.k); };
+  act.cfren = async function (el) { var f = cfGet(el.dataset.f); if (!f) return; var v = await dialog({ title: 'Rename folder', input: true, value: f.name, ok: 'Rename', validate: function (x) { return !x ? 'Type a name.' : CF.l.some(function (o) { return o !== f && norm(o.name) === norm(x); }) ? 'You already have a folder with that name.' : null; } }); if (!v) return; f.name = v; cfSave(); render(); };
+  act.cfrm = async function (el) { var f = cfGet(el.dataset.f); if (!f) return; var ok = await dialog({ title: 'Delete \u201c' + f.name + '\u201d?', message: 'Only the folder goes. The commands and templates inside stay in Axon.', ok: 'Delete', danger: true }); if (!ok) return; CF.l = CF.l.filter(function (o) { return o !== f; }); cfSave(); go('#/x/cmdfolders', true); };
+  XC('Command folders', 'Folders', 'Make folders of commands and templates, then open one by typing its name.', 'folder group collection set routine', function () { go('#/x/cmdfolders'); });
+  XC('New command folder', 'Folders', 'Start a new folder of commands and templates.', 'folder group create', function () { cfNew(); });
+
+  /* ---------- command guide: page, first note, template ---------- */
+  function cgSorted() {
+    var by = {}; COMMANDS.forEach(function (c) { var k = cmdCat(c); (by[k] = by[k] || []).push(c); });
+    return CMD_CATS.concat(Object.keys(by).filter(function (k) { return CMD_CATS.indexOf(k) < 0; })).filter(function (k) { return by[k]; }).map(function (k) { return [k, by[k]]; });
+  }
+  function cgBody() {
+    var out = ['> [!tip] How to run a command', '> Pull down on the notes list, tap \u201cJump to a note or command\u201d, or press Cmd-K. Type any part of a name below and tap it. Commands that change text work on what you selected, or on the whole note if nothing is selected.', '',
+      '## Command folders', 'Group the commands and templates you use together. Run **Command folders** to make one, then type the folder\u2019s name in search to open it with everything inside.', ''];
+    cgSorted().forEach(function (g) { out.push('## ' + g[0]); g[1].forEach(function (c) { out.push('- **' + c[0] + '**' + (c[3] ? ' (Pro)' : '') + ': ' + cmdDesc(c)); }); out.push(''); });
+    out.push('---', COMMANDS.length + ' commands. Run **Command guide** any time to see this list, or tap a command there to run it.');
+    return out.join('\n');
+  }
+  var CG_TITLE = 'Commands \u2014 start here';
+  XV.cmdguide = function () {
+    var body = cgSorted().map(function (g) {
+      return '<div class="sec"><span>' + esc(g[0]) + '</span><span style="text-transform:none;letter-spacing:0">' + g[1].length + '</span></div><div class="rows">' + g[1].map(function (c) {
+        return '<button class="row" data-act="cmrun" data-n="' + esc(c[0]) + '">' + I.cmd + '<span class="nm">' + esc(c[0]) + '<em class="qd">' + esc(cmdDesc(c)) + '</em></span>' + (c[3] && !isPro() ? '<span class="ct">Pro</span>' : '') + '</button>';
+      }).join('') + '</div>';
+    }).join('');
+    return xPage('Command guide', COMMANDS.length + ' commands', '<p class="xp">Open the command search by pulling down on the notes list, tapping \u201cJump to a note or command\u201d, or pressing Cmd-K. Tap any command here to run it.</p>' +
+      '<div class="nf-btns"><button data-act="cgnote">Save as a note</button><button data-act="xgo" data-to="x:cmdfolders">Command folders</button></div>' + body);
+  };
+  act.cmrun = function (el) { var c = cmdFind(el.dataset.n); if (c) c[2](''); };
+  function cgMakeNote(seed) { var ex = byTitle(CG_TITLE); if (ex && !seed) { go('#/n/' + ex.id); return ex; } var n = createNote({ title: ex ? uniqueTitle(CG_TITLE) : CG_TITLE, folder: '', body: cgBody(), seed: !!seed }); if (!seed) go('#/n/' + n.id); return n; }
+  act.cgnote = function () { var ex = byTitle(CG_TITLE); if (ex) { ex.body = cgBody(); ex.updated = Date.now(); ex.seed = false; putNote(ex); rebuildIdx(); go('#/n/' + ex.id); toast('Guide note updated'); } else { cgMakeNote(false); toast('Saved as \u201c' + CG_TITLE + '\u201d'); } };
+  XC('Command guide', 'Help', 'Every command and what it does. Tap one to run it.', 'help list commands what can i do guide docs', function () { go('#/x/cmdguide'); });
+  /* the guide as a built-in template (Templates > Help) */
+  TGROUPS.push('Help');
+  BUILTIN.push({ name: 'Command guide', group: 'Help', get body() { return '# Command guide\n\n' + cgBody() + '\n'; } });
+  /* first run on a brand-new vault: the guide is the first note (untouched seed notes stay on this device) */
+  function cgBoot(m, fresh) {
+    if (m.cmdfolders && Array.isArray(m.cmdfolders.l)) CF = { l: m.cmdfolders.l, u: m.cmdfolders.u || 0 };
+    if (m.cmdGuide) return;
+    DB.put('meta', { k: 'cmdGuide', v: Date.now() }).catch(function () {});
+    if (fresh && !notes.size) { cgMakeNote(true); rebuildIdx(); }
+  }
 
 
   window.__axon = { notes: notes, folders: folders, trash: trash, rc: rc, recallStats: recallStats, byTitle: byTitle, backlinks: backlinks, renameNote: renameNote, exportFiles: function () { return notes; }, Zip: Zip, importFiles: importFiles };
