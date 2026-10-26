@@ -177,13 +177,268 @@
     document.getElementById('gre').onclick = function () { delete all[r.id]; LS.set('guess', all); guessPage(r.id); };
   }
 
+
+  /* ---------- 1.3 (Oct 26 2026): Labs — 8 experiments. Free: Today vs usual, Social battery planner, answering a friend's Rate me link. Pro (needs scores): Rate me, Friend compare, Stretch goal, Talk-to-me card, Drift chart, Decision coach. ---------- */
+  var LABS = [
+    ['today', '\ud83c\udf21\ufe0f', 'Today vs usual', 'rate how you were today; see your range move around your trait scores', 0],
+    ['battery', '\ud83d\udd0b', 'Social battery planner', 'plan your week and see when your social battery would run low', 0],
+    ['rate', '\ud83e\ude9e', 'Rate me', 'friends rate you on 10 quick items; find your blind spots', 1],
+    ['compare', '\ud83e\udd1d', 'Friend compare', 'swap codes with a friend, see where you click and where you might clash', 1],
+    ['stretch', '\ud83c\udf31', 'Stretch goal', 'pick a trait to grow, get 4 weeks of small challenges', 1],
+    ['card', '\ud83d\udcac', 'Talk-to-me card', 'a shareable card: how to text you, argue with you, help you', 1],
+    ['drift', '\ud83d\udcc8', 'Drift chart', 'your Big Five across every quiz you\u2019ve taken', 1],
+    ['decide', '\ud83e\udded', 'Decision coach', 'a decision checklist tuned to how you decide', 1]
+  ];
+  var B5 = ['O', 'C', 'E', 'A', 'N'];
+  function labHead(id) { var l = LABS.filter(function (x) { return x[0] === id; })[0]; return '<a class="back" href="#labs">\u2190 Labs</a><h1 class="pt">' + l[1] + ' ' + esc(l[2]) + '</h1><p class="muted">' + esc(l[3].charAt(0).toUpperCase() + l[3].slice(1)) + '.</p>'; }
+  function labsPage() {
+    var p = full(); LS.set('seen13', 1);
+    V.innerHTML = '<a class="back" href="#home">\u2190 Home</a><p class="eyebrow">New in 1.3</p><h1 class="pt">\ud83e\uddea Labs</h1><p class="muted">Eight experiments built on your answers. Anything you add here stays on this phone.</p><div class="card nlist">' +
+      LABS.map(function (l) { return '<a class="nrow" href="#lab/' + l[0] + '"><span class="ni" aria-hidden="true">' + l[1] + '</span><span class="nt"><b>' + esc(l[2]) + (l[4] && !p ? ' ' + LOCK : '') + '</b><small>' + esc(l[3]) + '</small></span><i aria-hidden="true">\u203a</i></a>'; }).join('') + '</div>' +
+      '<p class="muted small center">' + DISC + ' Tips and matches here are rules of thumb built on your scores, labelled as such.</p>';
+  }
+  function labLock(id) { var l = LABS.filter(function (x) { return x[0] === id; })[0];
+    V.innerHTML = labHead(id) + '<div class="card"><p class="tag">Mindprint Pro</p><h2>' + LOCK + ' ' + esc(l[2]) + ' uses your full scores</h2><p class="muted">Your full results unlock with Mindprint Pro ($10). If you\u2019ve already taken the quiz, nothing needs retaking.</p><a class="btn big block" href="#pro">See Pro</a></div>'; }
+  function labNeedQuiz(id) { V.innerHTML = labHead(id) + '<div class="card"><p>Take the quiz first. This lab is built from your results.</p><a class="btn big block" href="#start">Start the quiz</a></div>'; }
+  function labPage(id) {
+    var l = LABS.filter(function (x) { return x[0] === id; })[0]; if (!l) { location.hash = '#labs'; return; }
+    if (l[4] && !full()) return labLock(id);
+    var r = results('main')[0], sc = r && full() ? scoreOf(r) : null;
+    if (l[4] && !sc) return labNeedQuiz(id);
+    ({ today: labToday, battery: labBattery, rate: labRate, compare: labCompare, stretch: labStretch, card: labCard, drift: labDrift, decide: labDecide })[id](sc, r);
+  }
+  var pc = function (sc, k) { return sc && sc.scales[k] ? sc.scales[k].pct : null; };
+  var dayKey = function (t) { return new Date(t || Date.now()).toLocaleDateString('en-CA'); };
+
+  /* 1. Today vs usual (free; quiz markers with Pro) — Fleeson 2001: daily behaviour swings widely around a person's average */
+  var TODAY = [['O', 'Curious, up for new things'], ['C', 'Organized, on top of things'], ['E', 'Outgoing, talkative'], ['A', 'Warm, easygoing with people'], ['N', 'Stressed, on edge']];
+  function labToday(sc) {
+    var log = LS.get('lab.today', {}), td = log[dayKey()] || {};
+    var h = labHead('today') + '<div class="card"><p class="tag">Today, ' + esc(new Date().toLocaleDateString(undefined, { weekday: 'long' })) + '</p>' +
+      TODAY.map(function (x) { var v = td[x[0]] == null ? 50 : td[x[0]]; return '<label class="lb-sl"><span>' + esc(x[1]) + ' <b id="tv' + x[0] + '">' + v + '</b></span><input type="range" min="0" max="100" step="5" value="' + v + '" data-t="' + x[0] + '"></label>'; }).join('') +
+      '<button class="btn big block" id="tsave">' + (log[dayKey()] ? 'Update today' : 'Save today') + '</button></div><div id="tout"></div>' +
+      '<details class="fold card"><summary>Why this is interesting</summary><p class="small">Psychologist William Fleeson (2001) had people rate how they acted several times a day. Almost everyone swung across most of the range: introverts had very outgoing moments, organized people had messy days. A trait is more like your average than a fixed setting. Your ranges below show your own swing.</p></details>';
+    V.innerHTML = h;
+    document.querySelectorAll('[data-t]').forEach(function (i) { i.oninput = function () { $('#tv' + i.dataset.t).textContent = i.value; }; });
+    $('#tsave').onclick = function () { var o = {}; document.querySelectorAll('[data-t]').forEach(function (i) { o[i.dataset.t] = +i.value; }); log[dayKey()] = o; LS.set('lab.today', log); toast('Saved'); out(); $('#tsave').textContent = 'Update today'; };
+    function out() {
+      var days = Object.keys(log).sort().slice(-30), n = days.length; if (!n) { $('#tout').innerHTML = '<p class="muted small center">Save a few days to see your range.</p>'; return; }
+      var nm = { O: 'Openness', C: 'Conscientiousness', E: 'Extraversion', A: 'Agreeableness', N: 'Emotional sensitivity' };
+      $('#tout').innerHTML = '<div class="card"><p class="tag">Your range \u00b7 ' + n + ' day' + (n > 1 ? 's' : '') + '</p>' + TODAY.map(function (x) {
+        var vs = days.map(function (d) { return log[d][x[0]]; }).filter(function (v) { return v != null; }), lo = Math.min.apply(null, vs), hi = Math.max.apply(null, vs), av = Math.round(vs.reduce(function (s, v) { return s + v; }, 0) / vs.length), tdv = (log[dayKey()] || {})[x[0]], q = pc(sc, x[0]);
+        return '<div class="lb-rg"><div class="bl"><span>' + nm[x[0]] + '</span><b>avg ' + av + (q != null ? ' \u00b7 quiz ' + q : '') + '</b></div><div class="lb-track"><i class="lb-span" style="left:' + lo + '%;width:' + Math.max(1, hi - lo) + '%"></i>' + (tdv != null ? '<i class="lb-dot" style="left:' + tdv + '%"></i>' : '') + (q != null ? '<i class="lb-q" style="left:' + q + '%"></i>' : '') + '</div></div>';
+      }).join('') + '<p class="muted small"><i class="lb-key lb-span"></i> your range \u00b7 <i class="lb-key lb-dot"></i> today' + (sc ? ' \u00b7 <i class="lb-key lb-q"></i> your quiz score' : ' \u00b7 <a href="#pro">Pro</a> adds your quiz scores for comparison') + '. The stress row is on the same scale as \u201cemotional sensitivity\u201d.</p></div>';
+    }
+    out();
+  }
+
+  /* 2. Social battery planner (free; Pro pre-fills the drain from your sociability score). A planning rule of thumb, not a measurement. */
+  var EVT = [['party', '\ud83c\udf89 Party / big group', -34], ['school', '\ud83c\udfeb School / practice day', -18], ['hang', '\ud83c\udf55 Hangout, small group', -14], ['one', '\u2615 One-on-one', -8], ['alone', '\ud83c\udfa7 Alone time', 26], ['outside', '\ud83c\udf32 Walk / outside', 10]];
+  function labBattery(sc) {
+    var st = LS.get('lab.battery', null), soc = pc(sc, 'E_sociability');
+    if (!st) st = { drain: soc != null ? 100 - soc : 50, plan: [[], [], [], [], [], [], []] };
+    var D = [], d0 = new Date(); for (var i = 0; i < 7; i++) { var d = new Date(d0.getTime() + i * 864e5); D.push(d.toLocaleDateString(undefined, { weekday: 'short' })); }
+    var sel = 0;
+    function draw() {
+      LS.set('lab.battery', st);
+      var mult = 0.5 + st.drain / 100, lvl = 80, rows = '', low = [];
+      st.plan.forEach(function (ev, di) {
+        if (di) lvl = Math.min(100, lvl + 22); // a night's sleep
+        var start = lvl; ev.forEach(function (k) { var e = EVT.filter(function (x) { return x[0] === k; })[0]; if (!e) return; lvl += e[2] < 0 ? e[2] * mult : e[2]; lvl = Math.max(0, Math.min(100, lvl)); });
+        if (lvl < 20) low.push(D[di]);
+        rows += '<button class="lb-day' + (di === sel ? ' on' : '') + '" data-d="' + di + '"><span>' + D[di] + '</span><div class="lb-bat"><i style="width:' + Math.round(lvl) + '%;background:' + (lvl < 20 ? '#ff6b6b' : lvl < 45 ? 'var(--peach)' : 'var(--teal)') + '"></i></div><small>' + (ev.length ? ev.map(function (k) { return EVT.filter(function (x) { return x[0] === k; })[0][1].split(' ')[0]; }).join('') : 'free') + '</small><b>' + Math.round(lvl) + '%</b></button>';
+      });
+      $('#bwk').innerHTML = rows + (low.length ? '<p class="small lb-warn">Running low on ' + low.join(', ') + '. Try swapping in alone time or something outside before it.</p>' : '<p class="small muted">Your battery stays above 20% all week.</p>');
+      $('#bday').textContent = D[sel]; $('#bev').innerHTML = st.plan[sel].length ? st.plan[sel].map(function (k, j) { var e = EVT.filter(function (x) { return x[0] === k; })[0]; return '<button class="chip" data-rm="' + j + '">' + esc(e[1]) + ' \u00d7</button>'; }).join('') : '<span class="muted small">nothing planned</span>';
+      document.querySelectorAll('[data-d]').forEach(function (b) { b.onclick = function () { sel = +b.dataset.d; draw(); }; });
+      document.querySelectorAll('[data-rm]').forEach(function (b) { b.onclick = function () { st.plan[sel].splice(+b.dataset.rm, 1); draw(); }; });
+    }
+    V.innerHTML = labHead('battery') + '<div class="card"><label class="lb-sl"><span>How fast do people drain you? <b id="bdv">' + st.drain + '</b></span><input type="range" id="bdr" min="0" max="100" step="5" value="' + st.drain + '"></label><p class="muted small">' + (soc != null ? 'Started from your sociability score (' + soc + '): higher sociability = slower drain. Adjust it if it feels off.' : 'Slide right if socializing tires you out fast.') + '</p></div>' +
+      '<div class="card"><p class="tag">Add to <span id="bday"></span></p><div class="chips">' + EVT.map(function (e) { return '<button class="chip" data-add="' + e[0] + '">' + esc(e[1]) + '</button>'; }).join('') + '</div><div class="chips lb-ev" id="bev"></div></div><div class="card" id="bwk"></div>' +
+      '<p class="muted small center">A rule of thumb: busy social things cost energy, alone time and being outside give some back, and sleep refills part of it. Real energy depends on much more, so treat this as a planning sketch.</p>';
+    $('#bdr').oninput = function () { st.drain = +this.value; $('#bdv').textContent = st.drain; draw(); };
+    document.querySelectorAll('[data-add]').forEach(function (b) { b.onclick = function () { if (st.plan[sel].length < 6) st.plan[sel].push(b.dataset.add); draw(); }; });
+    draw();
+  }
+
+  /* 3. Rate me (Pro to create + read; answering a friend's link is free and needs no account) */
+  var RATE = [['O', 1, 'is curious and full of ideas'], ['O', 0, 'prefers the familiar to trying new things'], ['C', 1, 'is organized and follows through'], ['C', 0, 'leaves things to the last minute'], ['E', 1, 'is outgoing and talkative'], ['E', 0, 'is quiet around new people'], ['A', 1, 'is kind and easy to get along with'], ['A', 0, 'can be blunt or critical'], ['N', 1, 'worries or gets stressed easily'], ['N', 0, 'stays calm under pressure']];
+  var b64 = function (s) { try { return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); } catch (e) { return ''; } };
+  var unb64 = function (s) { try { return decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/')))); } catch (e) { return ''; } };
+  var BNAME = { O: 'Openness', C: 'Conscientiousness', E: 'Extraversion', A: 'Agreeableness', N: 'Emotional sensitivity' };
+  function rateScore(ans) { var o = {}; B5.forEach(function (t) { var s = 0; RATE.forEach(function (it, i) { if (it[0] === t) s += it[1] ? ans[i] : 6 - ans[i]; }); o[t] = Math.round((s - 2) / 8 * 100); }); return o; }
+  function parseRate(code) { var m = /^RM\.([1-5]{10})\.([A-Za-z0-9_-]*)$/.exec((code || '').trim()); if (!m) return null; return { ans: m[1].split('').map(Number), who: unb64(m[2]) || 'A friend' }; }
+  function rateFriend(arg) {
+    var who = unb64(arg || '') || 'your friend', ans = [];
+    V.innerHTML = '<h1 class="pt">\ud83e\ude9e Rate ' + esc(who) + '</h1><p class="muted">' + esc(who) + ' asked how you see them. 10 quick items, about a minute. Be honest: it\u2019s only useful if it\u2019s real.</p><div class="card" id="rq"></div>' +
+      '<p class="muted small center">Nothing is saved or sent by this page. You\u2019ll get a short code to send back yourself.</p>';
+    var L = ['Not at all', 'A little', 'Somewhat', 'Mostly', 'Very much'];
+    function q(i) {
+      if (i >= RATE.length) {
+        $('#rq').innerHTML = '<label>Your first name (so ' + esc(who) + ' knows who it\u2019s from)<input id="rn" maxlength="24" placeholder="optional"></label><button class="btn big block" id="rgo">Get my code</button><div id="rcode"></div>';
+        $('#rgo').onclick = function () { var c = 'RM.' + ans.join('') + '.' + b64($('#rn').value.trim().slice(0, 24)); $('#rcode').innerHTML = '<p class="small">Send this code back to ' + esc(who) + ':</p><p class="lb-code">' + esc(c) + '</p><button class="btn ghost block" id="rsh">Share / copy</button>'; $('#rsh').onclick = function () { if (navigator.share) navigator.share({ text: 'My Mindprint rating code for you: ' + c }).catch(function () {}); else if (navigator.clipboard) navigator.clipboard.writeText(c).then(function () { toast('Copied'); }); }; };
+        return;
+      }
+      $('#rq').innerHTML = '<p class="tag">' + (i + 1) + ' of ' + RATE.length + '</p><h2>' + esc(who) + ' ' + esc(RATE[i][2]) + '</h2>' + L.map(function (t, k) { return '<button class="opt" data-k="' + (k + 1) + '">' + t + '</button>'; }).join('') + (i ? '<button class="btn ghost block" id="rbk">\u2039 Back</button>' : '');
+      document.querySelectorAll('#rq .opt').forEach(function (b) { b.onclick = function () { ans[i] = +b.dataset.k; q(i + 1); }; });
+      if (i) $('#rbk').onclick = function () { q(i - 1); };
+    }
+    q(0);
+  }
+  function labRate(sc) {
+    var got = LS.get('lab.rates', []), me = LS.get('name', '') || 'me', link = location.origin + location.pathname + '#rateme/' + b64(me);
+    var h = labHead('rate') + '<div class="card"><p class="tag">1 \u00b7 Send your link</p><p class="small">Friends answer 10 quick items about you. No account needed on their side.</p><p class="lb-code small">' + esc(link) + '</p><button class="btn block" id="rsend">Share my link</button></div>' +
+      '<div class="card"><p class="tag">2 \u00b7 Paste the code they send back</p><input id="rc" placeholder="RM.1234512345.\u2026" autocapitalize="none" spellcheck="false"><button class="btn ghost block" id="radd">Add</button><p id="rmsg" class="muted small"></p></div><div id="rout"></div>';
+    V.innerHTML = h;
+    $('#rsend').onclick = function () { if (navigator.share) navigator.share({ text: 'How do you see me? 10 quick taps:', url: link }).catch(function () {}); else if (navigator.clipboard) navigator.clipboard.writeText(link).then(function () { toast('Link copied'); }); };
+    $('#radd').onclick = function () { var p = parseRate($('#rc').value); if (!p) { $('#rmsg').textContent = 'That doesn\u2019t look like a rating code. It starts with RM.'; return; } got.push({ who: p.who, ans: p.ans, t: Date.now() }); LS.set('lab.rates', got.slice(-20)); $('#rc').value = ''; $('#rmsg').textContent = 'Added ' + p.who + '\u2019s ratings.'; out(); };
+    function out() {
+      if (!got.length) { $('#rout').innerHTML = '<p class="muted small center">No ratings yet.</p>'; return; }
+      var avg = {}; B5.forEach(function (t) { avg[t] = Math.round(got.reduce(function (s, g) { return s + rateScore(g.ans)[t]; }, 0) / got.length); });
+      var rows = B5.map(function (t) { var me = pc(sc, t), fr = avg[t], d = fr - me, lab = Math.abs(d) < 15 ? 'Open: you both see it' : d > 0 ? 'Blind spot: they see more than you do' : 'Hidden: you see more than they do'; return '<div class="lb-rg"><div class="bl"><span>' + BNAME[t] + '</span><b>you ' + me + ' \u00b7 them ' + fr + '</b></div><div class="lb-track"><i class="lb-q" style="left:' + me + '%"></i><i class="lb-dot" style="left:' + fr + '%"></i></div><p class="small muted">' + lab + '</p></div>'; }).join('');
+      $('#rout').innerHTML = '<div class="card"><p class="tag">' + got.length + ' friend' + (got.length > 1 ? 's' : '') + ': ' + esc(got.map(function (g) { return g.who; }).join(', ')) + '</p>' + rows + '<p class="muted small"><i class="lb-key lb-q"></i> your quiz \u00b7 <i class="lb-key lb-dot"></i> how friends see you. The labels come from the Johari window idea (Luft & Ingham, 1955). Research finds friends often see traits like extraversion about as well as you do, and sometimes see things you miss. A 15-point gap is the line used here. Ten items is a quick read, not a full test.</p><button class="btn ghost block" id="rclr">Clear ratings</button></div>';
+      $('#rclr').onclick = function () { got = []; LS.set('lab.rates', []); out(); };
+    }
+    out();
+  }
+
+  /* 4. Friend compare (Pro): swap short codes */
+  var CFS = ['cf_competing', 'cf_collaborating', 'cf_compromising', 'cf_accommodating', 'cf_avoiding'], VLS = ['v_self_direction', 'v_stimulation', 'v_hedonism', 'v_achievement', 'v_power', 'v_security', 'v_conformity', 'v_benevolence', 'v_universalism'];
+  var top = function (sc, ks) { var b = 0; ks.forEach(function (k, i) { if ((pc(sc, k) || 0) > (pc(sc, ks[b]) || 0)) b = i; }); return b; };
+  function myCode(sc) { var nums = B5.concat(['att_anxiety', 'att_avoidance']).map(function (k) { var v = Math.max(0, Math.min(99, pc(sc, k) || 0)); return (v < 10 ? '0' : '') + v; }).join(''); return 'MP1.' + nums + top(sc, CFS) + top(sc, VLS) + '.' + b64((LS.get('name', '') || 'Friend').slice(0, 24)); }
+  function parseCode(c) { var m = /^MP1\.(\d{14})([0-4])(\d)\.([A-Za-z0-9_-]*)$/.exec((c || '').trim()); if (!m) return null; var o = { who: unb64(m[4]) || 'Friend', cf: +m[2], v: +m[3] }; B5.concat(['aa', 'av']).forEach(function (k, i) { o[k] = +m[1].substr(i * 2, 2); }); return o; }
+  function labCompare(sc) {
+    var me = parseCode(myCode(sc)), saved = LS.get('lab.friend', '');
+    V.innerHTML = labHead('compare') + '<div class="card"><p class="tag">Your code</p><p class="lb-code">' + esc(myCode(sc)) + '</p><button class="btn block" id="csh">Share my code</button><p class="muted small">It carries your 5 trait scores, attachment scores, top conflict style, top value and your first name. Nothing else.</p></div>' +
+      '<div class="card"><p class="tag">Friend\u2019s code</p><input id="cc" placeholder="MP1.\u2026" autocapitalize="none" spellcheck="false" value="' + esc(saved) + '"><button class="btn ghost block" id="cgo">Compare</button><p id="cmsg" class="muted small"></p></div><div id="cout"></div>';
+    $('#csh').onclick = function () { var c = myCode(sc); if (navigator.share) navigator.share({ text: 'My Mindprint code, paste it in Labs \u2192 Friend compare: ' + c }).catch(function () {}); else if (navigator.clipboard) navigator.clipboard.writeText(c).then(function () { toast('Copied'); }); };
+    function go() {
+      var f = parseCode($('#cc').value); if (!f) { $('#cmsg').textContent = 'That code doesn\u2019t look right. It starts with MP1.'; return; } LS.set('lab.friend', $('#cc').value.trim()); $('#cmsg').textContent = '';
+      var rows = B5.map(function (t) { return '<div class="lb-rg"><div class="bl"><span>' + BNAME[t] + '</span><b>you ' + me[t] + ' \u00b7 ' + esc(f.who) + ' ' + f[t] + '</b></div><div class="lb-track"><i class="lb-q" style="left:' + me[t] + '%"></i><i class="lb-dot" style="left:' + f[t] + '%"></i></div></div>'; }).join('');
+      var click = [], clash = [];
+      if (me.A >= 60 && f.A >= 60) click.push('You\u2019re both warm and easygoing, so day to day should feel smooth.');
+      if (Math.abs(me.O - f.O) < 15) click.push('Similar openness: you\u2019ll likely enjoy the same kind of plans and conversations.'); else clash.push('One of you craves new things more (' + (me.O > f.O ? 'you' : esc(f.who)) + '). Take turns picking: something new, something familiar.');
+      if (Math.abs(me.E - f.E) >= 25) clash.push('Big social-energy gap: ' + (me.E > f.E ? 'you' : esc(f.who)) + ' wants more people time. Agree on when to leave before you go out.'); else click.push('Similar social energy, so you\u2019ll rarely disagree about staying in vs going out.');
+      if (Math.abs(me.C - f.C) >= 25) clash.push('One of you plans ahead, the other wings it. Decide together which things need a plan.');
+      if (me.N >= 65 && f.N >= 65) clash.push('You both feel stress strongly. When you\u2019re both stressed, one of you should be the calm one on purpose.');
+      if ((me.aa >= 60 && f.av >= 60) || (f.aa >= 60 && me.av >= 60)) clash.push('Classic pull-and-push: one of you wants reassurance, the other wants space. A quick \u201cbusy, talk later\u201d text helps both.');
+      var cfn = ['competing', 'collaborating', 'compromising', 'accommodating', 'avoiding'];
+      if (me.cf === 0 && f.cf === 0) clash.push('You both argue to win. Agree on a pause word for heated moments.'); else if ((me.cf === 0 && f.cf === 4) || (me.cf === 4 && f.cf === 0)) clash.push('One of you pushes in conflict, the other backs off. The pusher should slow down; the avoider should say it later.'); else if (me.cf === f.cf) click.push('Same conflict style (' + cfn[me.cf] + '), so arguments follow a pattern you both understand.');
+      if (me.v === f.v) click.push('Same top value: ' + esc(S.nm(VLS[me.v])) + '. That\u2019s a strong base.');
+      $('#cout').innerHTML = '<div class="card"><p class="tag">You and ' + esc(f.who) + '</p>' + rows + '<p class="muted small"><i class="lb-key lb-q"></i> you \u00b7 <i class="lb-key lb-dot"></i> ' + esc(f.who) + '</p>' +
+        (click.length ? '<h3>Where you click</h3><ul class="care">' + click.map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>' : '') + (clash.length ? '<h3>Where you might clash</h3><ul class="care">' + clash.map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>' : '') +
+        '<p class="muted small">These are rules of thumb from the scores, not predictions. Studies find personality similarity explains only a small part of how well people get along. Effort matters more.</p></div>';
+    }
+    $('#cgo').onclick = go; if (saved) go();
+  }
+
+  /* 5. Stretch goal (Pro) — volitional personality change: Hudson & Fraley 2015; Hudson et al. 2019 (doing the challenges, not just wanting change, went with change) */
+  var STR = {
+    E: ['More outgoing', ['Say hi first to someone you usually just nod at', 'Ask one follow-up question in a conversation', 'Sit with a different group at lunch once', 'Text someone you haven\u2019t talked to in a while', 'Speak up once in class or practice', 'Start a group chat plan for the weekend', 'Introduce two people who don\u2019t know each other', 'Say yes to one invite you\u2019d normally skip', 'Call instead of texting once', 'Compliment someone out loud', 'Ask a teacher or coach a question after class', 'Host something small: a game, a study session']],
+    C: ['More organized', ['Write tomorrow\u2019s 3 to-dos before bed', 'Start one assignment the day it\u2019s given', 'Clear your desk or bag for 5 minutes', 'Set a timer and work 25 minutes with your phone away', 'Put every due date in one calendar', 'Lay out tomorrow\u2019s stuff the night before', 'Finish one task you\u2019ve been putting off', 'Make a plan for a big project with 3 steps', 'Be 5 minutes early to something', 'Review your week on Sunday for 10 minutes', 'Do the hardest task first one day', 'Keep a streak: same habit 5 days in a row']],
+    O: ['More open', ['Listen to an album in a genre you never play', 'Try a food you\u2019ve never had', 'Read a long article about something random', 'Take a different route home', 'Ask someone about a hobby you know nothing about', 'Visit a museum, gallery or library section you\u2019ve never been to', 'Draw, write or make something for 15 minutes', 'Watch a movie from another country', 'Learn 10 words in a new language', 'Try a club or activity once', 'Argue the other side of an opinion you hold, just in your head', 'Spend 10 minutes outside noticing small things']],
+    A: ['Warmer', ['Thank someone specifically for something', 'Let someone else pick the plan', 'Ask how someone is and actually listen', 'Help with something without being asked', 'Assume good intent once when you\u2019re annoyed', 'Send a nice message to a family member', 'Give credit to a teammate out loud', 'Pause before a sharp reply, then soften it', 'Include someone who\u2019s on the edge of the group', 'Apologize for one small thing', 'Do a chore someone else usually does', 'Write down 3 good things about someone who bugs you']],
+    N: ['Calmer', ['When stressed, breathe out longer than you breathe in for 1 minute', 'Write a worry down, then one thing you can do about it', 'Go for a 10-minute walk when you feel tense', 'Name the feeling out loud or in your head', 'Put your phone in another room for an hour', 'Ask: will this matter in a week?', 'Get to bed 30 minutes earlier', 'Talk a problem through with someone', 'Do something with your hands: cook, draw, build', 'Catch one harsh thought about yourself and reword it', 'Plan a small thing to look forward to', 'Spend time in nature or with an animal']]
+  };
+  function labStretch(sc) {
+    var g = LS.get('lab.stretch', null);
+    if (!g) {
+      V.innerHTML = labHead('stretch') + '<div class="card"><p>Which way do you want to grow? Your score is shown for each.</p>' + Object.keys(STR).map(function (t) { return '<button class="opt" data-g="' + t + '"><b>' + STR[t][0] + '</b> <span class="muted small">\u00b7 ' + BNAME[t] + ' ' + pc(sc, t) + '</span></button>'; }).join('') + '</div>' +
+        '<details class="fold card"><summary>Can personality really change?</summary><p class="small">Somewhat, yes. In studies by Nathan Hudson and Chris Fraley (2015, 2019), students who picked a trait to change and then actually did small weekly challenges shifted a little over a few months. Wanting it without doing the challenges didn\u2019t help. Retake the quiz after 4 weeks to see.</p></details>';
+      document.querySelectorAll('[data-g]').forEach(function (b) { b.onclick = function () { LS.set('lab.stretch', { t: b.dataset.g, start: Date.now(), base: pc(sc, b.dataset.g), done: {} }); labStretch(sc); }; }); return;
+    }
+    var L = STR[g.t][1], wk = Math.min(3, Math.floor((Date.now() - g.start) / (7 * 864e5))), nd = Object.keys(g.done).length;
+    V.innerHTML = labHead('stretch') + '<div class="card"><p class="tag">Goal: ' + STR[g.t][0] + '</p><p class="small">Started ' + fmtDate(g.start) + ' at ' + BNAME[g.t] + ' ' + g.base + '. ' + nd + ' of 12 challenges done.</p><div class="bt"><i style="width:' + Math.round(nd / 12 * 100) + '%"></i></div></div>' +
+      [0, 1, 2, 3].map(function (w) { return '<div class="card' + (w > wk ? ' lb-dim' : '') + '"><p class="tag">Week ' + (w + 1) + (w === wk ? ' \u00b7 this week' : w > wk ? ' \u00b7 unlocks ' + fmtDate(g.start + w * 7 * 864e5) : '') + '</p>' + L.slice(w * 3, w * 3 + 3).map(function (c, j) { var id = w * 3 + j; return '<label class="ck"><input type="checkbox" data-c="' + id + '"' + (g.done[id] ? ' checked' : '') + (w > wk ? ' disabled' : '') + '><span>' + esc(c) + '</span></label>'; }).join('') + '</div>'; }).join('') +
+      (wk >= 3 ? '<a class="btn big block" href="#start">Retake the quiz to see if it moved</a>' : '') + '<button class="btn ghost block" id="sreset">Pick a different goal</button>';
+    document.querySelectorAll('[data-c]').forEach(function (c) { c.onchange = function () { if (c.checked) g.done[c.dataset.c] = Date.now(); else delete g.done[c.dataset.c]; LS.set('lab.stretch', g); labStretch(sc); }; });
+    $('#sreset').onclick = function () { if (confirm('Start over with a new goal?')) { LS.set('lab.stretch', null); labStretch(sc); } };
+  }
+
+  /* 6. Talk-to-me card (Pro): a shareable PNG built from rules on your scores */
+  function cardLines(sc) {
+    var g = function (k) { return pc(sc, k) || 50; }, L = [], cf = top(sc, CFS), cp = top(sc, ['cope_tackle', 'cope_support', 'cope_distract', 'cope_reframe', 'cope_withdraw', 'cope_express']);
+    L.push(['\ud83d\udcf1 Texting me', g('att_anxiety') >= 60 ? 'A quick reply, even \u201cbusy, talk later\u201d, helps me not overthink.' : g('att_avoidance') >= 60 ? 'If I go quiet, I\u2019m recharging, not upset. I\u2019ll come back.' : 'I\u2019m easy about replies. No pressure either way.']);
+    L.push(['\u26a1 In an argument', ['I say what I think straight away. Push back, I can take it.', 'I want us both to win. Let\u2019s actually talk it through.', 'I\u2019ll meet you in the middle. Tell me what matters most to you.', 'I give way easily, so check I\u2019m really okay with it.', 'I need time before I talk about it. I\u2019ll bring it up later.'][cf]]);
+    L.push(['\ud83c\udf27\ufe0f When I\u2019m stressed', ['I make a plan and get busy. Help me with the plan.', 'I want to talk it out. Just listen.', 'I distract myself. Invite me to do something.', 'I try to see it differently. Remind me of the big picture.', 'I go quiet. Check in once, then give me space.', 'I let it out. Let me vent without fixing it.'][cp]]);
+    L.push(['\ud83d\udd0b Recharging', g('E_sociability') >= 60 ? 'I recharge with people. Drag me out.' : g('E_sociability') <= 40 ? 'I recharge alone. A quiet night isn\u2019t me being upset.' : 'A mix: some people time, some alone time.']);
+    L.push(['\ud83d\uddd3\ufe0f Plans', g('C_order') >= 60 ? 'Tell me ahead of time. I like a plan.' : g('E_excitement') >= 60 ? 'Last-minute plans? I\u2019m in.' : 'Either works, just keep me in the loop.']);
+    L.push(['\ud83d\udcac Feedback', g('N_selfcon') >= 60 || g('N') >= 65 ? 'Be gentle. Start with what\u2019s working.' : 'Be direct. I\u2019d rather know.']);
+    return L;
+  }
+  function labCard(sc, r) {
+    var L = cardLines(sc), nm = LS.get('name', '') || 'Me', ty = null; try { ty = typesOf(r); } catch (e) {}
+    V.innerHTML = labHead('card') + '<div class="card"><img id="kimg" class="lb-card" alt="Your talk-to-me card"><button class="btn big block" id="ksh">Share card</button><a class="btn ghost block" id="kdl" download="mindprint-talk-to-me.png">Save image</a></div>' +
+      '<p class="muted small center">Every line is picked by a simple rule from your scores (attachment, top conflict style, top coping style, sociability, orderliness, sensitivity). Edit it in your head: you know yourself best.</p>';
+    var c = document.createElement('canvas'), W = 1080, H = 1350; c.width = W; c.height = H; var x = c.getContext('2d');
+    var gr = x.createLinearGradient(0, 0, W, H); gr.addColorStop(0, '#1d1830'); gr.addColorStop(1, '#120f1c'); x.fillStyle = gr; x.fillRect(0, 0, W, H);
+    var rg = x.createRadialGradient(W, 0, 0, W, 0, 700); rg.addColorStop(0, 'rgba(179,157,255,.35)'); rg.addColorStop(1, 'rgba(179,157,255,0)'); x.fillStyle = rg; x.fillRect(0, 0, W, H);
+    x.fillStyle = '#b3a9cc'; x.font = '600 34px -apple-system,system-ui,sans-serif'; x.fillText('HOW TO TALK TO', 80, 130);
+    x.fillStyle = '#f6f1ff'; x.font = '800 92px -apple-system,system-ui,sans-serif'; x.fillText(nm.slice(0, 16), 80, 230);
+    if (ty && ty.four) { x.fillStyle = '#ff8a65'; x.font = '700 36px -apple-system,system-ui,sans-serif'; x.fillText(ty.four.code + ' \u00b7 ' + ty.four.name, 80, 290); }
+    function wrap(t, X, Y, mw, lh) { var w = t.split(' '), line = '', y = Y; w.forEach(function (s) { var tt = line ? line + ' ' + s : s; if (x.measureText(tt).width > mw && line) { x.fillText(line, X, y); line = s; y += lh; } else line = tt; }); x.fillText(line, X, y); return y + lh; }
+    var y = 380; L.forEach(function (l) { x.fillStyle = '#b39dff'; x.font = '700 34px -apple-system,system-ui,sans-serif'; x.fillText(l[0], 80, y); x.fillStyle = '#f6f1ff'; x.font = '400 38px -apple-system,system-ui,sans-serif'; y = wrap(l[1], 80, y + 52, W - 160, 50) + 26; });
+    x.fillStyle = '#b3a9cc'; x.font = '500 28px -apple-system,system-ui,sans-serif'; x.fillText('Mindprint \u00b7 for fun and self-reflection', 80, H - 70);
+    var url = c.toDataURL('image/png'); $('#kimg').src = url; $('#kdl').href = url;
+    $('#ksh').onclick = function () { c.toBlob(function (b) { var f = null; try { f = new File([b], 'mindprint-talk-to-me.png', { type: 'image/png' }); } catch (e) {} if (f && navigator.canShare && navigator.canShare({ files: [f] })) navigator.share({ files: [f], title: 'How to talk to me' }).catch(function () {}); else { $('#kdl').click(); } }); };
+  }
+
+  /* 7. Drift chart (Pro): Big Five across every main result */
+  function labDrift(sc) {
+    var rs = results('main').slice().sort(function (a, b) { return (a.at || 0) - (b.at || 0); }).slice(-12), pts = rs.map(function (r) { return { t: r.at, s: scoreOf(r) }; }).filter(function (p) { return p.s; });
+    var cols = { O: '#b39dff', C: '#33e1d2', E: '#ff8a65', A: '#7ee787', N: '#ffd166' };
+    if (pts.length < 2) { V.innerHTML = labHead('drift') + '<div class="card"><p>You have ' + pts.length + ' result. Take the quiz again (a few weeks apart works best) and your drift chart appears here.</p><a class="btn big block" href="#start">Take it again</a></div>'; return; }
+    var W = 340, H = 200, X = function (i) { return 24 + i * (W - 40) / (pts.length - 1); }, Y = function (v) { return 12 + (100 - v) * (H - 34) / 100; };
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="Big Five over time">' + [0, 50, 100].map(function (v) { return '<line x1="20" x2="' + (W - 10) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" stroke="#342b52"/><text x="2" y="' + (Y(v) + 4) + '" font-size="10" fill="#b3a9cc">' + v + '</text>'; }).join('') +
+      B5.map(function (t) { return '<polyline fill="none" stroke="' + cols[t] + '" stroke-width="2.5" points="' + pts.map(function (p, i) { return X(i) + ',' + Y(p.s.scales[t] ? p.s.scales[t].pct : 50); }).join(' ') + '"/>' + pts.map(function (p, i) { return '<circle cx="' + X(i) + '" cy="' + Y(p.s.scales[t] ? p.s.scales[t].pct : 50) + '" r="3.2" fill="' + cols[t] + '"/>'; }).join(''); }).join('') +
+      pts.map(function (p, i) { return (i === 0 || i === pts.length - 1) ? '<text x="' + X(i) + '" y="' + (H - 4) + '" font-size="10" fill="#b3a9cc" text-anchor="' + (i ? 'end' : 'start') + '">' + new Date(p.t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + '</text>' : ''; }).join('') + '</svg>';
+    var a = pts[0].s, b = pts[pts.length - 1].s;
+    var rows = B5.map(function (t) { var d = (b.scales[t] ? b.scales[t].pct : 50) - (a.scales[t] ? a.scales[t].pct : 50); return '<div class="bl lb-dr"><span><i class="lb-key" style="background:' + cols[t] + '"></i>' + BNAME[t] + '</span><b>' + (d > 0 ? '+' : '') + d + (Math.abs(d) >= 10 ? ' \u00b7 a real shift?' : ' \u00b7 within the wobble') + '</b></div>'; }).join('');
+    V.innerHTML = labHead('drift') + '<div class="card">' + svg + '</div><div class="card"><p class="tag">First vs latest \u00b7 ' + pts.length + ' results</p>' + rows + '<p class="muted small">Any quiz wobbles a bit between takes even when nothing changed (mood, the day you had). Here a change under 10 points counts as wobble. That\u2019s a rough rule for a 77-question quiz, not an exact statistic.</p></div>';
+  }
+
+  /* 8. Decision coach (Pro): checklist tuned to your decision-making scores */
+  function labDecide(sc) {
+    var st = LS.get('lab.decide', null) || { q: '', opts: ['', ''], crit: ['', ''], w: [3, 3], r: {} };
+    var g = function (k) { return pc(sc, k) || 0; }, tips = [];
+    if (g('dm_maximizer') >= 60) tips.push(['You tend to hunt for the very best option', 'Write down what \u201cgood enough\u201d looks like first. Pick the first option that meets it. Barry Schwartz\u2019s research links always-maximizing with more regret.']);
+    if (g('dm_avoidant') >= 60) tips.push(['You tend to put decisions off', 'Set a decide-by time right now, today or tomorrow. Not deciding is also a decision.']);
+    if (g('dm_dependent') >= 60) tips.push(['You lean on other people\u2019s input', 'Ask two people at most, then decide on your own.']);
+    if (g('dm_spontaneous') >= 60) tips.push(['You decide fast, sometimes on impulse', 'Wait 10 minutes and fill in the table below before you commit.']);
+    if (g('dm_intuitive') >= 60) tips.push(['Your gut leads', 'Notice your gut pick, then check one fact that could prove it wrong.']);
+    if (g('dm_rational') >= 60) tips.push(['You like to research and compare', 'Cap the research: 3 options and 4 things that matter, then stop.']);
+    if (g('dm_risk') >= 65) tips.push(['You\u2019re comfortable with risk', 'Ask what the worst case actually costs you, and whether you can live with it.']); else if (g('dm_risk') <= 35) tips.push(['You prefer the safe bet', 'Ask what the safe choice costs you in a year. Sometimes safe is the bigger risk.']);
+    if (!tips.length) tips.push(['Your decision style is balanced', 'Use the table below and the 10/10/10 check.']);
+    V.innerHTML = labHead('decide') + '<div class="card"><label>What are you deciding?<input id="dq" maxlength="100" placeholder="Join the club or keep my weekends free?" value="' + esc(st.q) + '"></label></div>' +
+      '<div class="card"><p class="tag">Tuned to you</p>' + tips.map(function (t) { return '<p class="small"><b>' + esc(t[0]) + '.</b> ' + esc(t[1]) + '</p>'; }).join('') + '</div>' +
+      '<div class="card"><p class="tag">Weigh it</p><div class="lb-dg" id="dg"></div><button class="btn ghost block" id="dadd">+ Add an option</button></div>' +
+      '<details class="fold card"><summary>10/10/10 check</summary><p class="small">How will you feel about each option in 10 minutes? In 10 months? In 10 years? (Suzy Welch\u2019s rule.) If the 10-minute feeling is the only thing pulling you, notice that.</p></details>' +
+      '<p class="muted small center">Built from your decision-making scores with simple rules. You still decide.</p>';
+    $('#dq').oninput = function () { st.q = this.value; LS.set('lab.decide', st); };
+    function grid() {
+      LS.set('lab.decide', st);
+      var tot = st.opts.map(function (o, oi) { return st.crit.reduce(function (s, c, ci) { return s + (st.w[ci] || 0) * (st.r[oi + '_' + ci] || 0); }, 0); }), best = Math.max.apply(null, tot);
+      var h = '<table class="lb-tbl"><tr><th>What matters (weight 1\u20135)</th>' + st.opts.map(function (o, oi) { return '<th><input class="lb-in" data-o="' + oi + '" placeholder="' + 'ABC'.charAt(oi) + '" value="' + esc(o) + '"></th>'; }).join('') + '</tr>' +
+        st.crit.map(function (c, ci) { return '<tr><td><input class="lb-in" data-c="' + ci + '" placeholder="e.g. fun" value="' + esc(c) + '"><select data-w="' + ci + '">' + [1, 2, 3, 4, 5].map(function (n) { return '<option' + (n === st.w[ci] ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></td>' + st.opts.map(function (o, oi) { var v = st.r[oi + '_' + ci] || 0; return '<td><select data-r="' + oi + '_' + ci + '"><option value="0">\u2013</option>' + [1, 2, 3, 4, 5].map(function (n) { return '<option' + (n === v ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></td>'; }).join('') + '</tr>'; }).join('') +
+        '<tr><td><b>Score</b></td>' + tot.map(function (t) { return '<td><b class="' + (t === best && t > 0 ? 'lb-win' : '') + '">' + t + '</b></td>'; }).join('') + '</tr></table><button class="chip" id="dcr">+ something that matters</button>';
+      $('#dg').innerHTML = h;
+      document.querySelectorAll('[data-o]').forEach(function (i) { i.onchange = function () { st.opts[+i.dataset.o] = i.value; LS.set('lab.decide', st); }; });
+      document.querySelectorAll('[data-c]').forEach(function (i) { i.onchange = function () { st.crit[+i.dataset.c] = i.value; LS.set('lab.decide', st); }; });
+      document.querySelectorAll('[data-w]').forEach(function (s) { s.onchange = function () { st.w[+s.dataset.w] = +s.value; grid(); }; });
+      document.querySelectorAll('[data-r]').forEach(function (s) { s.onchange = function () { st.r[s.dataset.r] = +s.value; grid(); }; });
+      $('#dcr').onclick = function () { if (st.crit.length < 6) { st.crit.push(''); st.w.push(3); grid(); } };
+    }
+    $('#dadd').onclick = function () { if (st.opts.length < 3) { st.opts.push(''); grid(); } else toast('3 options max: narrow it down first'); };
+    grid();
+  }
+
   function route() {
     busy = false; window.scrollTo(0, 0); if (window.MPExplain) MPExplain.set(null);
     var tb = $('.top'); if (tb) document.documentElement.style.setProperty('--toph', tb.offsetHeight + 'px');
     var h = (location.hash || '#home').slice(1).split('#')[0].split('/'), r = h[0] || 'home', arg = decodeURIComponent(h.slice(1).join('/'));
     document.querySelectorAll('.tabbar a').forEach(function (a) { var t = a.getAttribute('href').slice(1); a.classList.toggle('on', t === r || (a.dataset.also || '').split(' ').indexOf(r) >= 0); });
-    var f = { home: home, start: start, quiz: quiz, results: resultsPage, history: history, deep: deepIntro, deepq: deepQ, deepres: deepResults, report: report, account: account, pro: proPage, types: typesHub, sharpen: sharpen, retake: retake, pick: pick, diag: diag, diagq: diagQ, lens: typesHub, map: mapPage, sim: simPage, guess: guessPage }[r] || home;
-    Promise.all([loadQ(), cloudReady, r.indexOf('deep') === 0 || r === 'report' || r === 'history' ? loadD() : null, /^(types|sharpen|retake|pick|diag|diagq|results|report|history|home|map|sim|guess)$/.test(r) ? loadA() : null]).then(ensureKey).then(function () { f(arg); }).catch(function (e) { try { console.error('route', e && e.stack || e); } catch (x) {} V.innerHTML = '<div class="card"><p>Couldn\u2019t load Mindprint. Check your connection and try again.</p></div>'; });
+    var f = { home: home, start: start, quiz: quiz, results: resultsPage, history: history, deep: deepIntro, deepq: deepQ, deepres: deepResults, report: report, account: account, pro: proPage, types: typesHub, sharpen: sharpen, retake: retake, pick: pick, diag: diag, diagq: diagQ, lens: typesHub, map: mapPage, sim: simPage, guess: guessPage, labs: labsPage, lab: labPage, rateme: rateFriend }[r] || home;
+    Promise.all([loadQ(), cloudReady, r.indexOf('deep') === 0 || r === 'report' || r === 'history' ? loadD() : null, /^(types|sharpen|retake|pick|diag|diagq|results|report|history|home|map|sim|guess|labs|lab)$/.test(r) ? loadA() : null]).then(ensureKey).then(function () { f(arg); }).catch(function (e) { try { console.error('route', e && e.stack || e); } catch (x) {} V.innerHTML = '<div class="card"><p>Couldn\u2019t load Mindprint. Check your connection and try again.</p></div>'; });
   }
   window.addEventListener('hashchange', route);
 
@@ -195,6 +450,7 @@
     var h = '<section class="hero"><p class="eyebrow">Mindprint</p><h1>What do your answers say about <span class="grad">you</span>?</h1>' +
       '<p class="lede">77 questions on the Big Five, attachment, conflict, values, stress and decisions. About 10 minutes, free to take.</p>' +
       (prog && prog.i > 0 ? '<a class="btn big block" href="#quiz">Continue the quiz (' + Math.min(prog.i + 1, Q.questions.length) + ' of ' + Q.questions.length + ')</a>' : '<a class="btn big block" href="#start">' + (last ? 'Take it again' : 'Start the quiz') + '</a>') + '</section>';
+    if (!LS.get('seen13', 0)) h += '<a class="card lb-new" href="#labs"><p class="tag">What\u2019s new in 1.3</p><b>\ud83e\uddea Labs: 8 new experiments</b><small>Rate me, friend compare, talk-to-me card, drift chart, decision coach, stretch goal, today vs usual, social battery planner.</small></a>';
     if (ty && ty.four && ty.cluster) h += '<a class="card mehome" href="#types"><span class="mec">' + esc(ty.four.code) + '</span><span class="nt"><small>Your type</small><b>' + esc(ty.four.name) + ' \u00b7 ' + esc(ty.cluster.emoji + ' ' + ty.cluster.name) + '</b></span><i aria-hidden="true">\u203a</i></a>';
     h += '<div class="card nav">' +
       (last ? row('#results/' + encodeURIComponent(last.id), '\ud83d\udcca', 'Your results', 'Your latest quiz, sorted by system') : '') +
@@ -202,6 +458,7 @@
       row('#map', '\ud83d\udd78\ufe0f', 'Mindprint Map', 'How every system connects, with deep explanations' + (pro() ? '' : ' \u00b7 Pro')) +
       (dg && dg.i > 0 ? row('#diagq', '\u23f8\ufe0f', 'Continue the quick diagnostic', 'Pick up where you left off') : '') +
       (dprog && dprog.i > 0 ? row('#deepq', '\u23f8\ufe0f', 'Continue your Deep Dive', 'Pick up where you left off') : row(pro() ? '#deep' : '#pro', '\ud83c\udf00', 'Deep Dive', 'Childhood + family, 50 skippable questions' + (pro() ? '' : ' \u00b7 Pro'))) +
+      row('#labs', '\ud83e\uddea', 'Labs', '8 new experiments: rate me, friend compare, drift chart\u2026') +
       row('#history', '\ud83d\uddc2\ufe0f', 'History', 'Every quiz you\u2019ve taken') +
       row(pro() ? '#account' : '#pro', '\u2b50', pro() ? 'Mindprint Pro is on' : 'Mindprint Pro \u00b7 $10', pro() ? 'Your account and plan' : 'Full results, Deep Dive, report, PDF and spreadsheet') + '</div>';
     h += '<div class="card"><details class="fold hiw"><summary>How it works</summary><ol class="steps"><li>Answer honestly. There are no right or wrong answers. Taking it is free.</li><li>See your top trait, 4-letter type and cluster right away. Your full results, across every system, come with Mindprint Pro ($10).</li><li>Sign in to keep every result in your account and retake it any time.</li></ol></details></div>' +
@@ -782,7 +1039,7 @@
       else inner = '<p' + (s.id === 'attach' && TT ? ' data-x="attach"' : '') + '>' + esc(s.text) + '</p>' + (s.id === 'attach' ? bars(sc, ['att_anxiety', 'att_avoidance']) : bars(sc, s.keys.slice(0, 6)));
       html += sec('r' + s.id, RI[s.id] || '\u2022', s.title, RV[s.id] || '', inner);
     });
-    html += '<div class="card x12"><p class="tag">New</p><a class="x12a" href="#sim/' + encodeURIComponent(r.id) + '"><span>\ud83d\udd2e</span><b>What would you do?</b><small>8 real situations, predicted from your scores</small></a><a class="x12a" href="#guess/' + encodeURIComponent(r.id) + '"><span>\ud83c\udfaf</span><b>How well do you know yourself?</b><small>guess your scores, find your blind spot</small></a></div>';
+    html += '<div class="card x12"><p class="tag">New</p><a class="x12a" href="#sim/' + encodeURIComponent(r.id) + '"><span>\ud83d\udd2e</span><b>What would you do?</b><small>8 real situations, predicted from your scores</small></a><a class="x12a" href="#guess/' + encodeURIComponent(r.id) + '"><span>\ud83c\udfaf</span><b>How well do you know yourself?</b><small>guess your scores, find your blind spot</small></a><a class="x12a" href="#labs"><span>\ud83e\uddea</span><b>Labs</b><small>8 experiments built on these results</small></a></div>';
     html += '<div class="card deepcard"><p class="tag">Pro</p><h2>Go deeper</h2><p>Get the full written report: what your results say about your strengths, blind spots, relationships, stress and school or work fit, plus the Deep Dive into your childhood and family, a spreadsheet of every answer and a printable PDF.</p>' +
       (pro() ? '<a class="btn block" href="#report/' + encodeURIComponent(r.id) + '">Open your full report</a><a class="btn ghost block" href="#deep">Deep Dive</a>' : '<a class="btn block" href="#pro">Unlock Mindprint Pro \u00b7 $10</a>') + '</div>';
     html += signed() ? '<p class="muted small center">Saved to your account.</p>' : '<div class="card"><p><b>Keep these results.</b> Sign in or create a free Northpeak account to keep them in your history on any device.</p><a class="btn ghost block" href="#account">Sign in to save</a></div>';
