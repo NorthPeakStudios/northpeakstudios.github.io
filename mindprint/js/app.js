@@ -79,13 +79,111 @@
   /* the account module loads as a separate script: wait for it (briefly) so a fresh load on #deep or #report sees a Pro account as Pro */
   var cloudReady = new Promise(function (ok) { if (C()) return ok(); window.addEventListener('cloud-ready', function () { ok(); }, { once: true }); setTimeout(ok, 4000); });
   /* ---------- router ---------- */
+
+  /* ---------- 1.2 (Oct 26 2026): What would you do? (scenario simulator) + Know yourself? (guess your own scores). Pro, like full results. ---------- */
+  var SIMS = [
+    { id: 'read', icon: '\ud83d\udcf1', t: 'A close friend leaves you on read for a whole day', r: [
+      { t: 'You\u2019d check the chat a few times and start wondering if you said something wrong. A quick \u201cyou good?\u201d text is likely.', w: { att_anxiety: 1.2, N_anxiety: .6, att_avoidance: -.4 } },
+      { t: 'You\u2019d barely notice. People get busy, and you\u2019d rather not chase anyone.', w: { att_avoidance: 1.1, N: -.5, E_sociability: -.3 } },
+      { t: 'You\u2019d assume they\u2019re busy and text again tomorrow like nothing happened.', w: { att_anxiety: -.9, att_avoidance: -.6, A_trust: .6 } } ] },
+    { id: 'group', icon: '\ud83d\udcda', t: 'Group project: one person isn\u2019t doing their part', r: [
+      { t: 'You\u2019d call it out directly, probably in the group chat, and push for them to step up.', w: { cf_competing: 1.2, E_assertiveness: .6, A: -.4 } },
+      { t: 'You\u2019d set up a quick plan with clear jobs and deadlines so nobody can drift.', w: { cf_collaborating: 1, C_order: .7, C: .4 } },
+      { t: 'You\u2019d quietly do their part yourself so the grade doesn\u2019t suffer.', w: { cf_accommodating: 1.1, C_achievement: .5, E_assertiveness: -.4 } },
+      { t: 'You\u2019d let it slide and hope it sorts itself out. Bringing it up feels like more trouble than it\u2019s worth.', w: { cf_avoiding: 1.2, N_selfcon: .4 } } ] },
+    { id: 'test', icon: '\ud83d\udcdd', t: 'Big test tomorrow and you haven\u2019t started studying', r: [
+      { t: 'You\u2019d make a plan for the night and grind through it. Stress becomes fuel.', w: { cope_tackle: 1.2, C_discipline: .6, N: -.3 } },
+      { t: 'You\u2019d text a friend to study together or vent about it first.', w: { cope_support: 1.1, E_sociability: .5 } },
+      { t: 'You\u2019d watch \u201cjust one\u201d video first, then start later than you meant to.', w: { cope_distract: 1.1, C_discipline: -.7, dm_avoidant: .4 } },
+      { t: 'You\u2019d tell yourself it\u2019s one test, it doesn\u2019t define you, and study what you can.', w: { cope_reframe: 1.2, N: -.5 } } ] },
+    { id: 'party', icon: '\ud83c\udf89', t: 'Last-minute invite to a party where you only know one person', r: [
+      { t: 'You\u2019re in. New people are half the fun, and you\u2019ll know five more by the end.', w: { E_sociability: 1, E_excitement: .8, O_adventure: .4, N_selfcon: -.5 } },
+      { t: 'You\u2019d go, stick close to the one person you know, and leave a bit early.', w: { N_selfcon: .7, E_sociability: .2, A_cooperation: .3 } },
+      { t: 'You\u2019d probably pass. A night in sounds better than small talk with strangers.', w: { E_sociability: -1.1, N_selfcon: .5, E_excitement: -.4 } } ] },
+    { id: 'parent', icon: '\ud83c\udfe0', t: 'A parent sets a rule you think is unfair', r: [
+      { t: 'You\u2019d argue your case right then, and it might get heated.', w: { cf_competing: 1, N_anger: .8, A: -.4 } },
+      { t: 'You\u2019d wait until things are calm, then make a deal: \u201cwhat if I do X, can I get Y?\u201d', w: { cf_collaborating: .9, cf_compromising: .7, dm_rational: .3 } },
+      { t: 'You\u2019d go along with it outwardly and quietly be annoyed about it.', w: { cf_accommodating: .8, cf_avoiding: .7, cope_withdraw: .5 } } ] },
+    { id: 'choice', icon: '\ud83d\udd00', t: 'Two good options and you can only pick one (a class, a club, a trip)', r: [
+      { t: 'You\u2019d make a pros and cons list, maybe a spreadsheet, and research both.', w: { dm_rational: 1.2, dm_maximizer: .5, C: .3 } },
+      { t: 'You\u2019d go with whichever one felt right the moment you heard about it.', w: { dm_intuitive: 1.2, dm_spontaneous: .4 } },
+      { t: 'You\u2019d ask a few people you trust before deciding.', w: { dm_dependent: 1.2, A: .3 } },
+      { t: 'You\u2019d put it off until the deadline makes the choice for you.', w: { dm_avoidant: 1.2, N_anxiety: .4 } } ] },
+    { id: 'critic', icon: '\ud83d\udcac', t: 'Someone criticizes something you worked hard on', r: [
+      { t: 'It would sting for a while. You\u2019d replay it later, even if you didn\u2019t show it.', w: { N: 1, N_selfcon: .5, cope_withdraw: .3 } },
+      { t: 'You\u2019d push back and defend your work, especially if you think they\u2019re wrong.', w: { cf_competing: .8, N_anger: .6, E_assertiveness: .6 } },
+      { t: 'You\u2019d take the useful part, ignore the rest and move on.', w: { cope_reframe: .9, N: -.8, C_achievement: .3 } } ] },
+    { id: 'free', icon: '\u2600\ufe0f', t: 'A whole free Saturday with nothing planned', r: [
+      { t: 'You\u2019d fill it with people and plans by noon.', w: { E_sociability: 1, E_excitement: .6, v_stimulation: .4 } },
+      { t: 'You\u2019d go down a rabbit hole: a new skill, a project, a big idea.', w: { O_ideas: 1, O_fantasy: .5, v_self_direction: .5 } },
+      { t: 'You\u2019d finally catch up on the stuff you\u2019ve been meaning to do.', w: { C: .9, C_order: .6, v_achievement: .4 } },
+      { t: 'Full recharge: sleep in, snacks, shows, zero obligations.', w: { v_hedonism: 1, E_sociability: -.4, C_discipline: -.3 } } ] }
+  ];
+  function simPick(sc, s) {
+    var rs = s.r.map(function (x) { var v = 0, drv = [];
+      for (var k in x.w) { var p = sc.scales[k] ? sc.scales[k].pct : 50; v += x.w[k] * (p - 50) / 50; drv.push({ k: k, c: x.w[k] * (p - 50) / 50, p: p }); }
+      drv = drv.filter(function (d) { return sc.scales[d.k] && d.c > 0.05; }).sort(function (a, b) { return b.c - a.c; }).slice(0, 3);
+      return { x: x, v: v, drv: drv }; }).sort(function (a, b) { return b.v - a.v; });
+    return rs;
+  }
+  function simPage(id) {
+    var r = byId(id) || results('main')[0]; if (!r) { location.hash = '#start'; return; }
+    if (!full()) { location.hash = '#pro'; return; }
+    var sc = scoreOf(r), pick = LS.get('simPick', null);
+    V.innerHTML = '<a class="back" href="#results/' + encodeURIComponent(r.id) + '">\u2190 Results</a><h1 class="pt">What would you do?</h1><p class="muted">Pick a situation. Mindprint predicts how you\u2019d most likely react, using your own scores, and shows which scores drove the call.</p>' +
+      '<div class="simlist">' + SIMS.map(function (s) { return '<button class="simb' + (pick === s.id ? ' on' : '') + '" data-sim="' + s.id + '"><span>' + s.icon + '</span>' + esc(s.t) + '</button>'; }).join('') + '</div><div id="simout"></div>' +
+      '<p class="muted small center">A rough guess from your answers, not a prophecy. People surprise themselves all the time.</p>';
+    function show(sid) {
+      var s = SIMS.filter(function (x) { return x.id === sid; })[0]; if (!s) return; LS.set('simPick', sid);
+      document.querySelectorAll('.simb').forEach(function (b) { b.classList.toggle('on', b.dataset.sim === sid); });
+      var rs = simPick(sc, s), a = rs[0], b = rs[1], gap = a.v - b.v, conf = gap > 0.6 ? 'Strong lean' : gap > 0.25 ? 'Likely' : 'Close call';
+      var chip = function (d) { return '<span class="chip" data-x="scale:' + d.k + '">' + esc(S.nm(d.k)) + ' ' + d.p + '</span>'; };
+      document.getElementById('simout').innerHTML = '<div class="card simres"><p class="eyebrow">' + s.icon + ' ' + esc(s.t) + '</p><p class="tag">' + conf + '</p><h2 class="simt">' + esc(a.x.t) + '</h2>' +
+        (a.drv.length ? '<p class="muted small">Driven by</p><div class="chips">' + a.drv.map(chip).join('') + '</div>' : '<p class="muted small">None of your scores pushed hard here. This won mostly because the other reactions fit your scores less.</p>') +
+        (gap <= 0.6 ? '<p class="simalt"><b>Or maybe:</b> ' + esc(b.x.t) + '</p>' : '') +
+        '<details class="fold"><summary>How it decided</summary><p class="small">Each possible reaction leans on a few of your scales. Mindprint adds up how far your scores sit above or below the middle on those scales and picks the reaction with the biggest total. \u201c' + conf + '\u201d is how far ahead the winner was.</p>' +
+        rs.map(function (x) { return '<div class="br"><div class="bl"><span class="small">' + esc(x.x.t.slice(0, 60)) + (x.x.t.length > 60 ? '\u2026' : '') + '</span></div><div class="bt"><i style="width:' + Math.max(3, Math.min(100, Math.round(50 + x.v * 30))) + '%"></i></div></div>'; }).join('') + '</details></div>';
+      document.getElementById('simout').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    try { xSet(r, typesOf(r), sc); } catch (e) {}
+    V.querySelectorAll('.simb').forEach(function (b) { b.onclick = function () { show(b.dataset.sim); }; });
+    if (pick) show(pick);
+  }
+  var GUESS = ['O', 'C', 'E', 'A', 'N'];
+  var GLAB = { O: ['Practical', 'Curious'], C: ['Spontaneous', 'Organized'], E: ['Recharge alone', 'Recharge with people'], A: ['Direct', 'Warm'], N: ['Calm', 'Feels things strongly'] };
+  function guessPage(id) {
+    var r = byId(id) || results('main')[0]; if (!r) { location.hash = '#start'; return; }
+    if (!full()) { location.hash = '#pro'; return; }
+    var sc = scoreOf(r), all = LS.get('guess', {}), g = all[r.id];
+    var back = '<a class="back" href="#results/' + encodeURIComponent(r.id) + '">\u2190 Results</a><h1 class="pt">How well do you know yourself?</h1>';
+    if (!g) {
+      V.innerHTML = back + '<p class="muted">Before you look: slide each one to where you think you are. Then Mindprint shows how close you got to what your answers say.</p>' +
+        GUESS.map(function (k) { return '<div class="card gq"><b>' + esc(S.nm(k)) + '</b><input type="range" min="0" max="100" value="50" data-g="' + k + '"><div class="gl"><span>' + GLAB[k][0] + '</span><span>' + GLAB[k][1] + '</span></div></div>'; }).join('') +
+        '<button class="btn block" id="gsub">Reveal</button>';
+      document.getElementById('gsub').onclick = function () { var o = { at: Date.now() }; V.querySelectorAll('[data-g]').forEach(function (i) { o[i.dataset.g] = +i.value; }); all[r.id] = o; LS.set('guess', all); guessPage(r.id); };
+      return;
+    }
+    var rows = GUESS.filter(function (k) { return sc.scales[k]; }).map(function (k) { return { k: k, g: g[k], a: sc.scales[k].pct, d: g[k] - sc.scales[k].pct }; });
+    var avg = rows.reduce(function (s, x) { return s + Math.abs(x.d); }, 0) / (rows.length || 1), ins = Math.max(0, Math.round(100 - avg * 2));
+    var bs = rows.slice().sort(function (a, b) { return Math.abs(b.d) - Math.abs(a.d); })[0];
+    var word = ins >= 85 ? 'You know yourself really well.' : ins >= 70 ? 'Pretty self-aware, with a blind spot or two.' : ins >= 50 ? 'Some surprises in here.' : 'Your answers tell a different story than you expected.';
+    var bsText = bs && Math.abs(bs.d) >= 12 ? (bs.d > 0 ? 'You see yourself as more ' + GLAB[bs.k][1].toLowerCase() + ' (' + esc(S.nm(bs.k)) + ') than your answers show: you guessed ' + bs.g + ', your answers say ' + bs.a + '.' : 'Your answers say you\u2019re more ' + GLAB[bs.k][1].toLowerCase() + ' (' + esc(S.nm(bs.k)) + ') than you think: you guessed ' + bs.g + ', your answers say ' + bs.a + '.') : 'No big blind spot. Every guess landed within 12 points.';
+    V.innerHTML = back + '<div class="card center"><p class="eyebrow">Self-insight</p><div class="gbig">' + ins + '</div><p>' + word + '</p><p class="muted small">100 minus twice your average miss. Your average miss was ' + Math.round(avg) + ' points.</p></div>' +
+      '<div class="card"><h2>Biggest blind spot</h2><p>' + bsText + '</p></div><div class="card">' +
+      rows.map(function (x) { return '<div class="gr" data-x="scale:' + x.k + '"><div class="bl"><span>' + esc(S.nm(x.k)) + '</span><b>' + (x.d === 0 ? 'spot on' : (x.d > 0 ? '+' : '') + x.d) + '</b></div><div class="gt"><i class="ga" style="left:' + x.a + '%"></i><i class="gg" style="left:' + x.g + '%"></i></div></div>'; }).join('') +
+      '<p class="muted small"><i class="gdot ga"></i> your answers &nbsp; <i class="gdot gg"></i> your guess</p></div>' +
+      '<button class="btn ghost block" id="gre">Guess again</button><p class="muted small center">Saved on this device. Not a diagnosis \u2014 for fun and self-reflection.</p>';
+    try { xSet(r, typesOf(r), sc); } catch (e) {}
+    document.getElementById('gre').onclick = function () { delete all[r.id]; LS.set('guess', all); guessPage(r.id); };
+  }
+
   function route() {
     busy = false; window.scrollTo(0, 0); if (window.MPExplain) MPExplain.set(null);
     var tb = $('.top'); if (tb) document.documentElement.style.setProperty('--toph', tb.offsetHeight + 'px');
     var h = (location.hash || '#home').slice(1).split('#')[0].split('/'), r = h[0] || 'home', arg = decodeURIComponent(h.slice(1).join('/'));
     document.querySelectorAll('.tabbar a').forEach(function (a) { var t = a.getAttribute('href').slice(1); a.classList.toggle('on', t === r || (a.dataset.also || '').split(' ').indexOf(r) >= 0); });
-    var f = { home: home, start: start, quiz: quiz, results: resultsPage, history: history, deep: deepIntro, deepq: deepQ, deepres: deepResults, report: report, account: account, pro: proPage, types: typesHub, sharpen: sharpen, retake: retake, pick: pick, diag: diag, diagq: diagQ, lens: typesHub, map: mapPage }[r] || home;
-    Promise.all([loadQ(), cloudReady, r.indexOf('deep') === 0 || r === 'report' || r === 'history' ? loadD() : null, /^(types|sharpen|retake|pick|diag|diagq|results|report|history|home|map)$/.test(r) ? loadA() : null]).then(ensureKey).then(function () { f(arg); }).catch(function (e) { try { console.error('route', e && e.stack || e); } catch (x) {} V.innerHTML = '<div class="card"><p>Couldn\u2019t load Mindprint. Check your connection and try again.</p></div>'; });
+    var f = { home: home, start: start, quiz: quiz, results: resultsPage, history: history, deep: deepIntro, deepq: deepQ, deepres: deepResults, report: report, account: account, pro: proPage, types: typesHub, sharpen: sharpen, retake: retake, pick: pick, diag: diag, diagq: diagQ, lens: typesHub, map: mapPage, sim: simPage, guess: guessPage }[r] || home;
+    Promise.all([loadQ(), cloudReady, r.indexOf('deep') === 0 || r === 'report' || r === 'history' ? loadD() : null, /^(types|sharpen|retake|pick|diag|diagq|results|report|history|home|map|sim|guess)$/.test(r) ? loadA() : null]).then(ensureKey).then(function () { f(arg); }).catch(function (e) { try { console.error('route', e && e.stack || e); } catch (x) {} V.innerHTML = '<div class="card"><p>Couldn\u2019t load Mindprint. Check your connection and try again.</p></div>'; });
   }
   window.addEventListener('hashchange', route);
 
@@ -684,6 +782,7 @@
       else inner = '<p' + (s.id === 'attach' && TT ? ' data-x="attach"' : '') + '>' + esc(s.text) + '</p>' + (s.id === 'attach' ? bars(sc, ['att_anxiety', 'att_avoidance']) : bars(sc, s.keys.slice(0, 6)));
       html += sec('r' + s.id, RI[s.id] || '\u2022', s.title, RV[s.id] || '', inner);
     });
+    html += '<div class="card x12"><p class="tag">New</p><a class="x12a" href="#sim/' + encodeURIComponent(r.id) + '"><span>\ud83d\udd2e</span><b>What would you do?</b><small>8 real situations, predicted from your scores</small></a><a class="x12a" href="#guess/' + encodeURIComponent(r.id) + '"><span>\ud83c\udfaf</span><b>How well do you know yourself?</b><small>guess your scores, find your blind spot</small></a></div>';
     html += '<div class="card deepcard"><p class="tag">Pro</p><h2>Go deeper</h2><p>Get the full written report: what your results say about your strengths, blind spots, relationships, stress and school or work fit, plus the Deep Dive into your childhood and family, a spreadsheet of every answer and a printable PDF.</p>' +
       (pro() ? '<a class="btn block" href="#report/' + encodeURIComponent(r.id) + '">Open your full report</a><a class="btn ghost block" href="#deep">Deep Dive</a>' : '<a class="btn block" href="#pro">Unlock Mindprint Pro \u00b7 $10</a>') + '</div>';
     html += signed() ? '<p class="muted small center">Saved to your account.</p>' : '<div class="card"><p><b>Keep these results.</b> Sign in or create a free Northpeak account to keep them in your history on any device.</p><a class="btn ghost block" href="#account">Sign in to save</a></div>';
