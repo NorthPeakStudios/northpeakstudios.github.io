@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.6.21 */
+/* Axon · Northpeak Studios · v1.14.0 */
 (function () {
   'use strict';
-  var VERSION = '1.8.0';
+  var VERSION = '1.14.0';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -5274,6 +5274,123 @@
   xWritingSettings = (function (f) { return function () { var h = f.apply(this, arguments); return isPro() ? h : h.replace('<div class="group">', '<div class="group xpro-g" data-act="xgetpro" data-f="Writing tools">'); }; })(xWritingSettings);
   xStrip = (function (f) { return function () { var h = f.apply(this, arguments); return isPro() ? h : h.replace(/(<button[^>]*class="chip[^"]*"[^>]*>)/g, '$1' + I.lock.replace('<svg', '<svg style="width:12px;height:12px;margin-right:4px;vertical-align:-1px"')); }; })(xStrip);
   try { xApplyLook(); } catch (e) {}
+
+
+  /* ---------- v1.14 · Fog of war (free) · Hidden connections (Pro) · Explain it back (Pro) ---------- */
+  var NF = { fog: !!xLS('fog', false), hid: !!xLS('hid', false), cache: null, sig: '' };
+  function nfSeenMap() { return xLS('seenAt', {}); }
+  xSeen = (function (f) { return function (id) { f.apply(this, arguments); try { var s = nfSeenMap(); s[id] = Date.now(); xLSset('seenAt', s); } catch (e) {} }; })(xSeen);
+  function nfLast(n) { var s = nfSeenMap()[n.id] || 0; return Math.max(s, n.updated || 0, n.created || 0); }
+  function nfDays(n) { var t = nfLast(n); return t ? Math.max(0, (Date.now() - t) / 864e5) : 999; }
+  function nfFog(n) { var d = nfDays(n); return d < 1 ? 0 : Math.min(1, Math.log(1 + d) / Math.log(61)); }
+  function nfAgo(n) { var d = nfDays(n); if (d >= 999) return 'never opened on this phone'; if (d < 1) return 'today'; var k = Math.floor(d); return k === 1 ? 'yesterday' : k < 60 ? k + ' days ago' : Math.round(k / 30) + ' months ago'; }
+  /* hidden connections: notes that share unusual words (TF-IDF cosine) but don't link or mention each other */
+  var NF_STOP = {}; ('a an the and or but if of to in on at by for with from as is are was were be been being it its this that these those there here than then so such not no nor too very can will just also into over under about after before between through during out up down off again further once only own same other some any each few more most both all how why what which who whom when where your you yours our we they them their his her him she he i me my mine us do does did doing have has had having would should could might must may shall like get got make made one two three new note notes see use used using via etc way much many lot really thing things').split(' ').forEach(function (w) { NF_STOP[w] = 1; });
+  function nfToks(n) { var t = (n.title + ' ' + MD.plain(n.body)).toLowerCase().replace(/https?:\/\/\S+/g, ' ').match(/[a-z\u00e0-\u024f][a-z0-9\u00e0-\u024f'-]{2,}/g) || []; return t.filter(function (w) { return !NF_STOP[w]; }); }
+  function nfLinked(a, b) { return outNotes(a).indexOf(b) >= 0 || outNotes(b).indexOf(a) >= 0 || autoOut(a).indexOf(b) >= 0 || autoOut(b).indexOf(a) >= 0; }
+  function nfCompute() {
+    var sig = ''; notes.forEach(function (n) { sig += n.id + (n.updated || 0) + ','; });
+    if (NF.cache && NF.sig === sig) return NF.cache;
+    var list = [], df = {}, N = 0;
+    notes.forEach(function (n) { if (n.folder && (n.folder === ARCHIVE || n.folder.indexOf(ARCHIVE + '/') === 0)) return; var tf = {}, tk = nfToks(n); if (tk.length < 8) return; tk.forEach(function (w) { tf[w] = (tf[w] || 0) + 1; }); Object.keys(tf).forEach(function (w) { df[w] = (df[w] || 0) + 1; }); list.push({ n: n, tf: tf, len: tk.length }); N++; });
+    list.forEach(function (d) { var v = {}, ws = Object.keys(d.tf).map(function (w) { var idf = Math.log((N + 1) / (df[w] + 0.5)); return [w, (d.tf[w] / d.len) * (df[w] > 1 ? idf : 0)]; }).filter(function (x) { return x[1] > 0; }).sort(function (a, b) { return b[1] - a[1]; }).slice(0, 40); var nm = 0; ws.forEach(function (x) { v[x[0]] = x[1]; nm += x[1] * x[1]; }); d.v = v; d.nm = Math.sqrt(nm) || 1; });
+    var pairs = [];
+    for (var i = 0; i < list.length; i++) for (var j = i + 1; j < list.length; j++) {
+      var A = list[i], B = list[j], dot = 0, sh = [];
+      for (var w in A.v) if (B.v[w]) { var p = A.v[w] * B.v[w]; dot += p; sh.push([w, p]); }
+      if (!dot) continue; var s = dot / (A.nm * B.nm);
+      if (s < 0.16 || sh.length < 2 || nfLinked(A.n, B.n)) continue;
+      sh.sort(function (a, b) { return b[1] - a[1]; });
+      pairs.push({ a: A.n.id, b: B.n.id, s: s, why: sh.slice(0, 4).map(function (x) { return x[0]; }) });
+    }
+    pairs.sort(function (a, b) { return b.s - a.s; });
+    var per = {}, out = []; pairs.forEach(function (p) { if ((per[p.a] || 0) >= 3 || (per[p.b] || 0) >= 3 || out.length >= 80) return; per[p.a] = (per[p.a] || 0) + 1; per[p.b] = (per[p.b] || 0) + 1; out.push(p); });
+    NF.cache = out; NF.sig = sig; return out;
+  }
+  function nfFor(id) { return nfCompute().filter(function (p) { return p.a === id || p.b === id; }); }
+  async function nfLink(aId, bId) {
+    var a = notes.get(aId), b = notes.get(bId); if (!a || !b) return;
+    var lines = String(a.body).replace(/\s+$/, '').split('\n'), at = -1, line = '- [[' + b.title + ']]';
+    for (var i = 0; i < lines.length; i++) if (/^##\s+Related\s*$/.test(lines[i])) { at = i; break; }
+    if (at < 0) a.body = lines.join('\n') + '\n\n## Related\n' + line + '\n';
+    else { var end = lines.length; for (var j = at + 1; j < lines.length; j++) if (/^#{1,2}\s/.test(lines[j])) { end = j; break; } while (end > at + 1 && !lines[end - 1].trim()) end--; lines.splice(end, 0, line); a.body = lines.join('\n') + '\n'; }
+    touch(a); NF.cache = null; toast('Linked \u201c' + a.title + '\u201d \u2192 \u201c' + b.title + '\u201d');
+  }
+  var _nfGD = graphData;
+  graphData = function () {
+    var d = _nfGD.apply(this, arguments);
+    if (NF.fog) d.nodes.forEach(function (x) { if (!x.kind) { var n = notes.get(x.id); if (n) x.fog = nfFog(n); } });
+    if (NF.hid && isPro()) { var inc = {}; d.nodes.forEach(function (x) { inc[x.id] = 1; }); d.sug = nfCompute().filter(function (p) { return inc[p.a] && inc[p.b]; }).map(function (p) { return [p.a, p.b, p.s]; }); }
+    return d;
+  };
+  var _nfRG = renderGraph;
+  renderGraph = function () {
+    _nfRG.apply(this, arguments);
+    var ch = document.querySelector('.ghead .chips'); if (!ch) return;
+    var fnd = ch.querySelector('[data-act="gfind"]');
+    (fnd || ch.lastElementChild).insertAdjacentHTML('afterend', '<button class="chip' + (NF.fog ? ' on' : '') + '" data-act="nffog" title="Fade notes you haven\u2019t opened in a while">Fog</button><button class="chip' + (NF.hid && isPro() ? ' on' : '') + '" data-act="nfhid" title="Notes that share words but don\u2019t link yet">' + (isPro() ? '' : I.lock.replace('<svg', '<svg style="width:12px;height:12px;margin-right:4px;vertical-align:-1px"')) + 'Hidden links</button>');
+    var hd = document.querySelector('.ghead');
+    if (NF.fog) { var seen = 0, tot = 0; notes.forEach(function (n) { tot++; if (nfDays(n) <= 30) seen++; }); hd.insertAdjacentHTML('beforeend', '<div class="nf-leg"><i class="nf-g"></i>Faded = not opened or edited for a while (on this phone). ' + (tot ? Math.round(100 * seen / tot) + '% of your vault is clear (touched in the last 30 days).' : '') + ' <button class="nf-a" data-act="nfexplore">Explore the fog</button></div>'); }
+    if (NF.hid && isPro()) { var c = (graphData().sug || []).length; hd.insertAdjacentHTML('beforeend', '<div class="nf-leg"><i class="nf-h"></i>' + c + ' hidden link' + (c === 1 ? '' : 's') + ': notes that share unusual words but don\u2019t link. A guess from word overlap. Tap a note to see why.</div>'); }
+    if (graphCtl && graphCtl.setInsets) try { graphCtl.setInsets(hd.offsetHeight + 6, $('#tabbar').offsetHeight + (ui.lastNote ? 170 : 40)); } catch (e) {}
+  };
+  var _nfGS = showGSheet;
+  showGSheet = function (id) {
+    _nfGS.apply(this, arguments);
+    var s = $('#gsheet'), n = id && notes.get(id); if (!s || !n) return;
+    var extra = '';
+    if (NF.fog) extra += '<div class="gm nf-gm">Last opened ' + esc(nfAgo(n)) + '</div>';
+    if (NF.hid && isPro()) { var ps = nfFor(id).slice(0, 3); if (ps.length) extra += '<div class="nf-sug"><div class="nf-k">Might connect to</div>' + ps.map(function (p) { var o = notes.get(p.a === id ? p.b : p.a); return o ? '<div class="nf-r"><button class="nf-t" data-act="gopen" data-id="' + o.id + '">' + esc(o.title) + '<small>shares: ' + esc(p.why.join(', ')) + '</small></button><button class="nf-l" data-act="nflink" data-a="' + id + '" data-b="' + o.id + '">Link</button></div>' : ''; }).join('') + '</div>'; }
+    if (extra) s.insertAdjacentHTML('beforeend', extra);
+  };
+  act.nffog = function () { if (!proOk('Fog of war')) return; NF.fog = !NF.fog; xLSset('fog', NF.fog); renderGraph(); if (NF.fog) toast('Fog on: notes you haven\u2019t opened in a while fade out'); };
+  act.nfhid = function () { if (!proOk('Hidden links')) return; NF.hid = !NF.hid; xLSset('hid', NF.hid); renderGraph(); };
+  act.nflink = async function (el) { if (!proOk('Hidden links')) return; await nfLink(el.dataset.a, el.dataset.b); if (route().v === 'graph') renderGraph(); else render(); };
+  act.nfexplore = function () { var best = null, bs = -1; notes.forEach(function (n) { var sc = nfDays(n) * (1 + Math.sqrt(outNotes(n).length + backlinks(n).length)); if (nfDays(n) > 14 && sc > bs) { bs = sc; best = n; } }); if (!best) { toast('No fog to clear. You\u2019ve opened everything lately'); return; } toast('Foggiest well-connected note: \u201c' + best.title + '\u201d'); go('#/n/' + best.id); };
+  XV.hidden = function () {
+    if (!isPro()) return xPage('Hidden links', 'Pro', '<div class="xp">Axon looks for notes that share unusual words but don\u2019t link to each other yet, and lets you link them in one tap.</div><button class="bignew" data-act="xgetpro" data-f="Hidden links"><span>Get Axon Pro</span></button>');
+    var ps = nfCompute();
+    return xPage('Hidden links', ps.length + ' found', '<p class="xp">Pairs of notes that use the same unusual words but don\u2019t link or mention each other. It\u2019s a guess from word overlap (rare shared words count more), so skip the ones that don\u2019t make sense.</p><div class="nf-list">' + (ps.length ? ps.map(function (p) { var a = notes.get(p.a), b = notes.get(p.b); if (!a || !b) return ''; return '<div class="nf-card"><div class="nf-two"><button data-act="open" data-id="' + a.id + '">' + esc(a.title) + '</button><span>\u2194</span><button data-act="open" data-id="' + b.id + '">' + esc(b.title) + '</button></div><div class="nf-why">shares: ' + esc(p.why.join(', ')) + ' \u00b7 ' + Math.round(p.s * 100) + '% match</div><button class="nf-l" data-act="nflink" data-a="' + a.id + '" data-b="' + b.id + '">Link them</button></div>'; }).join('') : xEmpty('Nothing hidden right now', ' Write a few more notes (8+ words each) and come back.')) + '</div>');
+  };
+  /* explain it back: write what you remember, see which key ideas of the note you covered */
+  function nfKeys(n) {
+    var keys = [], seen = {}; function add(t, why) { var k = String(t).trim().replace(/\s+/g, ' '); var lk = k.toLowerCase(); if (k.length < 3 || k.length > 40 || seen[lk] || NF_STOP[lk]) return; seen[lk] = 1; keys.push({ t: k, why: why }); }
+    linksOf(n).forEach(function (l) { add(l.target, 'link'); });
+    (n.body.match(/\*\*([^*\n]{3,40})\*\*/g) || []).forEach(function (b) { add(b.replace(/\*\*/g, ''), 'bold'); });
+    (n.body.match(/^#{1,4}\s+(.+)$/gm) || []).forEach(function (h) { var t = h.replace(/^#+\s+/, ''); if (!/^(related|discovered|notes?|summary|overview|introduction|intro|mechanism|risks?|uses?|side effects|definition|examples?|background|key points|review|questions?)$/i.test(t)) add(t, 'heading'); });
+    var dfd = nfCompute && NF.cache; var tf = {}; nfToks(n).forEach(function (w) { if (w.length > 4) tf[w] = (tf[w] || 0) + 1; });
+    var df = {}; notes.forEach(function (o) { if (o === n) return; var s = {}; nfToks(o).forEach(function (w) { s[w] = 1; }); Object.keys(s).forEach(function (w) { df[w] = (df[w] || 0) + 1; }); });
+    Object.keys(tf).map(function (w) { return [w, tf[w] * Math.log((notes.size + 1) / ((df[w] || 0) + 1))]; }).sort(function (a, b) { return b[1] - a[1]; }).slice(0, 10).forEach(function (x) { add(x[0], 'word'); });
+    return keys.slice(0, 16);
+  }
+  function nfStem(w) { return w.toLowerCase().replace(/(ing|ed|es|s|ly|ion|ions)$/, ''); }
+  function nfCovered(key, text) { var tx = ' ' + text.toLowerCase().replace(/[^a-z0-9\u00e0-\u024f]+/g, ' ') + ' '; var parts = key.t.toLowerCase().split(/[^a-z0-9\u00e0-\u024f]+/).filter(function (w) { return w.length > 2 && !NF_STOP[w]; }); if (!parts.length) return false; var hit = parts.filter(function (w) { var s = nfStem(w); return s.length > 2 && tx.indexOf(' ' + s) >= 0; }).length; return hit / parts.length >= 0.5; }
+  XV.explain = function (id) {
+    var n = notes.get(id); if (!n) return xPage('Explain it back', 'Tools', xEmpty('Note not found', ''));
+    if (!isPro()) return xPage('Explain it back', 'Pro', '<div class="xp">Close the note, explain it from memory like you\u2019re teaching it, and Axon shows which key ideas you covered and which you left out.</div><button class="bignew" data-act="xgetpro" data-f="Explain it back"><span>Get Axon Pro</span></button>');
+    var hist = (xLS('feyn', {})[id] || []).slice(-5);
+    return xPage('Explain it back', n.title, '<p class="xp">Without looking, explain \u201c' + esc(n.title) + '\u201d like you\u2019re teaching a friend. Then check which of the note\u2019s key ideas you covered.</p><textarea id="nfx" class="nf-ta" placeholder="Type or dictate what you remember\u2026" autocapitalize="sentences"></textarea><div class="nf-btns"><button class="acc nf-big" data-act="nfcheck" data-id="' + n.id + '">Check my explanation</button></div>' + (hist.length ? '<div class="nf-k">Your last tries</div><div class="nf-hist">' + hist.map(function (h) { return '<span>' + h.p + '%<small>' + new Date(h.t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + '</small></span>'; }).join('') + '</div>' : '') + '<div id="nfres"></div>');
+  };
+  act.nfcheck = function (el) {
+    var n = notes.get(el.dataset.id), ta = $('#nfx'); if (!n || !ta) return; var txt = ta.value.trim();
+    if (txt.split(/\s+/).length < 8) { toast('Write a bit more first (a few sentences)'); return; }
+    var keys = nfKeys(n); if (!keys.length) { $('#nfres').innerHTML = '<div class="xp">This note doesn\u2019t have enough key ideas to check yet (add some headings, **bold** terms or [[links]]).</div>'; return; }
+    var got = keys.filter(function (k) { return nfCovered(k, txt); }), miss = keys.filter(function (k) { return !nfCovered(k, txt); });
+    var p = Math.round(100 * got.length / keys.length), H = xLS('feyn', {}); (H[n.id] = H[n.id] || []).push({ t: Date.now(), p: p }); H[n.id] = H[n.id].slice(-12); xLSset('feyn', H);
+    $('#nfres').innerHTML = '<div class="nf-score"><b>' + got.length + '/' + keys.length + '</b><span>key ideas covered</span></div>' +
+      (got.length ? '<div class="nf-k">You covered</div><div class="nf-chips">' + got.map(function (k) { return '<span class="nf-c ok">' + esc(k.t) + '</span>'; }).join('') + '</div>' : '') +
+      (miss.length ? '<div class="nf-k">You left out</div><div class="nf-chips">' + miss.map(function (k) { return '<span class="nf-c no">' + esc(k.t) + '</span>'; }).join('') + '</div>' : '<p class="xp">You hit every key idea. Nice.</p>') +
+      '<p class="xp nf-fine">How it\u2019s checked: key ideas come from the note\u2019s [[links]], **bold** words, headings and its most unusual words, and Axon looks for those words (or close forms) in what you wrote. It checks coverage, not whether your explanation is right.</p><div class="nf-btns"><button data-act="open" data-id="' + n.id + '">Open the note</button><button data-act="nfagain" data-id="' + n.id + '">Try again</button></div>';
+    $('#nfres').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  act.nfagain = function (el) { render(); setTimeout(function () { var t = $('#nfx'); if (t) t.focus(); }, 80); };
+  function nfExplain(n) { if (!proOk('Explain it back')) return; go('#/x/explain/' + encodeURIComponent(n.id)); }
+  XNMENU.push(function () { return { label: proTag('Explain it back'), value: 'nfexp', icon: '<svg viewBox="0 0 24 24"><path d="M4 5.5h16v10H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg>' }; });
+  XNMFN.nfexp = nfExplain;
+  XSTRIP.unshift(['hid', 'Hidden links', 'x:hidden']);
+  COMMANDS.push(['Explain it back', 'feynman teach recall explain memory test', function () { var n = xCurNote(); if (n) nfExplain(n); else toast('Open a note first'); }],
+    ['Hidden links', 'suggest connections similar related notes unlinked', function () { go('#/x/hidden'); }],
+    ['Fog of war', 'fog forgotten old notes graph fade', function () { NF.fog = true; xLSset('fog', true); go('#/graph'); }]);
 
   window.__axon = { notes: notes, folders: folders, trash: trash, rc: rc, recallStats: recallStats, byTitle: byTitle, backlinks: backlinks, renameNote: renameNote, exportFiles: function () { return notes; }, Zip: Zip, importFiles: importFiles };
   boot();

@@ -8,7 +8,7 @@
     var ctx = canvas.getContext('2d');
     var W = 0, H = 0, dpr = Math.min(window.devicePixelRatio || 1, 3);
     var view = { x: 0, y: 0, k: 1 };
-    var nodes = [], links = [], byId = {}, adj = {}, top = {}, hubDeg = 12, dense = false, fitK = 1;
+    var nodes = [], links = [], sugs = [], byId = {}, adj = {}, top = {}, hubDeg = 12, dense = false, fitK = 1;
     var selected = opt.selected || null, current = opt.current || null;
     var alpha = 1, raf = 0, dead = false, userMoved = false, settledFit = false;
     var accent = opt.accent || '#ff6a3d';
@@ -17,12 +17,13 @@
       nodes = data.nodes.map(function (n) {
         var m = memory[n.id];
         var key = n.label || n.id, a = hash(key) * Math.PI * 2, rr = 60 + hash(key + 'r') * 160;
-        return { id: n.id, label: n.label, kind: n.kind || 'note', color: n.color || null, group: n.group || '', deg: 0,
+        return { id: n.id, label: n.label, kind: n.kind || 'note', color: n.color || null, group: n.group || '', fog: n.fog || 0, deg: 0,
           x: m ? m.x : Math.cos(a) * rr, y: m ? m.y : Math.sin(a) * rr, vx: 0, vy: 0, fixed: false, isNew: !m };
       });
       byId = {}; adj = {};
       nodes.forEach(function (n) { byId[n.id] = n; adj[n.id] = {}; });
       links = [];
+      sugs = (data.sug || []).map(function (l) { var a = byId[l[0]], b = byId[l[1]]; return a && b && a !== b ? [a, b, l[2] || 0] : null; }).filter(Boolean);
       var ordered = data.links.filter(function (l) { return !l[2]; }).concat(data.links.filter(function (l) { return l[2]; }));
       ordered.forEach(function (l) {
         var a = byId[l[0]], b = byId[l[1]];
@@ -150,6 +151,8 @@
         ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
         if (gh || l.auto) ctx.setLineDash([]);
       });
+      /* v1.14 hidden links: dashed violet, not part of the layout */
+      if (sugs.length) { ctx.setLineDash([4, 4]); sugs.forEach(function (l) { var a = toScreen(l[0]), b = toScreen(l[1]); var hot = focus && (l[0] === focus || l[1] === focus); ctx.strokeStyle = hot ? 'rgba(167,139,250,0.95)' : 'rgba(167,139,250,' + (focus ? 0.22 : 0.5) + ')'; ctx.lineWidth = hot ? 1.8 : 1.2; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }); ctx.setLineDash([]); }
       /* labels: the focus, its neighbors, the ~10 best-connected notes; everything once zoomed in (or a small vault).
          All of them yield to labels already drawn, so none overlap. */
       var many = zoomIn > 1.5 || nodes.length < 30, labels = [];
@@ -157,6 +160,7 @@
       order.forEach(function (n) {
         var p = toScreen(n), r = n.r * Math.max(0.8, Math.min(1.6, view.k / (fitK || 1) * 0.9 + 0.1));
         var isF = focus === n, isN = !!nb[n.id];
+        ctx.globalAlpha = n.fog && !isF ? Math.max(0.12, 1 - 0.85 * n.fog) : 1;
         if (isF) {
           ctx.fillStyle = hexA(accent, 0.18);
           ctx.beginPath(); ctx.arc(p.x, p.y, r + 8, 0, 7); ctx.fill();
@@ -174,6 +178,7 @@
           ctx.fillStyle = n.color ? (dim ? hexA(n.color, 0.3) : (isF ? accent : n.color)) : (isF ? accent : (dim ? '#4a4a50' : (n.deg ? '#b4b3ae' : '#5d5d63')));
           ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fill();
         }
+        ctx.globalAlpha = 1;
         if (isF || isN || top[n.id] || many) labels.push({ n: n, x: p.x, y: p.y + r + 4, f: isF, nb: isN, pr: isF ? 1e6 : isN ? 1e5 + n.deg : top[n.id] ? 1e4 + n.deg : n.deg });
       });
       labels.sort(function (a, b) { return b.pr - a.pr; });
@@ -187,9 +192,11 @@
         if (!L.f && placed.some(function (q) { return box.l < q.r && box.r > q.l && box.t < q.b && box.b > q.t; })) return;
         placed.push(box);
         /* a dark halo keeps text readable over lines */
+        ctx.globalAlpha = L.n.fog && !L.f ? Math.max(0.25, 1 - 0.75 * L.n.fog) : 1;
         ctx.strokeStyle = 'rgba(11,11,12,0.85)'; ctx.lineWidth = 3.5; ctx.strokeText(t, L.x, L.y);
         ctx.fillStyle = L.f ? '#edebe6' : (L.nb ? 'rgba(237,235,230,0.9)' : 'rgba(237,235,230,' + (focus && !hub ? 0.45 : 0.72) + ')');
         ctx.fillText(t, L.x, L.y);
+        ctx.globalAlpha = 1;
       });
     }
     function hexA(hex, a) {
