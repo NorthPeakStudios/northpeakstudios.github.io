@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.14.0 */
+/* Axon · Northpeak Studios · v1.15.0 */
 (function () {
   'use strict';
-  var VERSION = '1.14.0';
+  var VERSION = '1.15.0';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -5392,6 +5392,209 @@
     ['Hidden links', 'suggest connections similar related notes unlinked', function () { go('#/x/hidden'); }],
     ['Fog of war', 'fog forgotten old notes graph fade', function () { NF.fog = true; xLSset('fog', true); go('#/graph'); }]);
 
+
+  /* ---------- v1.15 · Axon Labs: 8 experimental tools (Open questions, Echo words: free · the rest Pro) ---------- */
+  var L8T = [
+    ['questions', 'Open questions', 'Every question you ever typed in a note, in one inbox. Tick them off as you answer them.', 0],
+    ['conflicts', 'Conflict finder', 'Finds places where two of your notes seem to disagree (a “not”, or different numbers about the same thing).', 1],
+    ['path', 'How are these connected?', 'Pick any two notes and see the chain of links between them, with the sentence that makes each jump.', 1],
+    ['timeline', 'Vault timeline', 'Every date and year mentioned anywhere in your notes, on one timeline.', 1],
+    ['mindmap', 'Mind map', 'Turns a note’s headings and bullets into a mind map.', 1],
+    ['trail', 'Audio trail', 'Reads a note out loud, then follows its links and keeps reading, like a podcast of your vault.', 1],
+    ['cheat', 'Cheat sheet', 'Squashes a note and every note it links to into one printable study page.', 1],
+    ['echo', 'Echo words', 'Highlights words you repeat too close together in a note.', 0]
+  ];
+  var L8_STOP = {}; 'the a an and or of to in on for with by is are was were be been it its this that these those as at from which who what when where how why not no but if then than into out up down over under about after before during between both each more most other some such only own same so too very can will just do does did have has had their there they them he she his her you your we our also may might must should would could one two get gets got make made like use used uses using via per'.split(' ').forEach(function (w) { L8_STOP[w] = 1; });
+  function l8Words(s) { return (String(s || '').toLowerCase().match(/[a-z\u00c0-\u024f0-9]+(?:['-][a-z]+)*/g) || []); }
+  function l8Stem(w) { return w.length > 5 ? w.replace(/(ations|ation|ings|ing|ies|ied|ed|es|s)$/, '') : w.replace(/s$/, ''); }
+  function l8Keys(s) { var o = {}; l8Words(s).forEach(function (w) { if (w.length >= 4 && !L8_STOP[w]) o[l8Stem(w)] = 1; }); return Object.keys(o); }
+  function l8Plain(b) { return MD.stripFront ? MD.stripFront(String(b || '')) : String(b || ''); }
+  function l8Line(s) { return String(s).replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, '$2').replace(/\[\[([^\]]+)\]\]/g, '$1').replace(/[*_`>#]+/g, '').replace(/^\s*[-+]\s+(\[.\]\s+)?/, '').trim(); }
+  function l8Sorted() { var a = []; notes.forEach(function (n) { a.push(n); }); return a.sort(function (x, y) { return y.updated - x.updated; }); }
+  function l8Pick(tool, id, label) { var list = l8Sorted().slice(0, 400); return '<label class="l8-pk"><span>' + esc(label || 'Note') + '</span><select data-l8pick="' + tool + '"><option value="">Choose a note\u2026</option>' + list.map(function (n) { return '<option value="' + esc(n.id) + '"' + (n.id === id ? ' selected' : '') + '>' + esc(n.title) + '</option>'; }).join('') + '</select></label>'; }
+  function l8Def(id) { if (id && notes.get(id)) return notes.get(id); var n = ui.lastNote && notes.get(ui.lastNote); return n || null; }
+  function l8Page(key, body) { var t = L8T.filter(function (x) { return x[0] === key; })[0]; return '<div class="page"><div class="nav stick"><button class="back" data-act="back" data-to="#/x/labs">' + I.back + '<span>Labs</span></button><div class="acts"></div></div><div class="eyebrow">Labs' + (t[3] ? ' \u00b7 Pro' : '') + '</div><h1 class="h1">' + esc(t[1]) + '</h1><p class="xp">' + esc(t[2]) + '</p>' + body + '</div>'; }
+  function l8Lock(key) { var t = L8T.filter(function (x) { return x[0] === key; })[0]; return l8Page(key, '<button class="bignew" data-act="xgetpro" data-f="' + esc(t[1]) + '"><span>Get Axon Pro</span></button>'); }
+  function l8Gate(key, fn) { return function (arg) { var t = L8T.filter(function (x) { return x[0] === key; })[0]; if (t[3] && !isPro()) return l8Lock(key); return fn(arg); }; }
+  XV.labs = function () {
+    return '<div class="page"><div class="nav stick"><button class="back" data-act="back" data-to="#/">' + I.back + '<span>Notes</span></button><div class="acts"></div></div><div class="eyebrow">New in 1.15</div><h1 class="h1">Labs</h1><p class="xp">Experimental tools that read your whole vault in new ways. Everything runs on this phone.</p><div class="rows">' +
+      L8T.map(function (t) { return '<button class="row l8-row" data-act="xgo" data-to="x:' + t[0] + '"><span class="l8-rt"><span class="nm">' + esc(t[1]) + (t[3] && !isPro() ? ' <i class="l8-pro">Pro</i>' : '') + '</span><span class="l8-sub">' + esc(t[2]) + '</span></span><span class="chev">' + I.chev + '</span></button>'; }).join('') + '</div></div>';
+  };
+  document.addEventListener('change', function (e) { var s = e.target.closest && e.target.closest('[data-l8pick]'); if (s && s.value) go('#/x/' + s.dataset.l8pick + '/' + encodeURIComponent(s.value), true); });
+
+  /* 1 · open questions (free) */
+  function l8Qs() {
+    var out = [], done = xLS('l8qdone', {});
+    notes.forEach(function (n) {
+      if (n.folder === ARCHIVE) return; var inCode = false;
+      l8Plain(n.body).split('\n').forEach(function (raw, li) {
+        if (/^\s*```/.test(raw)) { inCode = !inCode; return; } if (inCode || raw.indexOf('?') < 0 || /https?:\/\//.test(raw) || /^\s*(Q:|q:)/.test(raw) && 0) return;
+        var line = l8Line(raw); (line.match(/[^.!?\n]*[A-Za-z][^.!?\n]*\?/g) || []).forEach(function (q) { q = q.trim(); if (q.length < 8 || q.length > 220) return; var k = n.id + '|' + q.toLowerCase().replace(/\s+/g, ' ').slice(0, 120); out.push({ n: n, q: q, k: k, done: !!done[k] }); });
+      });
+    });
+    return out;
+  }
+  XV.questions = function (arg) {
+    var all = l8Qs(), showDone = arg === 'done', list = all.filter(function (x) { return showDone ? x.done : !x.done; }), by = {};
+    list.forEach(function (x) { (by[x.n.id] = by[x.n.id] || []).push(x); });
+    var ids = Object.keys(by).sort(function (a, b) { return notes.get(b).updated - notes.get(a).updated; });
+    return l8Page('questions', '<div class="l8-seg"><button class="' + (showDone ? '' : 'on') + '" data-act="xgo" data-to="x:questions">Open \u00b7 ' + all.filter(function (x) { return !x.done; }).length + '</button><button class="' + (showDone ? 'on' : '') + '" data-act="xgo" data-to="x:questions/done">Answered \u00b7 ' + all.filter(function (x) { return x.done; }).length + '</button></div>' +
+      (ids.length ? ids.map(function (id) { var n = notes.get(id); return '<div class="l8-grp"><button class="l8-gh" data-act="open" data-id="' + n.id + '">' + esc(n.title) + '</button>' + by[id].map(function (x) { return '<div class="l8-q"><button class="l8-tick' + (x.done ? ' on' : '') + '" aria-label="' + (x.done ? 'Mark open' : 'Mark answered') + '" data-act="l8qtick" data-k="' + esc(x.k) + '"></button><span>' + esc(x.q) + '</span></div>'; }).join('') + '</div>'; }).join('') : xEmpty(showDone ? 'Nothing answered yet' : 'No open questions', showDone ? '' : ' Type a question with a ? in any note and it shows up here.')));
+  };
+  act.l8qtick = function (el) { var d = xLS('l8qdone', {}), k = el.dataset.k; if (d[k]) delete d[k]; else d[k] = Date.now(); xLSset('l8qdone', d); el.classList.toggle('on'); var row = el.closest('.l8-q'); if (row) row.classList.add('l8-gone'); setTimeout(render, 380); };
+
+  /* 2 · conflict finder (pro) */
+  var L8_NEG = /\b(not|never|no|none|cannot|can't|isn't|aren't|doesn't|don't|didn't|won't|wasn't|without|neither|nor)\b/i;
+  function l8Sents() {
+    var S = [];
+    notes.forEach(function (n) { if (n.folder === ARCHIVE) return; l8Plain(n.body).split('\n').forEach(function (raw) { if (/^\s*(#|```|\|)/.test(raw)) return; l8Line(raw).replace(/([.!?])\s+/g, '$1\u0001').split('\u0001').forEach(function (s) { s = s.trim(); if (s.length < 20 || s.length > 260 || /\?$/.test(s)) return; var k = l8Keys(s); if (k.length < 3) return; S.push({ n: n, s: s, k: k, neg: L8_NEG.test(s), num: (s.match(/\b\d+(?:\.\d+)?\b/g) || []) }); }); }); });
+    return S.slice(0, 4000);
+  }
+  function l8Conflicts() {
+    var S = l8Sents(), idx = {}, df = {}, out = [], seen = {};
+    S.forEach(function (x, i) { x.k.forEach(function (w) { (idx[w] = idx[w] || []).push(i); df[w] = (df[w] || 0) + 1; }); });
+    S.forEach(function (a, i) {
+      var cnt = {}; a.k.forEach(function (w) { if (df[w] > 60) return; idx[w].forEach(function (j) { if (j > i && S[j].n !== a.n) cnt[j] = (cnt[j] || 0) + 1; }); });
+      Object.keys(cnt).forEach(function (j) {
+        if (cnt[j] < 3) return; var b = S[+j], share = cnt[j] / Math.min(a.k.length, b.k.length); if (share < 0.5) return;
+        var why = '';
+        if (a.neg !== b.neg) why = 'One says \u201cnot\u201d (or similar), the other doesn\u2019t';
+        else if (a.num.length && b.num.length && a.num.join() !== b.num.join() && a.num.length === b.num.length) why = 'Same topic, different numbers (' + a.num.join(', ') + ' vs ' + b.num.join(', ') + ')';
+        if (!why) return; var key = a.n.id + b.n.id + a.s.slice(0, 30); if (seen[key]) return; seen[key] = 1;
+        out.push({ a: a, b: b, why: why, sc: share + (a.neg !== b.neg ? 0.2 : 0) });
+      });
+    });
+    return out.sort(function (x, y) { return y.sc - x.sc; }).slice(0, 25);
+  }
+  XV.conflicts = l8Gate('conflicts', function () {
+    var c = l8Conflicts();
+    return l8Page('conflicts', (c.length ? '<div class="l8-k">' + c.length + ' possible conflict' + (c.length === 1 ? '' : 's') + '</div>' + c.map(function (x) { return '<div class="l8-cf"><div class="l8-why">' + esc(x.why) + '</div><button class="l8-side" data-act="open" data-id="' + x.a.n.id + '"><b>' + esc(x.a.n.title) + '</b>' + esc(x.a.s) + '</button><button class="l8-side" data-act="open" data-id="' + x.b.n.id + '"><b>' + esc(x.b.n.title) + '</b>' + esc(x.b.s) + '</button></div>'; }).join('') : xEmpty('No conflicts spotted', ' Either your notes agree, or they don\u2019t talk about the same things in similar words.')) +
+      '<p class="xp nf-fine">How it works: Axon pairs sentences from different notes that share at least 3 key words, then flags a pair if only one of them has a negative (not, never, no\u2026) or they give different numbers. It\u2019s a guess from words, so many flags will be fine on a closer look.</p>');
+  });
+
+  /* 3 · how are these connected? (pro) */
+  function l8Nbrs(n) { var s = {}; outNotes(n).forEach(function (o) { s[o.id] = o; }); backlinks(n).forEach(function (o) { s[o.id] = o; }); return Object.keys(s).map(function (k) { return s[k]; }); }
+  function l8Path(a, b) { var prev = {}, q = [a], seen = {}; seen[a.id] = 1; while (q.length) { var x = q.shift(); if (x === b) break; l8Nbrs(x).forEach(function (y) { if (!seen[y.id]) { seen[y.id] = 1; prev[y.id] = x; q.push(y); } }); } if (!seen[b.id]) return null; var p = [b]; while (p[0] !== a) p.unshift(prev[p[0].id]); return p; }
+  function l8Why(x, y) { var t = norm(y.title), line = ''; l8Plain(x.body).split('\n').some(function (l) { if (l.toLowerCase().indexOf('[[' + t) >= 0 || norm(l).indexOf('[[' + t) >= 0) { line = l8Line(l); return true; } return false; }); return line; }
+  XV.path = l8Gate('path', function (arg) {
+    var ps = String(arg || '').split('~'), a = notes.get(ps[0]), b = notes.get(ps[1]), list = l8Sorted().slice(0, 400);
+    var sel = function (w, cur) { return '<label class="l8-pk"><span>' + (w ? 'To' : 'From') + '</span><select data-l8path="' + w + '"><option value="">Choose a note\u2026</option>' + list.map(function (n) { return '<option value="' + esc(n.id) + '"' + (cur && n.id === cur.id ? ' selected' : '') + '>' + esc(n.title) + '</option>'; }).join('') + '</select></label>'; };
+    var body = sel(0, a) + sel(1, b);
+    if (a && b) {
+      var p = a === b ? [a] : l8Path(a, b);
+      if (!p) body += xEmpty('Not connected', ' No chain of [[links]] joins these two. Hidden links might suggest a bridge.') + '<div class="nf-btns"><button data-act="xgo" data-to="x:hidden">Open Hidden links</button></div>';
+      else body += '<div class="l8-k">' + (p.length - 1) + ' jump' + (p.length === 2 ? '' : 's') + '</div><div class="l8-chain">' + p.map(function (n, i) { var nx = p[i + 1], w = nx ? (l8Why(n, nx) || l8Why(nx, n)) : ''; return '<button class="l8-node" data-act="open" data-id="' + n.id + '">' + esc(n.title) + '</button>' + (nx ? '<div class="l8-edge">' + (w ? '\u201c' + esc(w.slice(0, 140)) + '\u201d' : 'linked') + '</div>' : ''); }).join('') + '</div>';
+    }
+    return l8Page('path', body + '<p class="xp nf-fine">Uses the shortest chain of [[links]] in either direction.</p>');
+  });
+  document.addEventListener('change', function (e) { var s = e.target.closest && e.target.closest('[data-l8path]'); if (!s) return; var r = route(), ps = String(r.arg || '').split('~'); ps[+s.dataset.l8path] = s.value; go('#/x/path/' + encodeURIComponent(ps[0] || '') + '~' + encodeURIComponent(ps[1] || ''), true); });
+
+  /* 4 · vault timeline (pro) */
+  var L8_MON = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+  function l8Dates() {
+    var out = [], rx = /\b(\d{4})-(\d{2})-(\d{2})\b|\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})\b|\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\s+(\d{4})\b|\b(?:in|by|since|from|around|circa|c\.|until|year)\s+(1[0-9]{3}|20[0-9]{2})\b|\b(1[0-9]{3}|20[0-9]{2})s?\b(?=\s*[:\u2013\u2014-]\s)/gi;
+    notes.forEach(function (n) {
+      if (n.folder === ARCHIVE || /^\d{4}-\d{2}-\d{2}$/.test(n.title)) return;
+      l8Plain(n.body).split('\n').forEach(function (raw) { var line = l8Line(raw); if (!line) return; var m; rx.lastIndex = 0; while ((m = rx.exec(line))) {
+        var y, mo = null, d = null;
+        if (m[1]) { y = +m[1]; mo = +m[2] - 1; d = +m[3]; } else if (m[4]) { y = +m[6]; mo = L8_MON[m[4].slice(0, 3).toLowerCase()]; d = +m[5]; } else if (m[7]) { y = +m[8]; mo = L8_MON[m[7].slice(0, 3).toLowerCase()]; } else y = +(m[9] || m[10]);
+        if (!y || y < 1000 || y > 2100) continue; out.push({ n: n, y: y, mo: mo, d: d, s: line.length > 160 ? line.slice(0, 157) + '\u2026' : line, key: y * 10000 + (mo == null ? 0 : mo + 1) * 100 + (d || 0) });
+      } });
+    });
+    var seen = {}; return out.filter(function (x) { var k = x.n.id + x.key + x.s.slice(0, 40); if (seen[k]) return false; seen[k] = 1; return true; }).sort(function (a, b) { return a.key - b.key; });
+  }
+  XV.timeline = l8Gate('timeline', function () {
+    var ds = l8Dates(), M3 = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' '), last = null, h = '';
+    ds.forEach(function (x) { var cen = x.y < 1900 ? Math.floor(x.y / 100) * 100 + 's' : Math.floor(x.y / 10) * 10 + 's'; if (cen !== last) { h += '<div class="l8-era">' + cen + '</div>'; last = cen; } h += '<button class="l8-ev" data-act="open" data-id="' + x.n.id + '"><span class="l8-when">' + (x.mo != null ? M3[x.mo] + ' ' + (x.d ? x.d + ', ' : '') : '') + x.y + '</span><span class="l8-what">' + esc(x.s) + '<small>' + esc(x.n.title) + '</small></span></button>'; });
+    return l8Page('timeline', (ds.length ? '<div class="l8-k">' + ds.length + ' dated moment' + (ds.length === 1 ? '' : 's') + '</div><div class="l8-tl">' + h + '</div>' : xEmpty('No dates found', ' Write years like \u201cin 1928\u201d or dates like \u201cOct 3, 2026\u201d in your notes.')) + '<p class="xp nf-fine">Picks up full dates (2026-10-03, Oct 3, 2026), month + year, and years after words like in, by, since or around. Daily notes are left out.</p>');
+  });
+
+  /* 5 · mind map (pro) */
+  function l8Tree(n) {
+    var root = { t: n.title, k: [] }, stack = [{ lv: 0, node: root }];
+    l8Plain(n.body).split('\n').forEach(function (raw) {
+      var h = /^(#{1,6})\s+(.+)/.exec(raw), b = /^(\s*)[-*+]\s+(?:\[.\]\s+)?(.+)/.exec(raw), lv, t;
+      if (h) { lv = h[1].length; t = h[2]; } else if (b) { lv = 7 + Math.floor(b[1].replace(/\t/g, '  ').length / 2); t = b[2]; } else return;
+      t = l8Line(t); if (!t) return; if (t.length > 42) t = t.slice(0, 40) + '\u2026';
+      while (stack.length > 1 && stack[stack.length - 1].lv >= lv) stack.pop();
+      var node = { t: t, k: [] }; stack[stack.length - 1].node.k.push(node); stack.push({ lv: lv, node: node });
+    });
+    return root;
+  }
+  function l8Map(root) {
+    if (root.k.length === 1 && root.k[0].k.length && norm(root.k[0].t) === norm(root.t)) root = { t: root.t, k: root.k[0].k };
+    var cols = ['#ff6a3d', '#0a84ff', '#30d158', '#bf5af2', '#ffd60a', '#64d2ff', '#ff375f', '#ac8e68'], row = 0, maxD = 0, DX = 150, DY = 30, lines = '', labels = '';
+    (function lay(x, d, col) { x.d = d; x.c = col; maxD = Math.max(maxD, d); if (!x.k.length) { x.y = row++ * DY + 20; } else { x.k.forEach(function (k, i) { lay(k, d + 1, d === 0 ? cols[i % cols.length] : col); }); x.y = (x.k[0].y + x.k[x.k.length - 1].y) / 2; } x.x = 12 + d * DX; })(root, 0, '#edebe6');
+    var W = 12 + (maxD + 1) * DX + 40, H = row * DY + 24;
+    (function draw(x) { x.k.forEach(function (k) { var x1 = x.x + (x.d === 0 ? 4 : 4), mx = (x1 + k.x) / 2; lines += '<path d="M' + x1 + ' ' + x.y + ' C' + mx + ' ' + x.y + ' ' + mx + ' ' + k.y + ' ' + k.x + ' ' + k.y + '" stroke="' + k.c + '" stroke-width="' + Math.max(1.3, 3.2 - x.d) + '" fill="none" opacity=".85"/>'; draw(k); });
+      var t = x.t.length > 22 && x.k.length ? x.t.slice(0, 20) + '\u2026' : x.t;
+      labels += '<circle cx="' + x.x + '" cy="' + x.y + '" r="' + (x.d ? 3.5 : 5) + '" fill="' + x.c + '"/><text x="' + (x.x + 8) + '" y="' + (x.y - (x.k.length ? 6 : -4)) + '" font-size="' + (x.d === 0 ? 15 : x.d === 1 ? 13 : 12) + '" font-weight="' + (x.d < 2 ? 700 : 500) + '" class="l8-mt" stroke-width="4" paint-order="stroke">' + esc(t) + '</text>'; })(root);
+    return '<div class="l8-mapw"><svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" class="l8-map">' + lines + labels + '</svg></div>';
+  }
+  XV.mindmap = l8Gate('mindmap', function (id) {
+    var n = l8Def(id), body = l8Pick('mindmap', n && n.id);
+    if (n) { var t = l8Tree(n); if (t.k.length === 1 && t.k[0].k.length && norm(t.k[0].t) === norm(t.t)) t = { t: t.t, k: t.k[0].k }; body += t.k.length ? '<p class="xp">' + t.k.length + ' branch' + (t.k.length === 1 ? '' : 'es') + ' \u00b7 scroll sideways if it\u2019s big</p>' + l8Map(t) : xEmpty('Nothing to map yet', ' Add # headings or - bullet points to this note.'); body += '<div class="nf-btns"><button data-act="open" data-id="' + n.id + '">Open the note</button></div>'; }
+    return l8Page('mindmap', body);
+  });
+
+  /* 6 · audio trail (pro) */
+  var L8A = { q: [], i: 0, on: false };
+  function l8Speak() {
+    var ss = window.speechSynthesis; if (!ss) { toast('Reading aloud isn\u2019t supported in this browser'); return; }
+    ss.cancel(); var n = L8A.q[L8A.i]; if (!n || !L8A.on) { L8A.on = false; l8APaint(); return; }
+    var txt = n.title + '. ' + (MD.plain ? MD.plain(l8Plain(n.body)) : l8Plain(n.body)).replace(/\[\[|\]\]/g, '').replace(/\s+/g, ' ').slice(0, 6000);
+    var u = new SpeechSynthesisUtterance(txt); u.rate = +(xLS('l8rate', 1)) || 1; u.onend = function () { if (!L8A.on) return; L8A.i++; if (L8A.i < L8A.q.length) l8Speak(); else { L8A.on = false; l8APaint(); } };
+    ss.speak(u); l8APaint();
+  }
+  function l8Queue(start, max) { var q = [start], seen = {}; seen[start.id] = 1; for (var i = 0; i < q.length && q.length < max; i++) outNotes(q[i]).forEach(function (o) { if (!seen[o.id] && q.length < max) { seen[o.id] = 1; q.push(o); } }); return q; }
+  function l8APaint() { var box = document.getElementById('l8aq'); if (!box) return; box.innerHTML = L8A.q.map(function (n, i) { return '<div class="l8-aq' + (i === L8A.i && L8A.on ? ' on' : i < L8A.i ? ' done' : '') + '"><span>' + (i + 1) + '</span>' + esc(n.title) + '</div>'; }).join(''); var b = document.getElementById('l8aplay'); if (b) b.textContent = L8A.on ? 'Stop' : (L8A.i > 0 && L8A.i < L8A.q.length ? 'Resume' : 'Play the trail'); }
+  XV.trail = l8Gate('trail', function (id) {
+    var n = l8Def(id), body = l8Pick('trail', n && n.id, 'Start at');
+    if (n) { if (!L8A.q.length || L8A.q[0] !== n) { if (window.speechSynthesis) speechSynthesis.cancel(); L8A = { q: l8Queue(n, 6), i: 0, on: false }; }
+      body += '<div class="l8-k">Up to 6 notes, following links</div><div id="l8aq"></div><div class="nf-btns"><button class="acc nf-big" id="l8aplay" data-act="l8aplay">Play the trail</button><button data-act="l8askip">Skip</button></div><div class="l8-seg">' + [0.8, 1, 1.25, 1.5].map(function (r) { return '<button class="' + ((+xLS('l8rate', 1)) === r ? 'on' : '') + '" data-act="l8arate" data-r="' + r + '">' + r + '\u00d7</button>'; }).join('') + '</div><p class="xp nf-fine">Uses your phone\u2019s built-in voice. Keep the app open while it reads.</p>';
+      setTimeout(l8APaint, 0); }
+    return l8Page('trail', body);
+  });
+  act.l8aplay = function () { if (L8A.on) { L8A.on = false; if (window.speechSynthesis) speechSynthesis.cancel(); l8APaint(); return; } if (L8A.i >= L8A.q.length) L8A.i = 0; L8A.on = true; l8Speak(); };
+  act.l8askip = function () { L8A.i++; if (L8A.on) l8Speak(); else l8APaint(); };
+  act.l8arate = function (el) { xLSset('l8rate', +el.dataset.r); render(); };
+  window.addEventListener('hashchange', function () { if (L8A.on && !/#\/x\/trail/.test(location.hash)) { L8A.on = false; if (window.speechSynthesis) speechSynthesis.cancel(); } });
+
+  /* 7 · cheat sheet (pro) */
+  function l8Digest(n) {
+    var b = l8Plain(n.body), hs = (b.match(/^#{1,4}\s+.+$/gm) || []).map(function (h) { return l8Line(h); }).filter(Boolean).slice(0, 8);
+    var bold = []; (b.match(/\*\*([^*\n]{2,50})\*\*/g) || []).forEach(function (x) { x = x.replace(/\*\*/g, ''); if (bold.indexOf(x) < 0) bold.push(x); });
+    var bul = (b.match(/^\s*[-*+]\s+.+$/gm) || []).map(l8Line).filter(function (x) { return x.length > 2; }).slice(0, 8);
+    var first = ''; b.split('\n').some(function (l) { if (/^\s*(#|[-*+]|```|\||>|!\[)/.test(l)) return false; var t = l8Line(l); if (t.length > 25) { first = t.replace(/([.!?])\s+/g, '$1\u0001').split('\u0001')[0]; return true; } return false; });
+    return { hs: hs, bold: bold.slice(0, 12), bul: bul, first: first };
+  }
+  XV.cheat = l8Gate('cheat', function (id) {
+    var n = l8Def(id), body = l8Pick('cheat', n && n.id, 'Main note');
+    if (n) { var set = [n].concat(outNotes(n)).slice(0, 12);
+      body += '<div class="nf-btns"><button class="acc nf-big" data-act="l8print">Print or save as PDF</button></div><div class="l8-sheet" id="l8sheet"><h2>' + esc(n.title) + ' \u00b7 cheat sheet</h2>' + set.map(function (x) { var d = l8Digest(x); return '<section><h3>' + esc(x.title) + '</h3>' + (d.first ? '<p>' + esc(d.first) + '</p>' : '') + (d.bold.length ? '<p class="l8-terms">' + d.bold.map(function (t) { return '<b>' + esc(t) + '</b>'; }).join(' \u00b7 ') + '</p>' : '') + (d.bul.length ? '<ul>' + d.bul.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>' : (d.hs.length ? '<p class="l8-hs">' + d.hs.map(esc).join(' \u203a ') + '</p>' : '')) + '</section>'; }).join('') + '</div><p class="xp nf-fine">Built from the note plus every note it links to (up to 12): each one\u2019s first sentence, **bold** terms and first bullets. Nothing is rewritten, it\u2019s all your own words.</p>'; }
+    return l8Page('cheat', body);
+  });
+  act.l8print = function () { document.body.classList.add('l8-printing'); setTimeout(function () { window.print(); setTimeout(function () { document.body.classList.remove('l8-printing'); }, 800); }, 50); };
+
+  /* 8 · echo words (free) */
+  function l8Echo(n) {
+    var text = l8Plain(n.body), toks = [], re = /[A-Za-z\u00c0-\u024f']+/g, m; while ((m = re.exec(text))) toks.push({ w: m[0], s: l8Stem(m[0].toLowerCase()), i: m.index });
+    var hit = {}, counts = {};
+    toks.forEach(function (t, k) { if (t.w.length < 4 || L8_STOP[t.w.toLowerCase()]) return; var c = 0; for (var j = Math.max(0, k - 40); j < Math.min(toks.length, k + 40); j++) if (toks[j].s === t.s) c++; if (c >= 3) { hit[k] = 1; counts[t.s] = Math.max(counts[t.s] || 0, c); } });
+    var out = '', last = 0; toks.forEach(function (t, k) { if (!hit[k]) return; out += esc(text.slice(last, t.i)) + '<mark class="l8-e">' + esc(t.w) + '</mark>'; last = t.i + t.w.length; }); out += esc(text.slice(last));
+    return { html: out, list: Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; }).slice(0, 12).map(function (s) { return [s, counts[s]]; }) };
+  }
+  XV.echo = function (id) {
+    var n = l8Def(id), body = l8Pick('echo', n && n.id);
+    if (n) { var e = l8Echo(n); body += e.list.length ? '<div class="l8-k">Repeated close together</div><div class="nf-chips">' + e.list.map(function (x) { return '<span class="nf-c no">' + esc(x[0]) + '\u2026 \u00d7' + x[1] + '</span>'; }).join('') + '</div><div class="l8-echo">' + e.html.replace(/\n/g, '<br>') + '</div>' : xEmpty('No echoes', ' No word shows up 3+ times within about 80 words. Clean.'); body += '<div class="nf-btns"><button data-act="open" data-id="' + n.id + '">Open the note to edit</button></div><p class="xp nf-fine">Flags any word (4+ letters, not a filler word) used 3 or more times within roughly 80 words. Sometimes repeating is right (a key term), so it\u2019s a nudge, not a rule.</p>'; }
+    return l8Page('echo', body);
+  };
+  XSTRIP.unshift(['labs', '\u2728 Labs', 'x:labs']);
+  COMMANDS.push(['Labs', 'labs experimental new tools', function () { go('#/x/labs'); }]);
+  L8T.forEach(function (t) { COMMANDS.push([t[1], 'labs ' + t[2].toLowerCase().slice(0, 60), function () { go('#/x/' + t[0]); }]); });
+
+
+  xStrip = (function (f) { return function () { var h = f.apply(this, arguments).replace(/(data-to="x:labs">)<svg[\s\S]*?<\/svg>/, '$1'), m = /<button class="chip" data-act="xgo" data-to="x:labs">[\s\S]*?<\/button>/.exec(h); return m ? h.replace(m[0], '').replace('<div class="xstrip">', '<div class="xstrip">' + m[0].replace('class="chip"', 'class="chip l8-chip"')) : h; }; })(xStrip);
   window.__axon = { notes: notes, folders: folders, trash: trash, rc: rc, recallStats: recallStats, byTitle: byTitle, backlinks: backlinks, renameNote: renameNote, exportFiles: function () { return notes; }, Zip: Zip, importFiles: importFiles };
   boot();
 })();
