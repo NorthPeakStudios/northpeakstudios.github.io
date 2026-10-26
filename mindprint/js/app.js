@@ -334,7 +334,7 @@
     var th = T.thinking, tm = T.team, LL = T.lenses;
     h += sec('think', '\ud83c\udf04', 'Thinking style \u00b7 cognitive style', th.emoji + ' ' + th.name, tyRow({ sys: 'thinking', res: th, badge: th.emoji, kicker: 'Thinking style \u00b7 for fun', title: th.name, text: th.text,
       meta: (u.addonPer && u.addonPer.thinking ? '' : 'A rough guess from your main quiz until you take the 6-question quiz. ') + 'Based on cognitive-style research ideas, not a validated test.', conf: th.conf,
-      extra: '<div data-x="thinking">' + spec('Step-by-step', 'Big-picture', th.whole) + spec('Words', 'Pictures', th.visual) + spec('Context-led', 'Independent', th.field) + '</div><p class="tymeta">' + esc(th.fieldName + ': ' + th.fieldText + '.') + '</p>' }));
+      extra: '<div data-x="thinking">' + spec('Steps', 'Big picture', th.whole) + spec('Words', 'Pictures', th.visual) + spec('Context', 'Own read', th.field) + '</div><p class="tymeta">' + esc(th.fieldName + ': ' + th.fieldText + '.') + '</p>' }));
     h += sec('team', '\ud83e\udded', 'Team role \u00b7 persona \u00b7 niche', tm.emoji + ' ' + tm.name, tyRow({ sys: 'team', res: tm, badge: tm.emoji, kicker: 'Your role in a group', title: tm.name, text: tm.text,
       meta: 'Runner-up: ' + tm.second.name + '. Best niche: ' + LL.niche.join(', ') + '. Our own role names, not the Belbin test.', conf: tm.conf,
       extra: '<details class="fold"><summary>All 8 roles</summary>' + tyMini(tm.ranked.map(function (x) { return [x.emoji + ' ' + x.name, x.score, x.score, '', 'team']; })) + '</details>' }));
