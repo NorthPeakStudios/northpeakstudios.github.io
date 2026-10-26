@@ -1113,3 +1113,7 @@ mark.l8-e{background:rgba(251,191,36,.3);color:inherit;border-radius:3px;padding
 .cm-info{display:grid;gap:6px;margin:4px 0 6px;text-align:left}
 .cm-info div{display:flex;justify-content:space-between;gap:12px;font-size:15px}
 .cm-info span{color:var(--dim)}
+.page .row>svg:not([class]){width:20px;height:20px;fill:none;stroke:var(--dim);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.page .row .nm .qd{font-size:13px}
+.cg-rows .row .nm,.cf-rows .row .nm{font-size:16px}
+.cg-rows .row{padding:6px 0}

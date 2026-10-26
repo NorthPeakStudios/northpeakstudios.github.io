@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.18.0 */
+/* Axon · Northpeak Studios · v1.18.1 */
 (function () {
   'use strict';
-  var VERSION = '1.18.0';
+  var VERSION = '1.18.1';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -5969,7 +5969,7 @@
   var CG_TITLE = 'Commands \u2014 start here';
   XV.cmdguide = function () {
     var body = cgSorted().map(function (g) {
-      return '<div class="sec"><span>' + esc(g[0]) + '</span><span style="text-transform:none;letter-spacing:0">' + g[1].length + '</span></div><div class="rows">' + g[1].map(function (c) {
+      return '<div class="sec"><span>' + esc(g[0]) + '</span><span style="text-transform:none;letter-spacing:0">' + g[1].length + '</span></div><div class="rows cg-rows">' + g[1].map(function (c) {
         return '<button class="row" data-act="cmrun" data-n="' + esc(c[0]) + '">' + I.cmd + '<span class="nm">' + esc(c[0]) + '<em class="qd">' + esc(cmdDesc(c)) + '</em></span>' + (c[3] && !isPro() ? '<span class="ct">Pro</span>' : '') + '</button>';
       }).join('') + '</div>';
     }).join('');
