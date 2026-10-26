@@ -1050,7 +1050,7 @@ let xWasPro = null;
 function xApplyPro(){
   const pro = isPro(); if (pro === xWasPro) return; xWasPro = pro;
   document.documentElement.classList.toggle('xfree', !pro);
-  $$('.xtools button').forEach(b => { b.innerHTML = (pro ? '' : XLOCK) + (b.id === 'xtB' ? 'breathe' : '5-4-3-2-1'); });
+  $$('.xtools button').forEach(b => { if (b.id === 'x8L') { b.textContent = '✦ labs'; return; } b.innerHTML = (pro ? '' : XLOCK) + (b.id === 'xtB' ? 'breathe' : '5-4-3-2-1'); });
   const g = $('#xGood'); if (g) { g.readOnly = !pro; g.placeholder = pro ? 'even a small one' : 'one good thing · pro'; }
   const own = $('#xOwnQ'); if (own) own.innerHTML = (pro ? '' : XLOCK) + 'write my own';
   const cx = $('.xctx'); if (cx) cx.classList.toggle('xlocked', !pro);
@@ -1189,4 +1189,158 @@ const _x6ra = renderArchive;
 renderArchive = function () { _x6ra.apply(this, arguments); try { if (S.tab === 'archive' && S.view === 'drift') x6driftBtn(); if (S.tab === 'archive' && S.view === 'moments') x6momBtn(); } catch {} };
 function x6momBtn() { const el = $('#v-moments'); if (!el || el.querySelector('.x6-wk') || S.moments.length < 2) return; el.insertAdjacentHTML('afterbegin', `<button class="x6-wk" id="x6wk2">${isPro() ? '' : LOCK}<span>▶ listen to your week</span><small>your moments, played as sound</small></button>`); $('#x6wk2').onclick = x6week; }
 
-window.__liminal = { db, S, renderArchive, engine, cloud, afterAccount, x6week, x6blend, x6echo };
+
+/* ---------- v33 · liminal labs: 8 small experiments (name it, unsent, future you, a friend's voice: free · your sky, where it lives, good-things jar, safe place: pro) ---------- */
+const X8 = [
+  ['name', 'name it', 'find the exact word for what you feel. more feeling words = more control over them.', 0],
+  ['unsent', 'unsent letter', 'write to anyone, then let it dissolve. nothing is saved, ever.', 0],
+  ['future', 'future you', 'seal a letter to yourself. it won’t open until the day you pick.', 0],
+  ['friend', 'a friend’s voice', 'read your own heavy words as if a friend said them, and answer them the way you would a friend.', 0],
+  ['sky', 'your sky', 'every moment becomes a star. moments that share a feeling-chip join into constellations.', 1],
+  ['body', 'where it lives', 'tap where you feel it in your body. over time you see where heavy and light feelings live for you.', 1],
+  ['jar', 'good-things jar', 'every “one good thing” you’ve written, in a jar. tap to pull one out.', 1],
+  ['safe', 'safe place', 'describe a place where you feel okay. liminal paints it and keeps it for when you need it.', 1]
+];
+const x8LS = (k, d) => LS.get('x8.' + k, d), x8set = (k, v) => LS.set('x8.' + k, v);
+const x8back = '<button class="x8-back" data-x8="labs">‹ labs</button>';
+const x8head = k => { const t = X8.find(x => x[0] === k); return `${x8back}<p class="x6-k">labs${t[3] ? ' · pro' : ''}</p><h2 class="x8-h">${t[1]}</h2><p class="x8-p">${t[2]}</p>`; };
+function x8labs() {
+  const pro = isPro();
+  const ov = x6open(`<p class="x6-k">new in v33</p><h2 class="x8-h">labs</h2><p class="x8-p">small experiments for your feelings. everything stays on this phone unless it says otherwise.</p><div class="x8-list">${X8.map(t => `<button class="x8-row" data-x8="${t[0]}"><span><b>${t[3] && !pro ? XLOCK : ''}${t[1]}</b><small>${t[2]}</small></span><i>›</i></button>`).join('')}</div>${XHELP}`);
+  x8bind(ov);
+}
+function x8bind(ov) { ov.addEventListener('click', e => { const b = e.target.closest('[data-x8]'); if (!b) return; x8go(b.dataset.x8); }); }
+function x8go(k) {
+  if (k === 'labs') return x8labs();
+  const t = X8.find(x => x[0] === k); if (!t) return;
+  if (t[3] && !isPro()) { x6close(); return openPro(t[1]); }
+  ({ name: x8name, unsent: x8unsent, future: x8future, friend: x8friend, sky: x8sky, body: x8body, jar: x8jar, safe: x8safe })[k]();
+}
+function x8open(k, html) { const ov = x6open(x8head(k) + html); ov.querySelector('.x8-back').onclick = () => x8labs(); return ov; }
+
+/* 1 · name it (free): emotional granularity */
+const X8W = {
+  hr: ['frustrated', 'on edge', 'overwhelmed', 'jittery', 'resentful', 'panicky', 'irritated', 'restless', 'betrayed', 'humiliated', 'jealous', 'trapped'],
+  hs: ['drained', 'lonely', 'numb', 'disappointed', 'hopeless', 'homesick', 'left out', 'heavy-hearted', 'ashamed', 'bored', 'empty', 'grieving'],
+  ls: ['content', 'relieved', 'peaceful', 'safe', 'grateful', 'cozy', 'accepted', 'mellow', 'nostalgic', 'tender', 'hopeful', 'rested'],
+  lr: ['excited', 'proud', 'inspired', 'giddy', 'confident', 'amused', 'eager', 'loved', 'determined', 'free', 'playful', 'awestruck']
+};
+const X8Q = { hr: 'heavy + restless', hs: 'heavy + still', ls: 'light + still', lr: 'light + restless' };
+function x8name(q) {
+  const last = S.moments[0], qq = q || (last ? quadrant(last.v, last.e) : 'ls'), used = x8LS('words', []);
+  const uniq = [...new Set(used.map(x => x.w))];
+  const ov = x8open('name', `<div class="x8-seg">${Object.keys(X8Q).map(k => `<button class="${k === qq ? 'on' : ''}" data-q="${k}"><i style="background:${moodColors(k[0] === 'l' ? .8 : .2, k[1] === 'r' ? .8 : .2)[0]}"></i>${X8Q[k]}</button>`).join('')}</div>
+    <p class="x8-p">${last && !q ? 'starting where your last moment sat. ' : ''}which one is closest?</p><div class="x8-words">${X8W[qq].map(w => `<button data-w="${w}">${w}</button>`).join('')}</div>
+    <div class="x8-said" id="x8said"></div>
+    <p class="x6-k" style="margin-top:22px">your feeling words · ${uniq.length}</p><p class="x8-p">${uniq.length ? uniq.slice(-40).map(esc).join(' · ') : 'none yet. tap one above.'}</p>
+    <p class="x6-fine">research on “emotional granularity” (lisa feldman barrett and others) finds people who can name feelings precisely tend to cope with them better. this just helps you practise; it isn’t a test.</p>`);
+  ov.querySelectorAll('[data-q]').forEach(b => b.onclick = () => x8name(b.dataset.q));
+  ov.querySelectorAll('[data-w]').forEach(b => b.onclick = () => { const L = x8LS('words', []); L.push({ w: b.dataset.w, q: qq, t: Date.now() }); x8set('words', L.slice(-400)); ov.querySelectorAll('[data-w]').forEach(x => x.classList.toggle('on', x === b)); $('#x8said').innerHTML = `“i feel <b>${esc(b.dataset.w)}</b>.” <span>naming it is a real step. you can keep a moment with it on the feel screen.</span>`; });
+}
+
+/* 2 · unsent letter (free): nothing is stored */
+function x8unsent() {
+  const ov = x8open('unsent', `<input class="x8-in" id="x8to" placeholder="dear…" autocapitalize="none"><textarea class="x8-ta" id="x8let" rows="9" placeholder="say everything you can’t say to them."></textarea><button class="x6-blendbtn" id="x8go">let it go</button><div id="x8gone" class="x8-gone"></div><p class="x6-fine">this letter is never saved, synced or sent. when you let it go, it’s gone.</p>`);
+  $('#x8go').onclick = () => {
+    const txt = ($('#x8to').value ? $('#x8to').value + '\n' : '') + $('#x8let').value; if (!txt.trim()) return toast('write something first');
+    const box = $('#x8gone'); box.innerHTML = esc(txt).split('').map((c, i) => c === '\n' ? '<br>' : `<span style="animation-delay:${(Math.random() * 1.6 + i * 0.004).toFixed(2)}s;--dx:${(Math.random() * 60 - 30).toFixed(0)}px;--dy:${(-30 - Math.random() * 60).toFixed(0)}px">${c === ' ' ? '&nbsp;' : c}</span>`).join('');
+    $('#x8let').value = ''; $('#x8to').value = ''; $('#x8let').hidden = true; $('#x8to').hidden = true; $('#x8go').hidden = true;
+    try { navigator.vibrate && navigator.vibrate(20); } catch {}
+    setTimeout(() => { box.innerHTML = '<p class="x8-p" style="text-align:center">gone. 🌫️</p><button class="x6-blendbtn" id="x8again">write another</button>'; $('#x8again').onclick = x8unsent; }, 4200);
+  };
+}
+
+/* 3 · future you (free): sealed until a date, kept on this phone */
+function x8future() {
+  const caps = x8LS('caps', []), now = Date.now(), last = S.moments[0];
+  const fmt = t => new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }).toLowerCase();
+  const ready = caps.filter(c => c.open <= now), sealed = caps.filter(c => c.open > now);
+  const ov = x8open('future', `${ready.length ? `<p class="x6-k">ready to open</p>${ready.map(c => `<button class="x8-cap ready" data-cid="${c.id}"><i style="background:${c.col || '#cfc8e6'}"></i><span><b>from you, ${fmt(c.t)}</b><small>tap to open</small></span></button>`).join('')}` : ''}
+    <p class="x6-k" style="margin-top:14px">write one</p><textarea class="x8-ta" id="x8fut" rows="7" placeholder="hey future me…"></textarea>
+    <div class="x8-seg">${[['1 week', 7], ['1 month', 30], ['3 months', 91], ['6 months', 182]].map(([l, d], i) => `<button class="${i === 1 ? 'on' : ''}" data-d="${d}">${l}</button>`).join('')}</div>
+    <button class="x6-blendbtn" id="x8seal">seal it</button>
+    ${sealed.length ? `<p class="x6-k" style="margin-top:18px">sealed · ${sealed.length}</p>${sealed.map(c => `<div class="x8-cap"><i style="background:${c.col || '#cfc8e6'}"></i><span><b>opens ${fmt(c.open)}</b><small>${Math.ceil((c.open - now) / 864e5)} days to go</small></span></div>`).join('')}` : ''}
+    <div id="x8read"></div><p class="x6-fine">letters stay on this phone only (not synced), so they’re gone if you clear the app’s data.${last ? ' your current colours are sealed in with it.' : ''}</p>`);
+  let days = 30; ov.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { days = +b.dataset.d; ov.querySelectorAll('[data-d]').forEach(x => x.classList.toggle('on', x === b)); });
+  $('#x8seal').onclick = () => { const v = $('#x8fut').value.trim(); if (!v) return toast('write something first'); const L = x8LS('caps', []); L.push({ id: uid(), t: Date.now(), open: Date.now() + days * 864e5, txt: v, col: last && last.colors ? last.colors[0] : null, word: last ? last.word : null }); x8set('caps', L); toast('sealed · see you then'); x8future(); };
+  ov.querySelectorAll('[data-cid]').forEach(b => b.onclick = () => { const c = x8LS('caps', []).find(x => x.id === b.dataset.cid); if (!c) return; $('#x8read').innerHTML = `<div class="x8-letter" style="--c:${c.col || '#cfc8e6'}"><small>written ${fmt(c.t)}${c.word ? ` · you felt <b>${esc(c.word)}</b>` : ''}</small><p>${esc(c.txt).replace(/\n/g, '<br>')}</p><button class="ghost x8-del" data-del="${c.id}">done reading · remove</button></div>`; $('#x8read').scrollIntoView({ behavior: 'smooth' }); $('#x8read [data-del]').onclick = () => { x8set('caps', x8LS('caps', []).filter(x => x.id !== c.id)); x8future(); }; });
+}
+
+/* 4 · a friend's voice (free): self-compassion reframe */
+function x8friend() {
+  const heavy = S.moments.filter(m => !m.care && (m.text || m.answer) && m.v < .5).slice(0, 30).sort((a, b) => a.v - b.v)[0];
+  const anyCare = S.moments.slice(0, 5).some(m => m.care);
+  const said = heavy ? (heavy.text || heavy.answer) : '';
+  const ov = x8open('friend', `${anyCare ? XHELP : ''}<div class="x8-quote">${heavy ? `<small>${x6day(heavy.t)} · you wrote</small>` : '<small>type something that’s been weighing on you</small>'}<p>${heavy ? `“${esc(said)}”` : '<textarea class="x8-ta" id="x8w" rows="3" placeholder="i keep thinking…"></textarea>'}</p></div>
+    <p class="x8-p">now imagine your closest friend said that to you. what would you tell them?</p><textarea class="x8-ta" id="x8k" rows="5" placeholder="hey…"></textarea><button class="x6-blendbtn" id="x8ks">keep this</button><div id="x8kout"></div>
+    ${x8LS('kind', []).length ? `<p class="x6-k" style="margin-top:18px">what you’ve told yourself</p>${x8LS('kind', []).slice(-5).reverse().map(k => `<div class="x8-kind"><small>${x6day(k.t)}</small>${esc(k.reply)}</div>`).join('')}` : ''}
+    <p class="x6-fine">people are usually far kinder to friends than to themselves. self-compassion research (kristin neff and others) links treating yourself like a friend with feeling better. heavy moments flagged for care are never shown here.</p>`);
+  $('#x8ks').onclick = () => { const r = $('#x8k').value.trim(); if (!r) return toast('write what you’d say'); const L = x8LS('kind', []); L.push({ t: Date.now(), mid: heavy ? heavy.id : null, worry: heavy ? null : ($('#x8w') ? $('#x8w').value.trim().slice(0, 300) : ''), reply: r.slice(0, 800) }); x8set('kind', L.slice(-60)); $('#x8kout').innerHTML = `<div class="x8-letter"><small>read it back as if it’s for you</small><p>${esc(r).replace(/\n/g, '<br>')}</p></div>`; toast('kept'); };
+}
+
+/* 5 · your sky (pro): moments as stars, shared chips as constellations */
+function x8sky() {
+  const ms = S.moments.filter(m => m.v != null).slice(0, 300);
+  const ov = x8open('sky', `<canvas id="x8cv" class="x8-cv"></canvas><div id="x8st" class="x8-st">${ms.length ? 'tap a star' : 'keep a few moments and your sky fills in.'}</div><div id="x8leg" class="x8-leg"></div><p class="x6-fine">left = heavier, right = lighter · low = stiller, high = more restless. brighter stars are more recent.</p>`);
+  const cv = $('#x8cv'), W = Math.min(480, innerWidth - 40), H = Math.round(W * 1.15), dpr = Math.min(2, devicePixelRatio || 1); cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  const c = cv.getContext('2d'); c.scale(dpr, dpr);
+  const rnd = (s => () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296)(7);
+  const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#05040f'); g.addColorStop(1, '#14102a'); c.fillStyle = g; c.fillRect(0, 0, W, H);
+  for (let i = 0; i < 140; i++) { c.fillStyle = `rgba(255,255,255,${(rnd() * .35).toFixed(2)})`; c.fillRect(rnd() * W, rnd() * H, 1, 1); }
+  const now = Date.now(), pts = ms.map(m => { const h = (m.id || '').split('').reduce((s, ch) => (s * 31 + ch.charCodeAt(0)) >>> 0, 7); return { m, x: 18 + m.v * (W - 36) + ((h % 21) - 10), y: H - 18 - m.e * (H - 36) + (((h >> 5) % 21) - 10), a: Math.max(.35, 1 - (now - m.t) / (90 * 864e5)) }; });
+  const by = {}; pts.forEach(p => (p.m.chips || []).forEach(ch => (by[ch] ||= []).push(p)));
+  const groups = Object.entries(by).filter(([, a]) => a.length >= 2).sort((a, b) => b[1].length - a[1].length).slice(0, 6);
+  groups.forEach(([ch, a], gi) => { const col = moodColors(a.reduce((s, p) => s + p.m.v, 0) / a.length, a.reduce((s, p) => s + p.m.e, 0) / a.length)[0]; const ord = a.slice().sort((p, q) => p.m.t - q.m.t); c.strokeStyle = col; c.globalAlpha = .45; c.lineWidth = 1; c.beginPath(); ord.forEach((p, i) => i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y)); c.stroke(); c.globalAlpha = 1; groups[gi].push(col); });
+  pts.forEach(p => { const col = (p.m.colors && p.m.colors[0]) || '#fff'; const r = 2 + p.a * 2.5; const gr = c.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 4); gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(0,0,0,0)'); c.globalAlpha = p.a; c.fillStyle = gr; c.beginPath(); c.arc(p.x, p.y, r * 4, 0, 7); c.fill(); c.fillStyle = '#fff'; c.beginPath(); c.arc(p.x, p.y, r * .55, 0, 7); c.fill(); c.globalAlpha = 1; });
+  $('#x8leg').innerHTML = groups.length ? groups.map(([ch, a, col]) => `<span><i style="background:${col}"></i>the ${esc(ch)} · ${a.length}</span>`).join('') : (ms.length ? '<span>pick feeling-chips on moments to grow constellations</span>' : '');
+  cv.onclick = e => { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; let best = null, bd = 26; pts.forEach(p => { const d = Math.hypot(p.x - x, p.y - y); if (d < bd) { bd = d; best = p; } }); if (best) $('#x8st').innerHTML = `<b>${esc(best.m.word || '')}</b> · ${x6day(best.m.t)}${best.m.text ? ` · “${esc(best.m.text.slice(0, 70))}”` : ''}${(best.m.chips || []).length ? ` · ${esc(best.m.chips.join(', '))}` : ''}`; };
+}
+
+/* 6 · where it lives (pro): body map */
+const X8Z = [['head', 'head', 'M50 6a14 15 0 1 1 0 30a14 15 0 1 1 0-30z'], ['throat', 'throat', 'M44 36h12v9H44z'], ['shoulders', 'shoulders', 'M22 46h56l-4 10H26z'], ['chest', 'chest', 'M30 56h40v22H30z'], ['stomach', 'stomach', 'M32 78h36v24H32z'], ['arms', 'arms & hands', 'M14 50l10 4-4 60-10-2zM86 50l-10 4 4 60 10-2z'], ['legs', 'legs', 'M33 102h15l-2 70H35zM52 102h15l-2 70H54z']];
+function x8body() {
+  const L = x8LS('body', []), sel = new Set(), last = S.moments[0], recent = last && Date.now() - last.t < 6 * 36e5 ? last : null;
+  const paint = (filter) => { const rows = L.filter(x => !filter || (filter === 'h' ? x.v < .5 : x.v >= .5)), cnt = {}; rows.forEach(x => x.z.forEach(z => cnt[z] = (cnt[z] || 0) + 1)); const mx = Math.max(1, ...Object.values(cnt)); return { cnt, mx, n: rows.length }; };
+  const svg = (id, heat, col) => `<svg viewBox="0 0 100 176" class="x8-body" id="${id}">${X8Z.map(([k, , d]) => `<path data-z="${k}" d="${d}" style="${heat ? `fill:${col};fill-opacity:${(0.08 + 0.85 * (heat.cnt[k] || 0) / heat.mx).toFixed(2)}` : ''}"/>`).join('')}</svg>`;
+  const hh = paint('h'), lh = paint('l');
+  const ov = x8open('body', `<p class="x8-p">${recent ? `for your last moment (<b>${esc(recent.word)}</b>, ${fmtTime(recent.t)}): ` : ''}where do you feel it right now? tap all that apply.</p>${svg('x8tap')}<div class="x8-zl" id="x8zl">nothing picked</div><button class="x6-blendbtn" id="x8bs">save</button>
+    ${L.length ? `<p class="x6-k" style="margin-top:18px">your map · ${L.length} check-in${L.length === 1 ? '' : 's'}</p><div class="x8-two"><div><small>heavy feelings · ${hh.n}</small>${svg('x8h', hh, '#7a2ab8')}</div><div><small>light feelings · ${lh.n}</small>${svg('x8l', lh, '#4fd6c0')}</div></div>` : ''}
+    <p class="x6-fine">a 2014 study (nummenmaa et al.) found people in different countries tend to feel emotions in similar body areas. your map is just yours, from your own taps, and stays on this phone.</p>`);
+  ov.querySelectorAll('#x8tap path').forEach(p => p.onclick = () => { const z = p.dataset.z; sel.has(z) ? sel.delete(z) : sel.add(z); p.classList.toggle('on', sel.has(z)); $('#x8zl').textContent = sel.size ? [...sel].map(k => X8Z.find(x => x[0] === k)[1]).join(' · ') : 'nothing picked'; });
+  $('#x8bs').onclick = () => { if (!sel.size) return toast('tap where you feel it'); const cur = recent || { v: S.live.v, e: S.live.e }; const A = x8LS('body', []); A.push({ t: Date.now(), z: [...sel], v: cur.v, e: cur.e, mid: recent ? recent.id : null }); x8set('body', A.slice(-500)); toast('saved'); x8body(); };
+}
+
+/* 7 · good-things jar (pro) */
+function x8jar() {
+  const goods = S.moments.filter(m => m.good && !m.care);
+  const ov = x8open('jar', `<button class="x8-jar" id="x8jar" aria-label="pull one out"><span class="x8-lid"></span>${goods.slice(0, 40).map((m, i) => `<i style="left:${12 + (i * 37) % 72}%;bottom:${6 + Math.floor(i / 3) * 5 % 70}%;background:${(m.colors && m.colors[0]) || '#ffd48a'};transform:rotate(${(i * 47) % 50 - 25}deg)"></i>`).join('')}</button>
+    <p class="x8-p" style="text-align:center">${goods.length ? `${goods.length} good thing${goods.length === 1 ? '' : 's'} in here. tap the jar.` : 'empty for now. when you keep a moment, fill in “one good thing” and it lands here.'}</p><div id="x8slip"></div>`);
+  let last = -1; $('#x8jar').onclick = () => { if (!goods.length) return; let i = Math.floor(Math.random() * goods.length); if (goods.length > 1 && i === last) i = (i + 1) % goods.length; last = i; const m = goods[i]; $('#x8jar').classList.remove('shake'); void $('#x8jar').offsetWidth; $('#x8jar').classList.add('shake'); try { navigator.vibrate && navigator.vibrate(15); } catch {} $('#x8slip').innerHTML = `<div class="x8-slip" style="--c:${(m.colors && m.colors[0]) || '#ffd48a'}"><small>${x6day(m.t)}${m.word ? ' · ' + esc(m.word) : ''}</small><p>${esc(m.good)}</p></div>`; };
+}
+
+/* 8 · safe place (pro): your words, painted */
+const X8SC = ['sea', 'lake', 'forest', 'hills', 'snow', 'night', 'field', 'mountains'];
+function x8safe(edit) {
+  const P = x8LS('safe', null);
+  if (P && !edit) {
+    const ov = x8open('safe', `<canvas id="x8sp" class="x8-cv"></canvas><div class="x8-lines" id="x8ln">${P.lines.filter(Boolean).map((l, i) => `<p style="animation-delay:${1 + i * 2.2}s">${esc(l)}</p>`).join('')}</div><div class="x8-seg"><button id="x8snd">${S.muted ? 'sound off' : '♪ sound'}</button><button id="x8ed">change it</button></div>`);
+    const cv = $('#x8sp'), W = Math.min(480, innerWidth - 40), H = Math.round(W * 1.25); cv.width = W * 2; cv.height = H * 2; cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    const m = { v: .82, e: .14, seed: P.seed, chips: ['open'], text: '' }; try { drawScene(cv, m, { scene: P.scene }); } catch {}
+    const play = () => { try { if (engine.ready) { X6.wasMuted = S.muted; engine.setMood(m, P.seed); engine.setMuted(false); engine.play(); } } catch {} };
+    if (!S.muted) play();
+    $('#x8snd').onclick = async () => { try { await unlock(); } catch {} play(); $('#x8snd').textContent = '♪ playing'; };
+    $('#x8ed').onclick = () => x8safe(true); return;
+  }
+  const cur = P || { scene: 'sea', lines: ['', '', ''], seed: newSeed() };
+  const ov = x8open('safe', `<p class="x6-k">what kind of place</p><div class="x8-words">${X8SC.map(s => `<button class="${s === cur.scene ? 'on' : ''}" data-sc="${s}">${esc(SCENES[s] || s)}</button>`).join('')}</div>
+    <p class="x6-k" style="margin-top:14px">three details</p><input class="x8-in" id="x8l0" placeholder="what you see (warm light on the water…)" value="${esc(cur.lines[0] || '')}"><input class="x8-in" id="x8l1" placeholder="what you hear (gulls, far away…)" value="${esc(cur.lines[1] || '')}"><input class="x8-in" id="x8l2" placeholder="what you feel (sand, still warm…)" value="${esc(cur.lines[2] || '')}">
+    <button class="x6-blendbtn" id="x8ss">paint my place</button><p class="x6-fine">imagining a calm, detailed place is a common relaxation technique (guided imagery). it stays on this phone.</p>`);
+  let sc = cur.scene; ov.querySelectorAll('[data-sc]').forEach(b => b.onclick = () => { sc = b.dataset.sc; ov.querySelectorAll('[data-sc]').forEach(x => x.classList.toggle('on', x === b)); });
+  $('#x8ss').onclick = () => { const lines = [0, 1, 2].map(i => $('#x8l' + i).value.trim()); if (!lines.some(Boolean)) return toast('add at least one detail'); x8set('safe', { scene: sc, lines, seed: cur.seed || newSeed(), t: Date.now() }); x8safe(); };
+}
+(function () {
+  const row = $('.xtools'); if (row && !$('#x8L')) { row.insertAdjacentHTML('beforeend', '<button id="x8L">✦ labs</button>'); }
+  if ($('#x8L')) $('#x8L').onclick = x8labs;
+})();
+
+window.__liminal = { db, S, renderArchive, engine, cloud, afterAccount, x6week, x6blend, x6echo, x8labs, x8go };

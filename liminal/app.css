@@ -554,3 +554,66 @@ html[data-lt=light] .sheet-card{background:rgba(251,248,254,.98)}
 .x6-wk span{font-size:16px}
 .x6-wk small{font-size:12px;color:var(--ink3)}
 .x6-row button{flex:1;max-width:190px;min-height:48px;padding:0 14px;font-size:15px}
+
+/* v33 · labs */
+.x8-h{font-family:var(--serif);font-weight:400;font-size:30px;margin:0 0 6px;color:#f3efe6}
+.x8-p{font-size:15px;line-height:1.5;color:rgba(243,239,230,.82);margin:0 0 14px}
+.x8-back{background:none;border:0;color:rgba(243,239,230,.7);font:inherit;font-size:15px;padding:0 0 10px;min-height:36px}
+.x8-list{display:flex;flex-direction:column;gap:8px;margin:8px 0 18px}
+.x8-row{display:flex;align-items:center;gap:10px;text-align:left;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:14px;color:#f3efe6;font:inherit}
+.x8-row span{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0}
+.x8-row b{font-family:var(--serif);font-weight:400;font-size:19px;display:flex;align-items:center;gap:6px}
+.x8-row b .xlk{width:14px;height:14px}
+.x8-row small{font-size:13px;line-height:1.4;color:rgba(243,239,230,.65)}
+.x8-row i{font-style:normal;font-size:22px;color:rgba(243,239,230,.5)}
+.x8-seg{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 14px}
+.x8-seg button{flex:1 1 auto;min-height:40px;border-radius:99px;border:1px solid rgba(255,255,255,.18);background:none;color:#f3efe6;font:inherit;font-size:13px;padding:0 12px;display:flex;align-items:center;justify-content:center;gap:6px}
+.x8-seg button.on{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.4)}
+.x8-seg button i{width:10px;height:10px;border-radius:50%}
+.x8-words{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 10px}
+.x8-words button{min-height:40px;border-radius:99px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.05);color:#f3efe6;font:inherit;font-size:15px;padding:0 14px}
+.x8-words button.on{background:#f3efe6;color:#14102a}
+.x8-said{font-family:var(--serif);font-size:22px;line-height:1.4;margin:10px 0;color:#f3efe6}
+.x8-said span{display:block;font-family:var(--sans);font-size:13px;color:rgba(243,239,230,.65);margin-top:6px}
+.x8-in,.x8-ta{width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:16px;color:#f3efe6;font:16px/1.5 var(--sans);padding:12px 14px;margin:0 0 10px}
+.x8-ta{resize:vertical;font-family:var(--serif);font-size:18px}
+.x8-gone{font-family:var(--serif);font-size:18px;line-height:1.5;min-height:20px}
+.x8-gone span{display:inline-block;animation:x8drift 2.4s ease-in forwards}
+@keyframes x8drift{to{opacity:0;filter:blur(6px);transform:translate(var(--dx),var(--dy)) rotate(20deg)}}
+.x8-cap{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:12px 14px;color:#f3efe6;font:inherit;margin:0 0 8px}
+.x8-cap.ready{border-color:rgba(255,212,138,.6);box-shadow:0 0 20px rgba(255,212,138,.15)}
+.x8-cap i{width:14px;height:14px;border-radius:50%;flex:none;box-shadow:0 0 10px currentColor}
+.x8-cap span{display:flex;flex-direction:column;gap:2px}
+.x8-cap small{color:rgba(243,239,230,.6);font-size:12px}
+.x8-letter{background:rgba(255,255,255,.07);border-left:3px solid var(--c,#cfc8e6);border-radius:14px;padding:14px 16px;margin:14px 0}
+.x8-letter small{display:block;color:rgba(243,239,230,.6);font-size:12px;margin-bottom:8px}
+.x8-letter p{font-family:var(--serif);font-size:19px;line-height:1.5;margin:0 0 10px}
+.x8-del{min-height:40px;padding:0 16px;font:inherit;font-size:14px}
+.x8-quote{background:rgba(255,255,255,.06);border-radius:18px;padding:14px 16px;margin:0 0 14px}
+.x8-quote small{color:rgba(243,239,230,.6);font-size:12px}
+.x8-quote p{font-family:var(--serif);font-size:20px;line-height:1.45;margin:6px 0 0}
+.x8-kind{background:rgba(255,255,255,.05);border-radius:14px;padding:10px 12px;margin:0 0 8px;font-size:15px;line-height:1.45}
+.x8-kind small{display:block;color:rgba(243,239,230,.55);font-size:11px;margin-bottom:3px}
+.x8-cv{display:block;margin:0 auto 10px;border-radius:18px}
+.x8-st{font-size:14px;line-height:1.45;color:rgba(243,239,230,.85);min-height:22px;text-align:center}
+.x8-leg{display:flex;flex-wrap:wrap;gap:6px 14px;justify-content:center;margin:10px 0;font-size:13px;color:rgba(243,239,230,.75)}
+.x8-leg i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+.x6-in svg.x8-body{display:block;width:150px;height:264px;margin:6px auto;touch-action:manipulation;fill:initial;stroke:none}
+.x8-body path{fill:rgba(255,255,255,.08);stroke:rgba(255,255,255,.35);stroke-width:.8;cursor:pointer;transition:fill .2s}
+#x8tap path.on{fill:rgba(255,176,61,.7);stroke:#ffb03d}
+.x8-zl{text-align:center;font-size:14px;color:rgba(243,239,230,.75);margin:4px 0}
+.x8-two{display:flex;gap:10px}
+.x8-two>div{flex:1;text-align:center}
+.x8-two small{font-size:12px;color:rgba(243,239,230,.65)}
+.x6-in .x8-two svg.x8-body{width:120px;height:211px}
+.x8-jar{position:relative;display:block;width:190px;height:240px;margin:10px auto 14px;border:2px solid rgba(255,255,255,.35);border-top:0;border-radius:24px 24px 48px 48px;background:rgba(255,255,255,.04);overflow:hidden}
+.x8-jar .x8-lid{position:absolute;top:0;left:-2px;right:-2px;height:14px;background:rgba(255,255,255,.25);border-radius:6px}
+.x8-jar i{position:absolute;width:30px;height:18px;border-radius:4px;opacity:.85;box-shadow:0 0 10px rgba(255,212,138,.4)}
+.x8-jar.shake{animation:x8shake .5s}
+@keyframes x8shake{25%{transform:rotate(-6deg)}50%{transform:rotate(5deg)}75%{transform:rotate(-3deg)}}
+.x8-slip{background:#fdf6e3;color:#2b2416;border-radius:6px;padding:14px 16px;transform:rotate(-1.5deg);box-shadow:0 8px 30px rgba(0,0,0,.4);border-top:4px solid var(--c);animation:x8up .5s ease-out}
+.x8-slip small{display:block;color:#7a6c50;font-size:12px;margin-bottom:6px}
+.x8-slip p{font-family:var(--serif);font-size:20px;line-height:1.4;margin:0}
+@keyframes x8up{from{opacity:0;transform:translateY(30px) rotate(-6deg)}}
+.x8-lines p{font-family:var(--serif);font-size:20px;line-height:1.4;text-align:center;margin:8px 0;opacity:0;animation:x8fade 2s ease forwards}
+@keyframes x8fade{to{opacity:1}}
