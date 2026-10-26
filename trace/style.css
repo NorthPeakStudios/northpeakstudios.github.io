@@ -31,6 +31,9 @@ input[type=range]{padding:0;border:0;background:transparent;height:30px;accent-c
 .list{margin:6px 0}.it{display:flex;gap:12px;align-items:center;padding:11px 2px;border-bottom:1px solid #222a35;cursor:pointer}.it:last-child{border-bottom:0}
 .it .tm{font-size:13px;color:var(--mut);min-width:54px}.it .wh{flex:1;min-width:0}.it .wh b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.it .wh small{color:var(--mut)}
 .pill{font-size:12px;border-radius:999px;padding:2px 8px;background:#1f2937;color:var(--mut);white-space:nowrap}.pill.acc{background:#123b36;color:#99f6e4}.pill.warn{background:#3a2c0a;color:#f5c451}
+.pill.new{background:#2a1f45;color:#c4b5fd}
+.medcard table.rt td{vertical-align:top}
+#fr .it .tm{min-width:52px;color:var(--mut);font-size:13px}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}.cal .h{font-size:12px;color:var(--mut);text-align:center}
 .cal .d{aspect-ratio:1;border-radius:10px;background:#11161e;border:1px solid #1d2430;font-size:13px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:var(--fg);position:relative}
 .cal .d.x{visibility:hidden}.cal .d.today{border-color:var(--acc)}.cal .d.sel{outline:2px solid var(--acc2)}

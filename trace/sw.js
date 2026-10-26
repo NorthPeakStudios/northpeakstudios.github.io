@@ -1,7 +1,7 @@
 // Trace service worker (Northpeak). Offline app shell; account/sync and FDA calls go straight to the network.
 // auto-update: a new version installs fresh files (cache: 'reload'), takes over at once (skipWaiting + clients.claim), and np-update.js reloads when safe.
-const V = 'trace-v4';
-const SHELL = ["./", "index.html", "style.css?v=4", "manifest.webmanifest", "js/store.js?v=4", "js/app.js?v=4", "js/fda.js?v=4", "js/insights.js?v=4", "js/graph.js?v=4", "js/labs.js?v=4", "js/account.js?v=4", "js/cloud.js?v=4", "js/cloud-boot.js?v=4", "np-update.js?v=4", "np-email.js?v=4", "nozoom.js", "pwa.js", "icon-180.png", "icon-192.png", "icon-512.png"];
+const V = 'trace-v5';
+const SHELL = ["./", "index.html", "style.css?v=5", "manifest.webmanifest", "js/store.js?v=5", "js/app.js?v=5", "js/fda.js?v=5", "js/insights.js?v=5", "js/graph.js?v=5", "js/labs.js?v=5", "js/account.js?v=5", "js/cloud.js?v=5", "js/cloud-boot.js?v=5", "np-update.js?v=5", "np-email.js?v=5", "nozoom.js", "pwa.js", "icon-180.png", "icon-192.png", "icon-512.png"];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))).catch(() => {}).then(() => self.skipWaiting())); });
 self.addEventListener('message', e => { if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('trace-') && k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
