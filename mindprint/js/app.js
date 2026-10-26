@@ -187,14 +187,17 @@
     ['stretch', '\ud83c\udf31', 'Stretch goal', 'pick a trait to grow, get 4 weeks of small challenges', 1],
     ['card', '\ud83d\udcac', 'Talk-to-me card', 'a shareable card: how to text you, argue with you, help you', 1],
     ['drift', '\ud83d\udcc8', 'Drift chart', 'your Big Five across every quiz you\u2019ve taken', 1],
-    ['decide', '\ud83e\udded', 'Decision coach', 'a decision checklist tuned to how you decide', 1]
+    ['decide', '\ud83e\udded', 'Decision coach', 'a decision checklist tuned to how you decide', 1],
+    ['prompt', '\ud83d\udcdd', 'Daily prompt', 'one journal question a day, tuned to your traits; your answers stay on this phone', 0, '1.4'],
+    ['study', '\ud83d\udcda', 'Study style', 'a study plan built around your focus, structure and stress scores', 1, '1.4'],
+    ['talk', '\ud83d\udde3\ufe0f', 'Hard talk helper', 'plan a tough conversation around your conflict style, with words to start it', 1, '1.4']
   ];
   var B5 = ['O', 'C', 'E', 'A', 'N'];
   function labHead(id) { var l = LABS.filter(function (x) { return x[0] === id; })[0]; return '<a class="back" href="#labs">\u2190 Labs</a><h1 class="pt">' + l[1] + ' ' + esc(l[2]) + '</h1><p class="muted">' + esc(l[3].charAt(0).toUpperCase() + l[3].slice(1)) + '.</p>'; }
   function labsPage() {
-    var p = full(); LS.set('seen13', 1);
-    V.innerHTML = '<a class="back" href="#home">\u2190 Home</a><p class="eyebrow">New in 1.3</p><h1 class="pt">\ud83e\uddea Labs</h1><p class="muted">Eight experiments built on your answers. Anything you add here stays on this phone.</p><div class="card nlist">' +
-      LABS.map(function (l) { return '<a class="nrow" href="#lab/' + l[0] + '"><span class="ni" aria-hidden="true">' + l[1] + '</span><span class="nt"><b>' + esc(l[2]) + (l[4] && !p ? ' ' + LOCK : '') + '</b><small>' + esc(l[3]) + '</small></span><i aria-hidden="true">\u203a</i></a>'; }).join('') + '</div>' +
+    var p = full(); LS.set('seen13', 1); LS.set('seen14', 1);
+    V.innerHTML = '<a class="back" href="#home">\u2190 Home</a><p class="eyebrow">3 new in 1.4</p><h1 class="pt">\ud83e\uddea Labs</h1><p class="muted">Eleven experiments built on your answers. Anything you add here stays on this phone.</p><div class="card nlist">' +
+      LABS.map(function (l) { return '<a class="nrow" href="#lab/' + l[0] + '"><span class="ni" aria-hidden="true">' + l[1] + '</span><span class="nt"><b>' + esc(l[2]) + (l[5] ? ' <span class="lb-newtag">new</span>' : '') + (l[4] && !p ? ' ' + LOCK : '') + '</b><small>' + esc(l[3]) + '</small></span><i aria-hidden="true">\u203a</i></a>'; }).join('') + '</div>' +
       '<p class="muted small center">' + DISC + ' Tips and matches here are rules of thumb built on your scores, labelled as such.</p>';
   }
   function labLock(id) { var l = LABS.filter(function (x) { return x[0] === id; })[0];
@@ -205,7 +208,7 @@
     if (l[4] && !full()) return labLock(id);
     var r = results('main')[0], sc = r && full() ? scoreOf(r) : null;
     if (l[4] && !sc) return labNeedQuiz(id);
-    ({ today: labToday, battery: labBattery, rate: labRate, compare: labCompare, stretch: labStretch, card: labCard, drift: labDrift, decide: labDecide })[id](sc, r);
+    ({ today: labToday, battery: labBattery, rate: labRate, compare: labCompare, stretch: labStretch, card: labCard, drift: labDrift, decide: labDecide, prompt: labPrompt, study: labStudy, talk: labTalk })[id](sc, r);
   }
   var pc = function (sc, k) { return sc && sc.scales[k] ? sc.scales[k].pct : null; };
   var dayKey = function (t) { return new Date(t || Date.now()).toLocaleDateString('en-CA'); };
@@ -397,6 +400,81 @@
     V.innerHTML = labHead('drift') + '<div class="card">' + svg + '</div><div class="card"><p class="tag">First vs latest \u00b7 ' + pts.length + ' results</p>' + rows + '<p class="muted small">Any quiz wobbles a bit between takes even when nothing changed (mood, the day you had). Here a change under 10 points counts as wobble. That\u2019s a rough rule for a 77-question quiz, not an exact statistic.</p></div>';
   }
 
+  /* ---------- 1.4 (Oct 26 2026): Daily prompt (free), Study style (Pro), Hard talk helper (Pro) ---------- */
+  /* 9. Daily prompt — one question a day. With full scores it leans toward your highest and lowest traits; answers stay in localStorage only. */
+  var PROMPTS = {
+    O: ['What is one thing you got curious about this week, and what made it interesting?', 'If you could learn any skill in a month, what would it be and why that one?', 'What is an idea you changed your mind about? What changed it?', 'Describe something ordinary you noticed today as if it were brand new.'],
+    C: ['What is one thing you finished this week that you are glad you did?', 'What did you put off today? What would make starting it 5 minutes easier?', 'What does a "good enough" version of your biggest task look like?', 'Which habit would make next week smoother if you did it daily?'],
+    E: ['Who gave you energy this week, and who drained it? What was the difference?', 'When did you last feel fully yourself around other people?', 'What kind of plan would make this weekend feel right: busy, quiet, or a mix?', 'Is there someone you want to reach out to but haven\u2019t? What\u2019s stopping you?'],
+    A: ['Who did you help this week, even in a small way? How did it feel?', 'Was there a moment you said yes when you meant no? What would you say next time?', 'Who do you trust most right now, and what earned that trust?', 'What is one thing someone did that annoyed you? What might have been going on for them?'],
+    N: ['What worried you today? How likely is the worst case, honestly?', 'What helped the last time you felt stressed? Could you do that again this week?', 'Name three things that went okay today, however small.', 'What would you tell a friend who felt the way you feel right now?']
+  };
+  function labPrompt(sc) {
+    var day = dayKey(), log = LS.get('lab.prompt', []), order = B5.slice();
+    if (sc) order.sort(function (a, b) { return Math.abs(pc(sc, b) - 50) - Math.abs(pc(sc, a) - 50); }); // strongest traits first
+    var dn = Math.floor(Date.now() / 864e5), t = order[dn % (sc ? 3 : 5)], list = PROMPTS[t], qtext = list[Math.floor(dn / 5) % list.length];
+    var mine = log.filter(function (x) { return x.d === day; })[0];
+    V.innerHTML = labHead('prompt') + '<div class="card"><p class="tag">Today \u00b7 ' + esc(BNAME[t]) + (sc ? ' \u00b7 ' + pc(sc, t) + '/100' : '') + '</p><h2 style="margin:4px 0 10px">' + esc(qtext) + '</h2>' +
+      '<label class="vh" for="pa">Your answer</label><textarea id="pa" maxlength="1500" rows="5" placeholder="Write as much or as little as you want">' + esc(mine ? mine.a : '') + '</textarea>' +
+      '<button class="btn big block" id="ps">' + (mine ? 'Update' : 'Save') + '</button><p class="muted small" id="pm">' + (sc ? 'Picked from the traits where you scored furthest from the middle.' : 'Rotates through the Big Five. With Pro it leans toward your strongest traits.') + ' A new question every day.</p></div>' +
+      (log.length ? '<details class="fold card"><summary>Past answers (' + log.length + ')</summary>' + log.slice().reverse().slice(0, 30).map(function (x) { return '<p class="small"><b>' + esc(new Date(x.d + 'T12:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })) + ' \u00b7 ' + esc(x.q) + '</b><br>' + esc(x.a) + '</p>'; }).join('') + '<button class="btn ghost block" id="pclr">Delete all answers</button></details>' : '') +
+      '<p class="muted small center">' + DISC + ' Saved only on this phone; never sent anywhere.</p>';
+    $('#ps').onclick = function () { var a = $('#pa').value.trim(); if (!a) { $('#pm').textContent = 'Write something first, even one line.'; return; }
+      log = log.filter(function (x) { return x.d !== day; }); log.push({ d: day, t: t, q: qtext, a: a.slice(0, 1500) }); LS.set('lab.prompt', log.slice(-120)); toast('Saved on this phone'); labPrompt(sc); };
+    var c = $('#pclr'); if (c) c.onclick = function () { if (confirm('Delete all your saved prompt answers on this phone?')) { LS.set('lab.prompt', null); labPrompt(sc); } };
+  }
+
+  /* 10. Study style — rules of thumb from your own scores (C facets, O_ideas, E_sociability, N_anxiety, coping). Labelled as such. */
+  function labStudy(sc) {
+    var g = function (k) { var v = pc(sc, k); return v == null ? 50 : v; }, plan = [], focus;
+    var disc = g('C_discipline'), ord = g('C_order'), cur = g('O_ideas'), soc = g('E_sociability'), anx = g('N_anxiety'), exc = g('E_excitement');
+    focus = disc >= 65 ? [45, 10] : disc >= 40 ? [30, 7] : [20, 5];
+    plan.push(['Focus blocks: ' + focus[0] + ' min on, ' + focus[1] + ' off', disc >= 65 ? 'Your self-discipline score is high, so longer blocks should hold. Stop at a natural break, not mid-thought.' : disc >= 40 ? 'Middle-of-the-road self-discipline: classic 25\u201330 minute blocks are a good fit.' : 'Lower self-discipline scores do better with short blocks you can actually start. Starting is the hard part; 20 minutes is easy to say yes to.']);
+    plan.push([ord >= 60 ? 'Plan it on paper first' : 'Keep the plan tiny', ord >= 60 ? 'You score high on orderliness: a written list of topics with checkboxes will keep you calm and on track.' : 'Orderliness isn\u2019t your strong suit, so skip the giant schedule. Write just the next three things on a sticky note.']);
+    plan.push([cur >= 60 ? 'Ask "why" while you study' : 'Practice over theory', cur >= 60 ? 'You\u2019re intellectually curious. Explaining why something works (not just what) helps it stick: try teaching it out loud.' : 'Lean on practice questions and examples first, then read the explanation for the ones you missed.']);
+    plan.push([soc >= 60 ? 'Study with one person, quiz each other' : 'Solo first, check with someone after', soc >= 60 ? 'Your social battery runs high: a study buddy keeps you going. Keep it to one person and a shared goal so it stays study, not hangout.' : 'You recharge alone, so do the deep work solo. A 10-minute check-in with a classmate after is enough to catch gaps.']);
+    if (exc >= 65) plan.push(['Make it a game', 'You score high on excitement-seeking. Timers, streak-free point goals or racing a practice test keeps boring material moving.']);
+    plan.push([anx >= 60 ? 'Shrink the test before test day' : 'Don\u2019t skip the practice test', anx >= 60 ? 'Your worry score is on the high side. Do a timed practice test in the real room or chair if you can; the second time feels smaller. Before the test, write your worries down for 2 minutes (Ramirez & Beilock 2011 found this helped anxious students).' : 'Worry isn\u2019t your main problem, overconfidence can be. A practice test shows what you actually know.']);
+    plan.push(['Space it out', 'Whatever your scores: three short sessions over a week beat one long night (spacing effect, Cepeda et al. 2006). Mix in retrieval: close the book and write what you remember.']);
+    var st = LS.get('lab.study', { subj: '', days: 5 });
+    V.innerHTML = labHead('study') + '<div class="card"><p class="tag">Your plan</p>' + plan.map(function (p) { return '<p class="small"><b>' + esc(p[0]) + '.</b> ' + esc(p[1]) + '</p>'; }).join('') + '</div>' +
+      '<div class="card"><p class="tag">Build a week</p><label>What are you studying for?<input id="ss" maxlength="60" value="' + esc(st.subj) + '" placeholder="e.g. Bio test on Friday"></label><label>Days until it<input id="sd" type="number" min="1" max="21" value="' + (+st.days || 5) + '"></label><button class="btn block" id="sgo">Make my schedule</button><div id="sout"></div></div>' +
+      '<p class="muted small center">' + DISC + ' Rules of thumb built on your scores, plus two well-studied tricks (spacing and practice testing).</p>';
+    function build() { var d = Math.max(1, Math.min(21, parseInt($('#sd').value, 10) || 5)), subj = $('#ss').value.trim(); LS.set('lab.study', { subj: subj, days: d });
+      var sessions = Math.min(d, Math.max(2, Math.round(d * 0.7))), rows = [];
+      for (var i = 0; i < sessions; i++) { var day = Math.round(i * (d - 1) / Math.max(1, sessions - 1)), last = i === sessions - 1, first = i === 0;
+        rows.push('<li><b>' + (d - day === 1 ? 'Day before' : (d - day) + ' days out') + ':</b> ' + (first ? 'skim everything, list what you don\u2019t get' : last ? 'one timed practice test, then review only misses. Sleep well.' : i % 2 ? 'practice questions on the weak spots' : 'close the book and write what you remember, then check') + ' \u00b7 ' + (last ? 2 : 3) + ' \u00d7 ' + focus[0] + ' min</li>'); }
+      $('#sout').innerHTML = '<p class="small" style="margin-top:10px">' + (subj ? esc(subj) + ': ' : '') + sessions + ' short sessions over ' + d + ' day' + (d === 1 ? '' : 's') + '.</p><ol class="small">' + rows.join('') + '</ol>'; }
+    $('#sgo').onclick = build; if (st.subj) build();
+  }
+
+  /* 11. Hard talk helper — conflict style (cf_*), A, N_anger and attachment shape the advice; I-statement builder. */
+  var TALKW = ['a friend', 'a parent', 'a sibling', 'a teammate or classmate', 'a teacher or coach', 'someone I\u2019m dating'];
+  function labTalk(sc) {
+    var cf = ['cf_competing', 'cf_collaborating', 'cf_compromising', 'cf_accommodating', 'cf_avoiding'].map(function (k) { return [k, pc(sc, k) || 0]; }).sort(function (a, b) { return b[1] - a[1]; })[0][0];
+    var STY = { cf_competing: ['Competing', 'You go in to make your point and win it.', 'Ask one real question before you make your case, and repeat their side back before answering.', 'I want to understand your side first. Then can I tell you mine?'],
+      cf_collaborating: ['Collaborating', 'You want a fix that works for both of you.', 'Not every talk needs a full solution today. Check they have the energy for it.', 'Can we figure this out together? I don\u2019t want either of us to just give in.'],
+      cf_compromising: ['Compromising', 'You aim to meet in the middle fast.', 'Make sure the middle is actually fair, not just quick. Say what matters most to you first.', 'Here\u2019s the part that matters most to me. What matters most to you?'],
+      cf_accommodating: ['Accommodating', 'You tend to give way to keep the peace.', 'Say your need out loud once, plainly, before you offer anything. Your side counts too.', 'I usually let this go, but it actually matters to me, so I want to talk about it.'],
+      cf_avoiding: ['Avoiding', 'You\u2019d rather step back and let it pass.', 'Pick a time instead of a never. Short and soon beats perfect and someday.', 'Something\u2019s been bugging me. Could we talk about it for ten minutes later today?'] }[cf];
+    var tips = []; if (pc(sc, 'N_anger') >= 60) tips.push('Your irritability score runs high: if you feel heat rising, say "give me five minutes" and come back. Pausing is not losing.');
+    if (pc(sc, 'att_anxiety') >= 60) tips.push('If silence after you speak feels scary, that\u2019s your attachment-anxiety score talking. Give them time to answer.');
+    if (pc(sc, 'att_avoidance') >= 60) tips.push('You may want to wrap it up quickly. Stay for one more question than feels comfortable.');
+    if (pc(sc, 'A') >= 70) tips.push('You\u2019re very agreeable; practise one sentence that doesn\u2019t start with sorry.');
+    var st = LS.get('lab.talk', { who: 0, when: '', feel: '', need: '' });
+    V.innerHTML = labHead('talk') + '<div class="card"><p class="tag">Your style: ' + esc(STY[0]) + '</p><p class="small">' + esc(STY[1]) + '</p><p class="small"><b>Watch for:</b> ' + esc(STY[2]) + '</p><p class="small"><b>An opener that fits you:</b> \u201c' + esc(STY[3]) + '\u201d</p>' + tips.map(function (t) { return '<p class="small">' + esc(t) + '</p>'; }).join('') + '</div>' +
+      '<div class="card"><p class="tag">Build what you\u2019ll say</p><label>Who with?<select id="tw">' + TALKW.map(function (w, i) { return '<option value="' + i + '"' + (i === +st.who ? ' selected' : '') + '>' + esc(w) + '</option>'; }).join('') + '</select></label>' +
+      '<label>When they\u2026<input id="tn" maxlength="120" value="' + esc(st.when) + '" placeholder="cancel plans last minute"></label><label>I feel\u2026<input id="tf" maxlength="60" value="' + esc(st.feel) + '" placeholder="left out"></label><label>What I need is\u2026<input id="tq" maxlength="120" value="' + esc(st.need) + '" placeholder="a heads-up the day before"></label>' +
+      '<div id="tout" class="lb-say"></div><button class="btn ghost block" id="tcp">Copy</button></div>' +
+      '<details class="fold card"><summary>Why this shape works</summary><p class="small">"When you\u2026 I feel\u2026 I need\u2026" talks about one thing they did and how it landed, instead of who they are. That makes people less defensive (the "I-statement" idea from Thomas Gordon\u2019s work, later tested by Kubany and others). Your conflict style is from the Thomas\u2013Kilmann model your quiz measured.</p></details>' +
+      '<p class="muted small center">' + DISC + ' Rules of thumb built on your scores. If someone is hurting you or you feel unsafe, talk to a trusted adult or text 988.</p>';
+    function say() { var w = $('#tn').value.trim(), f = $('#tf').value.trim(), n = $('#tq').value.trim(); LS.set('lab.talk', { who: +$('#tw').value, when: w, feel: f, need: n });
+      var s = STY[3] + ' ' + (w ? 'When you ' + w.replace(/[.!?]+$/, '') + ', ' : '') + (f ? 'I feel ' + f.replace(/[.!?]+$/, '') + '. ' : '') + (n ? 'What I need is ' + n.replace(/[.!?]+$/, '') + '. ' : '') + (w || f || n ? 'Does that make sense?' : '');
+      $('#tout').textContent = s.trim(); return s.trim(); }
+    ['#tn', '#tf', '#tq', '#tw'].forEach(function (k) { $(k).oninput = say; $(k).onchange = say; }); say();
+    $('#tcp').onclick = function () { var s = say(); if (navigator.clipboard) navigator.clipboard.writeText(s).then(function () { toast('Copied'); }, function () { toast('Couldn\u2019t copy'); }); };
+  }
+
   /* 8. Decision coach (Pro): checklist tuned to your decision-making scores */
   function labDecide(sc) {
     var st = LS.get('lab.decide', null) || { q: '', opts: ['', ''], crit: ['', ''], w: [3, 3], r: {} };
@@ -450,7 +528,7 @@
     var h = '<section class="hero"><p class="eyebrow">Mindprint</p><h1>What do your answers say about <span class="grad">you</span>?</h1>' +
       '<p class="lede">77 questions on the Big Five, attachment, conflict, values, stress and decisions. About 10 minutes, free to take.</p>' +
       (prog && prog.i > 0 ? '<a class="btn big block" href="#quiz">Continue the quiz (' + Math.min(prog.i + 1, Q.questions.length) + ' of ' + Q.questions.length + ')</a>' : '<a class="btn big block" href="#start">' + (last ? 'Take it again' : 'Start the quiz') + '</a>') + '</section>';
-    if (!LS.get('seen13', 0)) h += '<a class="card lb-new" href="#labs"><p class="tag">What\u2019s new in 1.3</p><b>\ud83e\uddea Labs: 8 new experiments</b><small>Rate me, friend compare, talk-to-me card, drift chart, decision coach, stretch goal, today vs usual, social battery planner.</small></a>';
+    if (!LS.get('seen14', 0)) h += '<a class="card lb-new" href="#labs"><p class="tag">What\u2019s new in 1.4</p><b>\ud83e\uddea 3 more Labs</b><small>Daily prompt (free), Study style and Hard talk helper (Pro).</small></a>';
     if (ty && ty.four && ty.cluster) h += '<a class="card mehome" href="#types"><span class="mec">' + esc(ty.four.code) + '</span><span class="nt"><small>Your type</small><b>' + esc(ty.four.name) + ' \u00b7 ' + esc(ty.cluster.emoji + ' ' + ty.cluster.name) + '</b></span><i aria-hidden="true">\u203a</i></a>';
     h += '<div class="card nav">' +
       (last ? row('#results/' + encodeURIComponent(last.id), '\ud83d\udcca', 'Your results', 'Your latest quiz, sorted by system') : '') +
@@ -1039,7 +1117,7 @@
       else inner = '<p' + (s.id === 'attach' && TT ? ' data-x="attach"' : '') + '>' + esc(s.text) + '</p>' + (s.id === 'attach' ? bars(sc, ['att_anxiety', 'att_avoidance']) : bars(sc, s.keys.slice(0, 6)));
       html += sec('r' + s.id, RI[s.id] || '\u2022', s.title, RV[s.id] || '', inner);
     });
-    html += '<div class="card x12"><p class="tag">New</p><a class="x12a" href="#sim/' + encodeURIComponent(r.id) + '"><span>\ud83d\udd2e</span><b>What would you do?</b><small>8 real situations, predicted from your scores</small></a><a class="x12a" href="#guess/' + encodeURIComponent(r.id) + '"><span>\ud83c\udfaf</span><b>How well do you know yourself?</b><small>guess your scores, find your blind spot</small></a><a class="x12a" href="#labs"><span>\ud83e\uddea</span><b>Labs</b><small>8 experiments built on these results</small></a></div>';
+    html += '<div class="card x12"><p class="tag">New</p><a class="x12a" href="#sim/' + encodeURIComponent(r.id) + '"><span>\ud83d\udd2e</span><b>What would you do?</b><small>8 real situations, predicted from your scores</small></a><a class="x12a" href="#guess/' + encodeURIComponent(r.id) + '"><span>\ud83c\udfaf</span><b>How well do you know yourself?</b><small>guess your scores, find your blind spot</small></a><a class="x12a" href="#labs"><span>\ud83e\uddea</span><b>Labs</b><small>11 experiments built on these results</small></a></div>';
     html += '<div class="card deepcard"><p class="tag">Pro</p><h2>Go deeper</h2><p>Get the full written report: what your results say about your strengths, blind spots, relationships, stress and school or work fit, plus the Deep Dive into your childhood and family, a spreadsheet of every answer and a printable PDF.</p>' +
       (pro() ? '<a class="btn block" href="#report/' + encodeURIComponent(r.id) + '">Open your full report</a><a class="btn ghost block" href="#deep">Deep Dive</a>' : '<a class="btn block" href="#pro">Unlock Mindprint Pro \u00b7 $10</a>') + '</div>';
     html += signed() ? '<p class="muted small center">Saved to your account.</p>' : '<div class="card"><p><b>Keep these results.</b> Sign in or create a free Northpeak account to keep them in your history on any device.</p><a class="btn ghost block" href="#account">Sign in to save</a></div>';
@@ -1156,7 +1234,7 @@
   function whenCloud(fn) { if (C()) fn(); else { V.innerHTML = '<div class="card"><p>Loading\u2026</p></div>'; window.addEventListener('cloud-ready', function () { fn(); }, { once: true }); } }
   function account() { whenCloud(function () {
     if (!signed()) {
-      V.innerHTML = '<div class="card"><h1 class="pt">Sign in</h1><p class="muted">One Northpeak account works in every Northpeak app: Synapse, Axon, Liminal, Cadence and Mindprint. All-Access carries over.</p>' +
+      V.innerHTML = '<div class="card"><h1 class="pt">Sign in</h1><p class="muted">One Northpeak account works in every Northpeak app: Synapse, Axon, Liminal, Cadence, Mindprint and Trace. All-Access carries over.</p>' +
         '<label>Email<input id="ae" type="email" autocomplete="username" autocapitalize="none" spellcheck="false"></label><label>Password<input id="ap" type="password" autocomplete="current-password"></label>' +
         '<button class="btn big block" id="li">Sign in</button><button class="btn ghost block" id="su">Create account</button><p id="am" class="muted"></p>' +
         '<p class="muted small">Your password never leaves this device. Your answers are saved to your account and to Northpeak Studios.</p></div>';

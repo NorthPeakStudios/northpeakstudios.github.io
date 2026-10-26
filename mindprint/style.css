@@ -337,3 +337,8 @@ i.lb-key.lb-dot{border-radius:50%;border:0}i.lb-key.lb-q{transform:rotate(45deg)
 .lb-tbl th:first-child{width:46%}.lb-tbl .lb-in{min-width:0;padding:6px}.lb-tbl select{padding:4px 2px;max-width:100%}
 .lb-dr{flex-wrap:wrap}.lb-dr span{flex:1 1 60%}
 #dcr{margin-top:10px}
+
+/* 1.4 */
+.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.lb-newtag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#120f1c;background:var(--lav);border-radius:999px;padding:1px 7px;vertical-align:2px}
+.lb-say{margin:12px 0 10px;padding:12px 14px;border-radius:14px;background:rgba(179,157,255,.12);border:1px solid rgba(179,157,255,.35);font-size:15px;line-height:1.45;min-height:44px}
