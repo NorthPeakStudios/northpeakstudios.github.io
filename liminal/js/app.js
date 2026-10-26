@@ -1086,4 +1086,107 @@ XSETB.unshift(() => { $$('#xRows .xth').forEach(b => b.onclick = () => { const i
 if ($('#xtB')) $('#xtB').onclick = () => xBreathe(); if ($('#xtG')) $('#xtG').onclick = () => xGround();
 xTheme(); xApplyPro(); setInterval(xApplyPro, 2500);
 
-window.__liminal = { db, S, renderArchive, engine, cloud, afterAccount };
+
+/* ---------- v32 · echo (free) · listen to your week (pro) · blend two days (pro) ---------- */
+const X6 = { ov: null, timer: 0, wasMuted: null };
+const x6d = (a, b) => Math.hypot(a.v - b.v, a.e - b.e);
+const x6day = t => new Date(t).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }).toLowerCase();
+/* echo: the past moment that sat closest to this one in feeling-space (light/heavy × still/restless), plus shared words as a tie-break */
+function x6echo(m) {
+  if (!m || m.care) return null;
+  const words = new Set([...(m.chips || []), ...String(m.text || '').toLowerCase().match(/[a-z]{4,}/g) || []]);
+  let best = null, bs = 1e9;
+  for (const o of S.moments) {
+    if (o.id === m.id || o.care || Math.abs(o.t - m.t) < 6 * 36e5) continue;
+    let d = x6d(m, o); if (d > 0.14) continue;
+    const ow = [...(o.chips || []), ...String(o.text || '').toLowerCase().match(/[a-z]{4,}/g) || []]; let sh = 0; ow.forEach(w => { if (words.has(w)) sh++; });
+    d -= Math.min(0.05, sh * 0.02); if (d < bs) { bs = d; best = o; }
+  }
+  return best;
+}
+function x6echoHTML(m) {
+  const o = x6echo(m); if (!o) return '';
+  const pro = isPro(), ago = Math.round((m.t - o.t) / 864e5), when = ago > 0 ? (ago === 1 ? 'the day before' : ago + ' days before') : ago < 0 ? (ago === -1 ? 'the day after' : -ago + ' days later') : 'the same day';
+  return `<div class="x6-echo"><p class="x6-k">echo · you felt close to this before</p><button class="x6-ecard" data-x6open="${esc(o.id)}"><span class="x6-dot" style="background:${esc((pro ? o.colors : ['#cfc8e6'])[0])}"></span><span class="x6-et"><b>${esc(x6day(o.t))}</b><small>${esc(when)}${pro ? ' · ' + esc(o.word) : ''}</small>${o.text ? `<span>“${esc(o.text.slice(0, 120))}”</span>` : ''}${o.answer ? `<span class="x6-a">you answered: ${esc(o.answer.slice(0, 120))}</span>` : ''}${o.good ? `<span class="x6-g">one good thing that day: ${esc(o.good.slice(0, 120))}</span>` : ''}</span></button><p class="x6-fine">matched by where the two moments sit on the light–heavy and still–restless scales, not by reading your mind.</p></div>`;
+}
+const _x6dd = drawDetail;
+drawDetail = function () {
+  _x6dd.apply(this, arguments);
+  const { list, idx } = S.detail || {}; const m = list && list[idx]; if (!m) return;
+  const body = $('#dBody'); if (!body) return;
+  body.insertAdjacentHTML('beforeend', x6echoHTML(m) + (!m.care ? `<button class="x6-blendbtn" id="x6Blend">${isPro() ? '' : LOCK}blend with another day</button>` : ''));
+  const b = $('#x6Blend'); if (b) b.onclick = () => isPro() ? x6pick(m) : openPro('blend two days');
+};
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-x6open]'); if (!t) return;
+  const i = S.moments.findIndex(x => x.id === t.dataset.x6open); if (i < 0) return;
+  x6close(); openDetail(S.moments, i); const sc = document.querySelector('#detail .d-scroll, #detail'); if (sc) sc.scrollTop = 0;
+});
+/* right after keeping a moment: a quiet echo bar on the feel screen */
+const _x6keep = $('#keep').onclick;
+$('#keep').onclick = async function () {
+  await _x6keep.apply(this, arguments);
+  const m = S.moments[0]; if (!m || Date.now() - m.t > 5000) return; const o = x6echo(m); if (!o) return;
+  let bar = $('#x6bar'); if (!bar) { bar = document.createElement('button'); bar.id = 'x6bar'; bar.className = 'x6-bar'; document.body.appendChild(bar); }
+  bar.innerHTML = `<span class="x6-dot" style="background:${esc((isPro() ? o.colors : ['#cfc8e6'])[0])}"></span><span>this feels like <b>${esc(x6day(o.t))}</b>. see it</span>`; bar.dataset.x6open = o.id;
+  requestAnimationFrame(() => bar.classList.add('on')); clearTimeout(X6.bt); X6.bt = setTimeout(() => bar.classList.remove('on'), 7000);
+};
+/* overlay shell */
+function x6open(html) {
+  x6close(); const ov = document.createElement('div'); ov.className = 'x6-ov'; ov.setAttribute('role', 'dialog');
+  ov.innerHTML = `<div class="x6-in"><button class="x6-x" aria-label="close">×</button>${html}</div>`; document.body.appendChild(ov); X6.ov = ov;
+  ov.querySelector('.x6-x').onclick = x6close; requestAnimationFrame(() => ov.classList.add('on')); return ov;
+}
+function x6close() {
+  clearTimeout(X6.timer); X6.timer = 0;
+  if (X6.ov) { X6.ov.remove(); X6.ov = null; }
+  if (X6.wasMuted !== null) { engine.setMuted(X6.wasMuted); X6.wasMuted = null; syncSound(); }
+}
+/* listen to your week: each moment of the last 7 days plays as sound + colour + scene for a few seconds, in order */
+function x6week() {
+  if (!isPro()) return openPro('listen to your week');
+  const cut = Date.now() - 7 * 864e5; let ms = S.moments.filter(m => m.t >= cut).sort((a, b) => a.t - b.t);
+  if (ms.length < 2) ms = S.moments.slice(0, 7).sort((a, b) => a.t - b.t);
+  if (ms.length < 2) { toast('keep a couple of moments first'); return; }
+  const ov = x6open(`<p class="x6-k">your week, as sound</p><div class="x6-stage"><canvas id="x6c" width="680" height="440"></canvas></div><h2 class="x6-w" id="x6w"></h2><p class="x6-sub" id="x6s"></p><div class="x6-dots">${ms.map((m, i) => `<i data-i="${i}"></i>`).join('')}</div><div class="x6-row"><button class="primary" id="x6again">play again</button></div><p class="x6-fine">each moment you kept this week plays for a few seconds: its colours, its scene and the soundscape it made.</p>`);
+  X6.wasMuted = S.muted; engine.setMuted(false);
+  let i = 0;
+  const step = () => {
+    if (!X6.ov || X6.ov !== ov) return; if (i >= ms.length) { ov.querySelector('#x6s').textContent = 'that was your week.'; engine.stop(); return; }
+    const m = ms[i]; aura.set(m.colors, 0.2 + m.v * 0.6, 0.2 + (1 - m.e) * 0.5, m.e); engine.setMood({ v: m.v, e: m.e, chips: m.chips || [] }, m.seed); engine.play();
+    drawScene(ov.querySelector('#x6c'), m); ov.querySelector('#x6w').textContent = m.word; ov.querySelector('#x6s').textContent = x6day(m.t) + ' · ' + fmtTime(m.t);
+    ov.querySelectorAll('.x6-dots i').forEach((d, k) => { d.classList.toggle('on', k === i); d.classList.toggle('done', k < i); d.style.background = k <= i ? ms[k].colors[0] : ''; });
+    i++; X6.timer = setTimeout(step, 4800);
+  };
+  ov.querySelector('#x6again').onclick = () => { clearTimeout(X6.timer); i = 0; step(); };
+  step();
+}
+/* blend two days: paint and write what sits between two moments */
+function x6pick(a) {
+  const list = S.moments.filter(m => m.id !== a.id && !m.care).slice(0, 60);
+  if (!list.length) { toast('keep another moment to blend with'); return; }
+  const ov = x6open(`<p class="x6-k">blend “${esc(a.word)}” with…</p><div class="x6-list">${list.map(m => `<button class="x6-li" data-b="${esc(m.id)}"><span class="x6-dot" style="background:${esc(m.colors[0])}"></span><span><b>${esc(m.word)}</b><small>${esc(x6day(m.t))}${m.text ? ' · ' + esc(m.text.slice(0, 50)) : ''}</small></span></button>`).join('')}</div>`);
+  ov.querySelectorAll('[data-b]').forEach(b => b.onclick = () => x6blend(a, S.moments.find(m => m.id === b.dataset.b)));
+}
+function x6blend(a, b, seed) {
+  if (!a || !b) return; seed = seed || ((a.seed ^ b.seed ^ newSeed()) >>> 0);
+  const v = (a.v + b.v) / 2, e = (a.e + b.e) / 2, colors = a.colors.map((c, i) => mixHex([c, b.colors[i] || c]));
+  const anchor = (a.chips || [])[0] || (b.chips || [])[0] || null;
+  const scene = sceneFor({ v, e, seed, chips: [...(a.chips || []), ...(b.chips || [])].slice(0, 3) });
+  const poem = compose({ v, e, anchor, theme: null, colorWords: [], crisis: false, matched: 1 }, seed), word = moodWord(v, e);
+  const ov = x6open(`<p class="x6-k">${esc(x6day(a.t))} + ${esc(x6day(b.t))}</p><div class="x6-pair"><span style="background:${esc(a.colors[0])}"></span><i>+</i><span style="background:${esc(b.colors[0])}"></span><i>=</i><span style="background:${esc(colors[0])}"></span></div><div class="x6-stage"><canvas id="x6c" width="680" height="440"></canvas></div><h2 class="x6-w">${esc(word)}</h2><div class="d-poem x6-poem">${poem.map(l => `<span>${esc(l)}</span>`).join('')}</div><div class="x6-row"><button class="primary" id="x6re">blend again</button><button class="ghost" id="x6cp">copy poem</button></div><p class="x6-fine">the halfway point between two days: their colours mixed, a scene and a poem for the feeling in between. nothing is saved unless you copy it.</p>`);
+  drawScene(ov.querySelector('#x6c'), { v, e, seed, colors, scene });
+  aura.set(colors, 0.2 + v * 0.6, 0.2 + (1 - e) * 0.5, e);
+  ov.querySelector('#x6re').onclick = () => x6blend(a, b, newSeed());
+  ov.querySelector('#x6cp').onclick = () => { try { navigator.clipboard.writeText(poem.join('\n')); toast('poem copied'); } catch { toast('couldn\'t copy'); } };
+}
+function x6driftBtn() {
+  const el = $('#v-drift'); if (!el || el.querySelector('.x6-wk')) return;
+  el.insertAdjacentHTML('afterbegin', `<button class="x6-wk" id="x6wk">${isPro() ? '' : LOCK}<span>▶ listen to your week</span><small>your moments, played as sound</small></button>`);
+  $('#x6wk').onclick = x6week;
+}
+const _x6ra = renderArchive;
+renderArchive = function () { _x6ra.apply(this, arguments); try { if (S.tab === 'archive' && S.view === 'drift') x6driftBtn(); if (S.tab === 'archive' && S.view === 'moments') x6momBtn(); } catch {} };
+function x6momBtn() { const el = $('#v-moments'); if (!el || el.querySelector('.x6-wk') || S.moments.length < 2) return; el.insertAdjacentHTML('afterbegin', `<button class="x6-wk" id="x6wk2">${isPro() ? '' : LOCK}<span>▶ listen to your week</span><small>your moments, played as sound</small></button>`); $('#x6wk2').onclick = x6week; }
+
+window.__liminal = { db, S, renderArchive, engine, cloud, afterAccount, x6week, x6blend, x6echo };
