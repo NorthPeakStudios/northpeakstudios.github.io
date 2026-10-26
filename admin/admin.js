@@ -14,7 +14,8 @@ var APPS=[
  {k:'axon',name:'Axon',tag:'t-axon',base:'https://axon-sync.sites.tab.bot',open:'https://northpeakstudios.github.io/axon/',pro:'Axon Pro',kdf:'axon-sync/v1:'},
  {k:'liminal',name:'Liminal',tag:'t-lim',base:'https://liminal-sync.sites.tab.bot',open:'https://northpeakstudios.github.io/liminal/',pro:'Liminal Pro',kdf:'liminal-sync/v1:'},
  {k:'cadence',name:'Cadence',tag:'t-cad',base:'https://cadence-sync.sites.tab.bot',open:'https://northpeakstudios.github.io/cadence/',pro:'Cadence Pro',kdf:'cadence-sync/v1:'},
- {k:'mindprint',name:'Mindprint',tag:'t-mp',base:'https://mindprint.sites.tab.bot',open:'https://northpeakstudios.github.io/mindprint/',pro:'Mindprint Pro',kdf:'mindprint-sync/v1:',views:[['resp','Responses','manage_accounts']]}
+ {k:'mindprint',name:'Mindprint',tag:'t-mp',base:'https://mindprint.sites.tab.bot',open:'https://northpeakstudios.github.io/mindprint/',pro:'Mindprint Pro',kdf:'mindprint-sync/v1:',views:[['resp','Responses','manage_accounts']]},
+ {k:'trace',name:'Trace',tag:'t-trc',base:'https://trace-sync.sites.tab.bot',open:'https://northpeakstudios.github.io/trace/',pro:'Trace Pro',kdf:'trace-sync/v1:'}
 ];
 var AP={};APPS.forEach(function(a){AP[a.k]=a;a.tag=a.tag||'t-app'});
 var BASE={},PEER={};APPS.forEach(function(a){BASE[a.k]=a.base;PEER[a.peer||a.k]=a.base});
