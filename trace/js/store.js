@@ -1,5 +1,5 @@
 // Trace · local store. Everything lives on this phone (localStorage 'trc.db'); signed-in sync sends each entry as its own
-// record, encrypted on the phone first (js/cloud.js). Records: entries (e_…), reminders (r_…), urges (u_…, Labs), prefs.
+// record, encrypted on the phone first (js/cloud.js). Records: entries (e_…), reminders (r_…), urges (u_…, urge timer), prefs.
 (function(){
 const K='trc.db';
 let db; try{ db=JSON.parse(localStorage.getItem(K)||'null'); }catch(e){}

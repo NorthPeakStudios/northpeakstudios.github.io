@@ -33,12 +33,12 @@ function fxRead(root){ return [...root.querySelectorAll('.fxc .chip.on')].map(b=
 routes.log=v=>{
   const names=Store.names(), today=Store.dayKey(Date.now()), todays=Store.entries().filter(x=>Store.dayKey(x.t)===today);
   const due=dueReminders();
-  const rdue=window.TrcRefillDue?TrcRefillDue():[]; const seen=localStorage.getItem('trc.new12');
-  v.innerHTML=`${seen?'':`<div class="card newc"><button class="lnk x" id="n11x" aria-label="Dismiss">✕</button><b>New in Trace 1.2: 3 more Labs tools ✨</b><p class="muted small" style="margin:4px 0 8px">My meds card (free), search your logs (free), and What changed: this week next to last (Pro).</p><a class="btn sm" href="#labs">Open Labs</a></div>`}
-  ${rdue.map(x=>`<a class="card it" href="#lab/refill" style="border-color:#5c4813;margin:10px 0"><span class="wh"><b>Refill ${esc(x.r.name)} soon</b><small>about ${Math.max(0,Math.floor(x.days))} days left by your count</small></span><span class="pill warn">${Math.round(x.left)} left</span></a>`).join('')}
+  const rdue=window.TrcRefillDue?TrcRefillDue():[]; const liveUrge=(Store.urges?Store.urges():[]).find(u=>!u.end);
+  v.innerHTML=`${liveUrge?`<a class="card it" href="#urge" style="border-color:#2b4a6b;margin:10px 0"><span class="wh"><b>🌊 Urge timer running</b><small>started ${ago(Date.now()-liveUrge.t)} ago · tap when it passes</small></span><span class="pill acc">open</span></a>`:''}
+  ${rdue.map(x=>`<a class="card it" href="#refill" style="border-color:#5c4813;margin:10px 0"><span class="wh"><b>Refill ${esc(x.r.name)} soon</b><small>about ${Math.max(0,Math.floor(x.days))} days left by your count</small></span><span class="pill warn">${Math.round(x.left)} left</span></a>`).join('')}
   ${due.length?`<div class="card" style="border-color:#2b5f58"><h3>Due today</h3>${due.map(r=>`<div class="it" data-rem="${r.id}"><span class="tm">${esc(r.time)}</span><span class="wh"><b>${esc(r.what)}</b><small>${esc(amtTxt(r))}</small></span><button class="btn sm" data-take="${r.id}">Log it</button></div>`).join('')}</div>`:''}
   <div class="card"><h3 style="margin-bottom:2px">Quick log</h3>
-   <div class="seg" id="kind"><a href="javascript:void 0" class="on" data-k="sub">Something I took</a><a href="javascript:void 0" data-k="chk">Just how I feel</a></div>
+   <div class="seg" id="kind"><a href="javascript:void 0" class="on" data-k="sub">Took something</a><a href="javascript:void 0" data-k="chk">How I feel</a><a href="#urge">An urge</a></div>
    <div id="subf"><label for="w">What</label><input id="w" list="wl" autocomplete="off" placeholder="med, supplement, caffeine, anything" maxlength="60">
    <datalist id="wl">${names.map(n=>`<option value="${esc(n.name)}">`).join('')}</datalist>
    ${names.length?`<div class="chips">${names.slice(0,6).map(n=>`<button type="button" class="chip sub" data-q="${esc(n.name)}" data-a="${esc(n.amt||'')}" data-u="${esc(n.unit||'')}">${esc(n.name)}</button>`).join('')}</div>`:''}
@@ -48,10 +48,10 @@ routes.log=v=>{
    <details class="fold" id="cxf" style="background:#0f141b"><summary>Context <span class="muted small" style="font-weight:400">optional · where, who, why</span></summary>${TrcCtx.html()}</details>
    <details class="fold" style="background:#0f141b"><summary>Notes</summary><textarea id="nt" maxlength="600" placeholder="anything worth remembering"></textarea></details>
    <button class="btn big block" id="sv">Save</button></div>
-  <h3 style="margin-top:18px">Today</h3><div class="card list" id="todayL">${todays.length?todays.map(itemHTML).join(''):'<p class="empty">Nothing logged today yet.</p>'}</div>
+  <div class="hrow"><h3>Today</h3><a class="icb" href="#find" aria-label="Search my logs"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>Search</a></div><div class="card list" id="todayL">${todays.length?todays.map(itemHTML).join(''):'<p class="empty">Nothing logged today yet.</p>'}</div>
   <p class="muted small center">Your logs stay on this phone${window.Cloud&&Cloud.signedIn()?' and sync encrypted to your Northpeak account':'. Sign in to sync them, encrypted, across devices'}.</p>`;
   let kind='sub';
-  $('#kind').onclick=e=>{ const a=e.target.closest('a'); if(!a) return; kind=a.dataset.k; $$('#kind a').forEach(x=>x.classList.toggle('on',x===a)); $('#subf').hidden=kind==='chk'; if(kind==='chk') $('#ff').open=true; };
+  $('#kind').onclick=e=>{ const a=e.target.closest('a'); if(!a||!a.dataset.k) return; kind=a.dataset.k; $$('#kind a').forEach(x=>x.classList.toggle('on',x===a)); $('#subf').hidden=kind==='chk'; if(kind==='chk') $('#ff').open=true; };
   v.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{ $('#w').value=b.dataset.q; if(!$('#am').value) $('#am').value=b.dataset.a; if(!$('#un').value) $('#un').value=b.dataset.u; });
   $('#w').addEventListener('change',()=>{ const n=names.find(x=>Store.keyOf(x.name)===Store.keyOf($('#w').value)); if(n){ if(!$('#am').value) $('#am').value=n.amt||''; if(!$('#un').value) $('#un').value=n.unit||''; } });
   feelWire(v); fxWire(v); TrcCtx.wire(v);
@@ -61,7 +61,6 @@ routes.log=v=>{
     const ctx=TrcCtx.read($('#cxf')); const ne={t,what,amt:kind==='chk'?'':$('#am').value.trim(),unit:kind==='chk'?'':$('#un').value.trim(),notes:$('#nt').value.trim(),feel,fx,feelAt:(feel||fx.length)?Date.now():null,kind}; if(ctx) ne.ctx=ctx; Store.saveEntry(ne);
     toast(kind==='chk'?'Check-in saved':'Logged ✓'); route(); };
   v.querySelectorAll('[data-take]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); const r=Store.reminders().find(x=>x.id===b.dataset.take); if(!r) return; Store.saveEntry({t:Date.now(),what:r.what,amt:r.amt||'',unit:r.unit||'',notes:'',feel:null,fx:[],kind:'sub',rem:r.id}); toast('Logged ✓ — add how you feel later'); route(); });
-  const nx=$('#n11x'); if(nx) nx.onclick=()=>{ localStorage.setItem('trc.new12','1'); route(); };
   wireItems(v);
 };
 function itemHTML(x){ const nofeel=!x.feel&&!(x.fx&&x.fx.length);
@@ -119,6 +118,9 @@ routes.rem=v=>{
    <div class="note">How reminders work on iPhone: a web app can’t reliably buzz you at a set time while it’s closed. <b>Add to Calendar</b> puts a repeating event with an alert in your Calendar app, which always rings. Trace also shows what’s due when you open it${('Notification' in window)?', and can pop an alert if Trace is open':''}.</div>
    <div class="card list">${rs.length?rs.map(r=>`<div class="it" data-r="${r.id}" style="cursor:default"><span class="tm">${esc(r.time)}</span><span class="wh"><b>${esc(r.what)}</b><small>${esc(amtTxt(r))}${amtTxt(r)?' · ':''}${(r.days&&r.days.length<7)?r.days.map(d=>DOW[d]).join(' '):'every day'}${r.on===false?' · off':''}</small></span><button class="btn ghost sm" data-ics="${r.id}">Add to Calendar</button><button class="lnk" data-rm="${r.id}" aria-label="Edit">Edit</button></div>`).join(''):'<p class="empty">No reminders yet.</p>'}</div>
    <details class="fold" ${rs.length?'':'open'} id="rf"><summary>Add a reminder</summary>${remForm({})}</details>
+   <h3 style="margin-top:18px">Your meds</h3><div class="card list">
+    <a class="it" href="#refill"><span class="wh"><b>Refill countdown</b><small>pills left and the day you run out, counted from your logs</small></span>${(window.TrcRefillDue&&TrcRefillDue().length)?'<span class="pill warn">refill soon</span>':''}</a>
+    <a class="it" href="#mix"><span class="wh"><b>Interaction check</b><small>what the FDA labels of 2+ things you log say about each other</small></span></a></div>
    ${('Notification' in window)?`<p class="center"><button class="lnk" id="nperm">${Notification.permission==='granted'?'Alerts while Trace is open: on':'Also alert me while Trace is open'}</button></p>`:''}`;
   wireRemForm(v.querySelector('#rf'),{});
   v.querySelectorAll('[data-ics]').forEach(b=>b.onclick=()=>icsFor(Store.reminders().find(r=>r.id===b.dataset.ics)));
@@ -145,13 +147,16 @@ let lastAlert=''; setInterval(()=>{ if(document.hidden) return; const d=dueRemin
 /* ---------- More ---------- */
 routes.more=v=>{ const s=window.Cloud&&Cloud.signedIn();
   v.innerHTML=`<h2>More</h2><div class="card list">
-   <a class="it" href="#labs"><span class="wh"><b>Labs ✨</b><small>11 extra tools · 3 new in 1.2</small></span><span class="pill acc">new</span></a>
    <a class="it" href="#account"><span class="wh"><b>Account & sync</b><small>${s?esc(Cloud.acct.user):'sign in with your Northpeak account'}</small></span></a>
-   <a class="it" href="#pro"><span class="wh"><b>Trace Pro</b><small>${P()?'unlocked':'effects, Forecast, the web, export, 6 Labs tools'}</small></span></a>
+   <a class="it" href="#pro"><span class="wh"><b>Trace Pro</b><small>${P()?'unlocked':'all of Insights, the doctor report, export'}</small></span></a>
    <a class="it" href="#body"><span class="wh"><b>Body data</b><small>weight & height, just stored</small></span></a>
+   </div><h3 style="margin-top:16px">For your doctor</h3><div class="card list">
+   <a class="it" href="#card"><span class="wh"><b>My meds card</b><small>what you take as you logged it, allergies, emergency contact · print it</small></span></a>
+   <a class="it" href="#report"><span class="wh"><b>Doctor report</b><small>one page for a month, print or save as PDF ${P()?'':'· Pro'}</small></span></a>
    <a class="it" href="#export"><span class="wh"><b>Export my logs</b><small>CSV or JSON ${P()?'':'· Pro'}</small></span></a>
+   </div><div class="card list" style="margin-top:16px">
    <a class="it" href="#help"><span class="wh"><b>Help & support lines</b><small>if something feels wrong</small></span></a>
-   <a class="it" href="#about"><span class="wh"><b>About Trace 1.2</b><small>privacy, what’s free, what’s new</small></span></a></div>`; };
+   <a class="it" href="#about"><span class="wh"><b>About Trace 1.3</b><small>privacy, what’s free, what’s new</small></span></a></div>`; };
 routes.help=v=>{ v.innerHTML=`<h2>Help</h2><p class="muted">Free, confidential, 24/7 in the US.</p><div class="card list">
    <a class="it" href="tel:18002221222"><span class="wh"><b>Poison Control</b><small>1-800-222-1222 · took too much, wrong thing, a bad reaction</small></span></a>
    <a class="it" href="tel:988"><span class="wh"><b>988 Suicide & Crisis Lifeline</b><small>call or text 988</small></span></a>
@@ -161,12 +166,13 @@ routes.help=v=>{ v.innerHTML=`<h2>Help</h2><p class="muted">Free, confidential, 
 routes.body=v=>{ const p=Store.prefs(); v.innerHTML=`<h2>Body data</h2><div class="card"><p class="muted" style="margin-top:0">Stored with your logs so you have it in one place. Trace doesn’t plug these into any formula or prediction. Real effects depend on far more than weight and height.</p>
    <div class="row"><div><label>Weight</label><input id="bw" value="${esc(p.weight||'')}" maxlength="12" placeholder="e.g. 130 lb"></div><div><label>Height</label><input id="bh" value="${esc(p.height||'')}" maxlength="12" placeholder="e.g. 5 ft 8"></div></div>
    <button class="btn block" id="bs" style="margin-top:12px">Save</button></div>`; $('#bs').onclick=()=>{ Store.savePrefs({weight:$('#bw').value.trim(),height:$('#bh').value.trim()}); toast('Saved'); }; };
-routes.about=v=>{ v.innerHTML=`<h2>Trace 1.2</h2><div class="card"><p style="margin-top:0"><b>A private journal</b> for meds, supplements, caffeine, anything you take, and how you feel.</p>
+routes.about=v=>{ v.innerHTML=`<h2>Trace 1.3</h2><div class="card"><p style="margin-top:0"><b>A private journal</b> for meds, supplements, caffeine, anything you take, and how you feel.</p>
    <p class="muted"><b>Privacy:</b> your logs live on this phone. If you sign in, each entry is encrypted on this phone with a key made from your password before it syncs, so the server can’t read it. Northpeak never sells or shares it.</p>
-   <p class="muted"><b>Free:</b> logging, feelings, the calendar, reminders, FDA label info. <b>Pro ($35, or in $100 All-Access):</b> effects charts, Forecast, the web graph, export, and 6 Labs tools (context patterns, rhythm, timing & sleep, effect detective, doctor report, what changed). Interaction check, refill countdown, urge timer, my meds card and search are free.</p>
+   <p class="muted"><b>Free:</b> logging, feelings, the calendar, reminders, FDA label info. <b>Pro ($35, or in $100 All-Access):</b> everything in Insights (effects, Forecast, the web, context, rhythm, timing & sleep, effect detective, what changed), the doctor report, and export. Also free: interaction check, refill countdown, urge timer, my meds card and search.</p>
    <p class="muted"><b>Honest limits:</b> patterns come only from your own logs, and they show correlation, not cause. Trace never suggests amounts or a “safe” dose, and doesn’t predict anything from body type.</p></div>
-   <details class="fold" open><summary>What’s new in 1.2</summary><p class="muted" style="margin-top:0">Three more <a href="#labs">Labs</a> tools: My meds card (what you take, as you logged it, with allergies and an emergency contact, printable), Search my logs, and What changed (this week next to last week, Pro). Plus fixes: email changes now carry over to Mindprint too, tidier labels.</p></details>
-   <details class="fold"><summary>1.1</summary><p class="muted" style="margin-top:0"><a href="#labs">Labs ✨</a>: interaction check (quotes FDA labels), refill countdown, urge timer, context tags + patterns, rhythm, timing & sleep, effect detective, and a printable doctor report.</p></details>
+   <details class="fold" open><summary>What’s new in 1.3</summary><p class="muted" style="margin-top:0">No more Labs. Every tool now sits where you’d look for it: Search and the urge timer on Log, refill countdown and interaction check under Reminders and on each thing’s page, context, rhythm, timing & sleep, effect detective and what changed as tabs in Insights, and the meds card and doctor report under More.</p></details>
+   <details class="fold"><summary>1.2</summary><p class="muted" style="margin-top:0">My meds card, Search my logs, What changed. Email changes carry over to Mindprint too.</p></details>
+   <details class="fold"><summary>1.1</summary><p class="muted" style="margin-top:0">Interaction check (quotes FDA labels), refill countdown, urge timer, context tags + patterns, rhythm, timing & sleep, effect detective, and a printable doctor report.</p></details>
    <details class="fold"><summary>1.0</summary><p class="muted" style="margin-top:0">First release: quick log with feelings now or later, side-effect chips, month heat map, reminders with Calendar alerts, FDA label lookups, effects over time, Forecast (predictions from your own logs), and the web.</p></details>`; };
 routes.export=v=>{ if(!P()) return TrcPro.locked(v,'Export my logs','CSV for spreadsheets or a full JSON backup.');
   v.innerHTML=`<h2>Export</h2><div class="card"><p class="muted" style="margin-top:0">${Store.entries().length} entries. Files are made on this phone.</p><button class="btn block" id="xc">Download CSV</button><button class="btn ghost block" id="xj">Download JSON backup</button></div>`;

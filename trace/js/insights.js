@@ -2,7 +2,10 @@
 // (a plain projection of your own patterns, with confidence from how much you've logged). Correlation, not cause.
 (function(){
 const M=()=>Store.METRICS;
-function nav(on,key){ const k=key?'/'+encodeURIComponent(key):''; return `<div class="seg"><a href="#fx${k}" class="${on==='fx'?'on':''}">Effects</a><a href="#forecast${k}" class="${on==='forecast'?'on':''}">Forecast</a><a href="#web" class="${on==='web'?'on':''}">The web</a></div>`; }
+/* Insights tabs (1.3): the pattern tools that used to sit in Labs are tabs here now. Scrolls sideways on a phone; the open tab scrolls into view. */
+const TABS=[['fx','Effects',1],['forecast','Forecast',1],['web','The web'],['ctx','Context'],['rhythm','Rhythm'],['timing','Timing & sleep'],['detect','Effect detective'],['week','What changed']];
+function nav(on,key){ const k=key?'/'+encodeURIComponent(key):''; setTimeout(()=>{ const a=document.querySelector('.seg.tabs a.on'); if(a&&a.scrollIntoView) a.scrollIntoView({block:'nearest',inline:'center'}); },0);
+  return `<div class="seg tabs" role="tablist" aria-label="Insights">${TABS.map(([id,l,kk])=>`<a href="#${id}${kk?k:''}" class="${on===id?'on':''}" ${on===id?'aria-current="page"':''}>${l}</a>`).join('')}</div>`; }
 window.TrcNav=nav;
 function picker(key,base){ const ns=Store.names(); return `<select id="ip">${ns.map(n=>`<option value="${esc(Store.keyOf(n.name))}" ${Store.keyOf(n.name)===key?'selected':''}>${esc(n.name)} (${n.n})</option>`).join('')}</select>`; }
 const avg=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:null;

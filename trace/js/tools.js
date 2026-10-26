@@ -1,39 +1,39 @@
-// Trace · Labs (1.1, +3 in 1.2). Eleven extra tools, all built from YOUR logs or cited public labels. Northpeak Studios.
+// Trace · tools (1.3: Labs removed; each tool now lives on the screen it belongs to — Log, Reminders, a med's page, Insights, More).
+// Eleven tools, all built from YOUR logs or cited public labels. Northpeak Studios.
 // Hard limits kept here too: no amounts advice, no "safe" dose, no body-type math, correlation-not-cause on every comparison.
 (function(){
-const LABS=[
- {id:'mix',ic:'🧪',name:'Interaction check',free:1,line:'Pick 2+ things you log. See what their FDA labels say about each other, quoted.'},
- {id:'refill',ic:'💊',name:'Refill countdown',free:1,line:'How many you have left and the day you run out, counted from your logs.'},
- {id:'urge',ic:'🌊',name:'Urge timer',free:1,line:'Log an urge, time it, and see how long yours usually take to pass.'},
- {id:'ctx',ic:'🏷️',name:'Context patterns',line:'Where, who with and why you logged, next to how you felt.'},
- {id:'rhythm',ic:'📊',name:'Rhythm',line:'How often per week over months, and the time between uses.'},
- {id:'timing',ic:'🌙',name:'Timing & sleep',line:'What time of day you took something vs the sleep you logged after.'},
- {id:'detect',ic:'🔎',name:'Effect detective',line:'Pick an effect. See what you logged in the 24 h before it, vs usual.'},
- {id:'report',ic:'📄',name:'Doctor report',line:'A one-page summary of a month to print or save as a PDF.'},
- {id:'card',ic:'🪪',name:'My meds card',free:1,v:'1.2',line:'What you take right now, as you logged it, plus allergies and an emergency contact. Print it or keep a screenshot.'},
- {id:'find',ic:'🔍',name:'Search my logs',free:1,v:'1.2',line:'Find any note, effect, place or thing you logged, across every entry.'},
- {id:'week',ic:'🗓️',name:'What changed',v:'1.2',line:'This week next to last week: what you logged more or less, new effects, how you felt.'}
+const TOOLS=[
+ {id:'mix',name:'Interaction check',free:1,home:'rem',line:'Pick 2+ things you log. See what their FDA labels say about each other, quoted.'},
+ {id:'refill',name:'Refill countdown',free:1,home:'rem',line:'How many you have left and the day you run out, counted from your logs.'},
+ {id:'urge',name:'Urge timer',free:1,home:'log',line:'Log an urge, time it, and see how long yours usually take to pass.'},
+ {id:'ctx',name:'Context patterns',home:'fx',line:'Where, who with and why you logged, next to how you felt.'},
+ {id:'rhythm',name:'Rhythm',home:'fx',line:'How often per week over months, and the time between uses.'},
+ {id:'timing',name:'Timing & sleep',home:'fx',line:'What time of day you took something vs the sleep you logged after.'},
+ {id:'detect',name:'Effect detective',home:'fx',line:'Pick an effect. See what you logged in the 24 h before it, vs usual.'},
+ {id:'report',name:'Doctor report',home:'more',line:'A one-page summary of a month to print or save as a PDF.'},
+ {id:'card',name:'My meds card',free:1,home:'more',line:'What you take right now, as you logged it, plus allergies and an emergency contact. Print it or keep a screenshot.'},
+ {id:'find',name:'Search my logs',free:1,home:'log',line:'Find any note, effect, place or thing you logged, across every entry.'},
+ {id:'week',name:'What changed',home:'fx',line:'This week next to last week: what you logged more or less, new effects, how you felt.'}
 ];
 const DAY=864e5, H=36e5;
 const med=a=>{ if(!a.length) return null; const s=a.slice().sort((x,y)=>x-y), m=s.length>>1; return s.length%2?s[m]:(s[m-1]+s[m])/2; };
 const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
 const f1=x=>x==null?'–':(Math.round(x*10)/10).toString();
-const back='<p style="margin:0 0 4px"><a href="#labs">‹ Labs</a></p>';
+let back=''; // set per screen by the router: Insights tabs for the pattern tools, a plain back link for the rest
+const HOMES={log:'‹ Log',rem:'‹ Reminders',more:'‹ More'};
 const cnc='<p class="muted small">From your own logs only. This shows things that happened together (correlation), not what caused what.</p>';
 const subs=()=>Store.entries().filter(x=>x.what);
 function pickItem(id,sel,list){ list=list||Store.names(); return `<select id="${id}">${list.map(n=>`<option value="${esc(Store.keyOf(n.name))}" ${Store.keyOf(n.name)===sel?'selected':''}>${esc(n.name)} (${n.n})</option>`).join('')}</select>`; }
 function dl(name,txt,type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type})); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1500); }
 
-/* ---------- Labs home ---------- */
-routes.labs=v=>{
-  v.innerHTML=`<p style="margin:0 0 4px"><a href="#more">‹ More</a></p><h2>Labs ✨</h2><p class="muted" style="margin-top:-4px">Extra tools, kept off the main screens so Trace stays simple. 3 new in 1.2.</p>
-   <div class="card list">${LABS.map(l=>`<a class="it" href="#lab/${l.id}"><span class="lic">${l.ic}</span><span class="wh"><b>${esc(l.name)} ${l.v?'<span class="pill new">new</span> ':''}${l.free?'<span class="pill acc">free</span>':(P()?'':'<span class="pill">Pro 🔒</span>')}</b><small class="wrap">${esc(l.line)}</small></span></a>`).join('')}</div>
-   <p class="muted small center">Everything here is built from your own logs or quoted public FDA labels, stays on this phone, and never suggests amounts.</p>`;
-};
-routes.lab=(v,id,...rest)=>{ const l=LABS.find(x=>x.id===id); if(!l) return routes.labs(v);
-  if(!l.free&&!P()){ TrcPro.locked(v,l.name,l.line); v.insertAdjacentHTML('afterbegin',back); return; }
-  LAB[id](v,...rest); };
-window.TrcLabs={LABS};
+/* ---------- routes: each tool is a normal screen; old #labs / #lab/<id> links (bookmarks, 1.1–1.2) still land ---------- */
+function show(t,v,rest){ back=t.home==='fx'?TrcNav(t.id):`<p style="margin:0 0 4px"><a href="#${t.home}">${HOMES[t.home]}</a></p>`;
+  if(!t.free&&!P()){ TrcPro.locked(v,t.name,t.line); v.insertAdjacentHTML('afterbegin',back); return; }
+  LAB[t.id](v,...rest); }
+TOOLS.forEach(t=>{ routes[t.id]=(v,...rest)=>show(t,v,rest); });
+routes.lab=(v,id,...rest)=>{ const t=TOOLS.find(x=>x.id===id); location.replace('#'+(t?[id,...rest.map(encodeURIComponent)].join('/'):'more')); };
+routes.labs=()=>location.replace('#more');
+window.TrcTools={TOOLS};
 
 const LAB={};
 /* ---------- 1. Interaction check (free) ---------- */
@@ -60,8 +60,8 @@ function hits(text,terms){ if(!text) return {s:[],dose:0}; const re=new RegExp('
   const sents=String(text).replace(/\s+/g,' ').match(/[^.;!?]+[.;!?]?/g)||[]; const out=[]; let dose=0;
   for(const s of sents){ if(!re.test(s)) continue; if(DOSEY.test(s)){ dose++; continue; } const c=s.trim(); if(c.length>12&&!out.includes(c)) out.push(c.length>320?c.slice(0,320)+' …':c); }
   return {s:out,dose,re}; }
-LAB.mix=v=>{
-  const names=Store.names(); const pre=new Set(Store.reminders().map(r=>Store.keyOf(r.what)));
+LAB.mix=(v,key)=>{
+  const names=Store.names(); const pre=new Set(key?[key]:Store.reminders().map(r=>Store.keyOf(r.what)));
   v.innerHTML=`${back}<h2>Interaction check</h2><p class="muted" style="margin-top:-4px">Pick 2 to 4 things you log. Trace reads each one’s FDA label (the Drug interactions, Contraindications and Warnings sections) and quotes where it names the others.</p>
    ${names.length<2?'<div class="card empty">Log at least two different things first.</div>':`<div class="chips" id="mxc">${names.slice(0,24).map(n=>`<button type="button" class="chip ${pre.has(Store.keyOf(n.name))?'on':''}" data-n="${esc(n.name)}">${esc(n.name)}</button>`).join('')}</div>
    <button class="btn block" id="mxg">Check labels</button><div id="mxo"></div>`}
@@ -160,7 +160,7 @@ LAB.ctx=(v,key)=>{ const all=Store.entries().filter(x=>x.ctx&&(!key||Store.keyOf
   v.innerHTML=head+`${names.length>1?`<select id="cxs"><option value="">Everything with context</option>${names.map(n=>`<option value="${esc(Store.keyOf(n.name))}" ${Store.keyOf(n.name)===key?'selected':''}>${esc(n.name)}</option>`).join('')}</select>`:''}
    <div class="card list">${rows.length?rows.map(r=>`<div class="it" style="cursor:default;align-items:flex-start"><span class="wh"><b>${esc(r.g)}: ${esc(r.t)} <span class="muted small">· ${r.n} log${r.n===1?'':'s'}</span></b><small class="wrap">${r.d.length?r.d.map(x=>`${x.lab.toLowerCase()} ${f1(x.a)} <span class="${(x.k==='anxiety'?-x.d:x.d)>0?'up':'dn'}">${x.d>0?'▲':'▼'}${f1(Math.abs(x.d))}</span>`).join(' · '):'feelings about the same as usual'}${r.top.length?' · effects: '+r.top.map(([f,c])=>esc(f)+' '+Math.round(c/r.n*100)+'%').join(', '):''}</small></span></div>`).join(''):'<p class="empty">Each tag needs 2+ logs.</p>'}</div>
    <p class="muted small">▲▼ compare to your average after any log with context (1–5 scale). Green = the better direction for that feeling.</p>${cnc}`;
-  const s=$('#cxs'); if(s) s.onchange=e=>{ location.hash='#lab/ctx'+(e.target.value?'/'+encodeURIComponent(e.target.value):''); };
+  const s=$('#cxs'); if(s) s.onchange=e=>{ location.hash='#ctx'+(e.target.value?'/'+encodeURIComponent(e.target.value):''); };
 };
 
 /* ---------- 5. Rhythm (Pro): per-week frequency + time between ---------- */
@@ -180,7 +180,7 @@ LAB.rhythm=(v,key)=>{ const names=Store.names(); if(!names.length){ v.innerHTML=
    <div class="card"><h3>Days between uses</h3>${gaps.length?`<svg class="chart" viewBox="0 0 320 120"><line x1="0" y1="110" x2="320" y2="110" stroke="#30363d"/>${dots}</svg>
      <div class="stat"><div><b>${f1(med(gaps.map(g=>g.g)))}</b><span>usual gap (days)</span></div><div><b>${Math.max(...gaps.map(g=>g.g))}</b><span>longest gap</span></div><div><b>${gaps.filter(g=>g.g===1).length}</b><span>back-to-back days</span></div></div>`:'<p class="muted">Needs logs on 2+ different days.</p>'}
      <p class="muted small" style="margin-bottom:0">Each dot is the gap before a day you logged it, oldest on the left. This isn’t a score or a streak, just the spacing in your logs.</p></div>`;
-  $('#rhs').onchange=e=>{ location.hash='#lab/rhythm/'+encodeURIComponent(e.target.value); };
+  $('#rhs').onchange=e=>{ location.hash='#rhythm/'+encodeURIComponent(e.target.value); };
 };
 
 /* ---------- 6. Timing & sleep (Pro) ---------- */
@@ -198,7 +198,7 @@ LAB.timing=(v,key)=>{ const names=Store.names(); if(!names.length){ v.innerHTML=
    <div class="bars">${rows.map(r=>`<div class="b"><span>${r.n}<br><span class="muted small">${r.r}</span></span><div class="t"><i style="width:${r.a?(r.a/5*100):0}%;background:#5eead4"></i></div><span>${r.c?'sleep '+f1(r.a)+' · '+r.c+' log'+(r.c===1?'':'s'):'<span class="muted">no logs</span>'}</span></div>`).join('')}</div>
    <p class="muted small">Sleep on days without it (and not the day after): ${other.length>=3?f1(avg(other))+' avg from '+other.length+' ratings':'not enough ratings yet'}.</p></div>`}
    ${cnc}<p class="muted small">Sleep is affected by lots of things. Talk to a doctor or pharmacist before changing when you take a medicine.</p>`;
-  $('#tms').onchange=e=>{ location.hash='#lab/timing/'+encodeURIComponent(e.target.value); };
+  $('#tms').onchange=e=>{ location.hash='#timing/'+encodeURIComponent(e.target.value); };
 };
 
 /* ---------- 7. Effect detective (Pro) ---------- */
@@ -217,7 +217,7 @@ LAB.detect=(v,id)=>{ const T=targets(); const head=`${back}<h2>Effect detective<
    ${ev.length<3?`<div class="card empty">“${esc(tg.label)}” shows up ${ev.length} time${ev.length===1?'':'s'}. Needs 3+ to compare.</div>`:`<div class="card"><h3>Before “${esc(tg.label)}” (${ev.length} times)</h3>
     <div class="bars">${rows.map(r=>`<div class="b" style="grid-template-columns:84px 1fr 92px"><span class="ell">${esc(r.n)}</span><div><div class="t"><i style="width:${r.pe*100}%;background:#f0883e"></i></div><div class="t" style="margin-top:3px;height:6px"><i style="width:${r.pr*100}%;background:#30363d"></i></div></div><span>${Math.round(r.pe*100)}% <span class="muted">vs ${Math.round(r.pr*100)}%</span></span></div>`).join('')||'<p class="muted">Nothing logged in the 24 h before.</p>'}</div>
     <p class="muted small" style="margin-bottom:0"><span style="color:#f0883e">■</span> share of “${esc(tg.label)}” logs with it in the 24 h before · <span style="color:#8b949e">■</span> same, for all your other logs. A big gap is worth noticing, or worth asking a pharmacist about. It isn’t proof.</p></div>`}${cnc}`;
-  $('#dts').onchange=e=>{ location.hash='#lab/detect/'+encodeURIComponent(e.target.value); };
+  $('#dts').onchange=e=>{ location.hash='#detect/'+encodeURIComponent(e.target.value); };
 };
 
 /* ---------- 9. My meds card (free, 1.2) — a list, not advice: names and amounts exactly as he typed them ---------- */
@@ -260,7 +260,7 @@ LAB.find=(v,q0)=>{ q0=q0||'';
     out.innerHTML=`<p class="muted small" style="margin:12px 0 6px">${es.length} entr${es.length===1?'y':'ies'} on ${days} day${days===1?'':'s'}${us.length?` · ${us.length} urge${us.length===1?'':'s'}`:''}${es.length>60?' · newest 60 shown':''}</p>
      ${es.length?`<div class="card list">${es.slice(0,60).map(x=>`<div class="it" data-e="${x.id}" role="button" tabindex="0"><span class="tm">${esc(new Date(x.t).toLocaleDateString([], {month:'short',day:'numeric'}))}</span><span class="wh"><b>${x.what?esc(x.what):'Check-in'}</b><small class="wrap">${esc([amtTxt(x),(x.fx||[]).join(', '),x.notes].filter(Boolean).join(' · ').slice(0,140))}</small></span></div>`).join('')}</div>`:'<div class="card empty">Nothing matches.</div>'}`;
     out.querySelectorAll('[data-e]').forEach(el=>el.onclick=()=>openEntry(el.dataset.e)); };
-  let t; $('#fq').oninput=()=>{ clearTimeout(t); t=setTimeout(()=>{ run(); history.replaceState(null,'','#lab/find/'+encodeURIComponent($('#fq').value.trim())); },200); };
+  let t; $('#fq').oninput=()=>{ clearTimeout(t); t=setTimeout(()=>{ run(); history.replaceState(null,'','#find/'+encodeURIComponent($('#fq').value.trim())); },200); };
   $('#fsg').onclick=e=>{ const b=e.target.closest('[data-q]'); if(!b) return; $('#fq').value=b.dataset.q; run(); };
   run();
 };
@@ -278,7 +278,7 @@ LAB.week=(v,mode)=>{ mode=mode==='7'?'7':'wk'; const now=Date.now(); let s;
   const fav=(arr,k)=>avg(arr.filter(x=>x.feel&&x.feel[k]).map(x=>x.feel[k]));
   const arrow=(a,b)=>a===b?'<span class="muted">same</span>':a>b?`<span style="color:#5eead4">▲ ${a-b}</span>`:`<span style="color:#f0883e">▼ ${b-a}</span>`;
   const lbl=mode==='wk'?['This week (so far)','Last week, same days']:['Last 7 days','The 7 before'];
-  v.innerHTML=`${back}<h2>What changed</h2><div class="seg"><a href="#lab/week" class="${mode==='wk'?'on':''}">This week vs last</a><a href="#lab/week/7" class="${mode==='7'?'on':''}">Last 7 days vs 7 before</a></div>
+  v.innerHTML=`${back}<h2>What changed</h2><div class="seg"><a href="#week" class="${mode==='wk'?'on':''}">This week vs last</a><a href="#week/7" class="${mode==='7'?'on':''}">Last 7 days vs 7 before</a></div>
    ${!A.length&&!B.length?'<div class="card empty">No logs in either stretch yet.</div>':`
    <div class="card"><h3>Days you logged each</h3><table class="rt"><tr><th></th><th>${lbl[0]}</th><th>${lbl[1]}</th><th></th></tr>
     ${rows.slice(0,12).map(r=>`<tr><td>${esc(r.name)}${!r.b&&r.a?' <span class="pill new">new</span>':''}</td><td>${r.a}</td><td>${r.b}</td><td>${arrow(r.a,r.b)}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Only check-ins.</td></tr>'}</table>
@@ -299,7 +299,7 @@ LAB.report=(v,which)=>{ which=which||'30'; const now=new Date(); let s,e,label;
   const fa=(arr,k)=>avg(arr.filter(x=>x.feel&&x.feel[k]).map(x=>x.feel[k])); const us=Store.urges().filter(u=>u.end&&u.t>=s&&u.t<e);
   const notes=es.filter(x=>x.notes).slice(0,6); const p=Store.prefs(); const rems=Store.reminders().filter(r=>r.on!==false);
   const rng=`${new Date(s).toLocaleDateString([], {month:'short',day:'numeric'})} – ${new Date(e-1).toLocaleDateString([], {month:'short',day:'numeric',year:'numeric'})}`;
-  v.innerHTML=`<div class="noprint">${back}<h2>Doctor report</h2><div class="seg"><a href="#lab/report/30" class="${which==='30'?'on':''}">Last 30 days</a><a href="#lab/report/this" class="${which==='this'?'on':''}">This month</a><a href="#lab/report/last" class="${which==='last'?'on':''}">Last month</a></div>
+  v.innerHTML=`<div class="noprint">${back}<h2>Doctor report</h2><div class="seg"><a href="#report/30" class="${which==='30'?'on':''}">Last 30 days</a><a href="#report/this" class="${which==='this'?'on':''}">This month</a><a href="#report/last" class="${which==='last'?'on':''}">Last month</a></div>
    <label for="rq">Questions I want to ask (goes on the report)</label><textarea id="rq" maxlength="600" placeholder="e.g. Is the nausea normal? Should I take it with food?">${esc(p.reportQ||'')}</textarea>
    <button class="btn block" id="rpp">Print / Save as PDF</button><p class="muted small center">On iPhone: Print, then share the preview to Files or Messages to keep the PDF.</p></div>
    <div class="report" id="rpt"><h2 style="margin:0">Trace summary</h2><p class="muted" style="margin:0 0 8px">${esc(rng)} · ${window.Cloud&&Cloud.signedIn()?esc(Cloud.acct.user)+' · ':''}made ${new Date().toLocaleDateString()}</p>
