@@ -20,6 +20,19 @@ const aura = (() => {
   const cv = $('#aura'), ctx = cv.getContext('2d');
   let W = 0, H = 0; const scale = 0.42;
   const cur = { c: moodColors(.62, .3).map(hexRgb), fx: .5, fy: .42, en: .3 }, tgt = { c: cur.c.map(x => x.slice()), fx: .5, fy: .42, en: .3 };
+  /* v37 · the sky is a gradient built from your theme: [top, middle, bottom, accent, accent 2]; the mood glows drift on top, tinted toward the theme */
+  const TG = {
+    dark: ['#1f1b4a', '#0e0c22', '#07060b', '#a9b8f0', '#6fd3c4'],
+    light: ['#ece2fb', '#f6f1fb', '#f4f0f8', '#c7b4f3', '#9edbd0'],
+    oled: ['#0c0b19', '#030306', '#000000', '#6f7bc0', '#3f938a'],
+    dusk: ['#55200f', '#2a110c', '#140a0a', '#ffb08a', '#ff7a59'],
+    ocean: ['#0b3a5e', '#071d33', '#04111b', '#8ccaff', '#3aa0ff'],
+    forest: ['#0f4027', '#082113', '#05110b', '#9be8b4', '#3ddc84'],
+    rose: ['#521536', '#270b1a', '#14070e', '#ffb3cf', '#ff6fa5']
+  };
+  const tgRgb = t => (TG[t] || TG.dark).map(hexRgb);
+  let thName = 'dark', thSnap = true; const th = { c: tgRgb('dark'), lt: 0 }, thT = { c: tgRgb('dark'), lt: 0 };
+  const mixc = (a, b, w) => [0, 1, 2].map(i => Math.round(a[i] + (b[i] - a[i]) * w));
   function resize(){ W = cv.width = Math.max(2, Math.round(innerWidth * scale)); H = cv.height = Math.max(2, Math.round(innerHeight * scale)); }
   resize(); addEventListener('resize', resize);
   let t0 = performance.now(), phase = 0, frames = 0, running = true;
@@ -30,11 +43,28 @@ const aura = (() => {
     for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) cur.c[i][j] += (tgt.c[i][j] - cur.c[i][j]) * k;
     cur.fx += (tgt.fx - cur.fx) * k; cur.fy += (tgt.fy - cur.fy) * k; cur.en += (tgt.en - cur.en) * k;
     phase += dt * (0.00010 + cur.en * 0.00045) * (window.__xcalm ? 0.08 : 1);
-    const [g, s, d] = cur.c.map(c => c.map(x => Math.round(x)));
-    ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = `rgb(${d})`; ctx.fillRect(0, 0, W, H);
-    ctx.globalCompositeOperation = 'screen';
-    const M = Math.max(W, H), blobs = [
-      [g, .78, 0.55, 1.0, 0.0], [s, .66, 0.62, 0.7, 2.1], [g, .38, 0.42, 1.3, 4.2], [s, .42, 0.5, 0.9, 1.1]];
+    for (let i = 0; i < 5; i++) for (let j = 0; j < 3; j++) th.c[i][j] += (thT.c[i][j] - th.c[i][j]) * k * 0.7;
+    th.lt += (thT.lt - th.lt) * k * 0.7;
+    const [g, s] = cur.c.map(c => c.map(x => Math.round(x)));
+    const [t1, t2, t3, ta, tb] = th.c.map(c => c.map(x => Math.round(x))), light = th.lt > .5, oled = thName === 'oled';
+    const M = Math.max(W, H);
+    /* theme gradient: soft diagonal multi-stop base + two accent washes */
+    ctx.globalCompositeOperation = 'source-over';
+    const lg = ctx.createLinearGradient(W * .15, 0, W * .85, H);
+    lg.addColorStop(0, `rgb(${t1})`); lg.addColorStop(.32, `rgb(${mixc(t1, t2, .6)})`); lg.addColorStop(.62, `rgb(${t2})`); lg.addColorStop(1, `rgb(${t3})`);
+    ctx.fillStyle = lg; ctx.fillRect(0, 0, W, H);
+    const wa = light ? .42 : oled ? .1 : .2;
+    [[ta, W * .88, H * .06, M * .75, wa], [tb, W * .08, H * .78, M * .7, wa * .7]].forEach(([c, x, y, r, a]) => {
+      const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
+      gr.addColorStop(0, `rgba(${c},${a})`); gr.addColorStop(.5, `rgba(${c},${a * .35})`); gr.addColorStop(1, `rgba(${c},0)`);
+      ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
+    });
+    /* the mood glows, pulled toward the theme so they belong to it */
+    ctx.globalCompositeOperation = light ? 'source-over' : 'screen';
+    const gm = mixc(g, ta, .45), sm = mixc(s, tb, .45), lw = [255, 255, 255];
+    const g2 = light ? mixc(gm, lw, .35) : gm, s2 = light ? mixc(sm, lw, .35) : sm, am = light ? .42 : oled ? .45 : .85;
+    const blobs = [
+      [g2, .78 * am, 0.55, 1.0, 0.0], [s2, .66 * am, 0.62, 0.7, 2.1], [g2, .38 * am, 0.42, 1.3, 4.2], [s2, .42 * am, 0.5, 0.9, 1.1]];
     blobs.forEach(([c, a, rr, sp, off], i) => {
       const x = (cur.fx + Math.sin(phase * sp + off) * 0.28 + (i === 1 ? .15 : i === 2 ? -.18 : 0)) * W;
       const y = (cur.fy + Math.cos(phase * sp * 0.8 + off * 1.3) * 0.22 + (i === 3 ? .3 : i === 1 ? .12 : 0)) * H;
@@ -45,13 +75,13 @@ const aura = (() => {
     });
     ctx.globalCompositeOperation = 'source-over';
     const vg = ctx.createRadialGradient(W / 2, H * .45, M * .2, W / 2, H / 2, M * .8);
-    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+    vg.addColorStop(0, light ? 'rgba(255,255,255,0)' : 'rgba(0,0,0,0)'); vg.addColorStop(1, light ? 'rgba(255,255,255,.28)' : `rgba(0,0,0,${oled ? .7 : .4})`); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
     if (++frames % 8 === 0) { const rs = document.documentElement.style; rs.setProperty('--glow', `rgb(${g})`); rs.setProperty('--glow2', `rgb(${s})`); }
     requestAnimationFrame(draw);
   }
   requestAnimationFrame(draw);
   document.addEventListener('visibilitychange', () => { running = !document.hidden; if (running) { t0 = performance.now(); requestAnimationFrame(draw); } });
-  return { set(colors, fx, fy, en){ tgt.c = colors.map(hexRgb); if (fx != null) { tgt.fx = fx; tgt.fy = fy; } if (en != null) tgt.en = en; } };
+  return { theme(t){ thName = TG[t] ? t : 'dark'; thT.c = tgRgb(thName); thT.lt = thName === 'light' ? 1 : 0; if (thSnap || window.__xcalm) { th.c = thT.c.map(x => x.slice()); th.lt = thT.lt; thSnap = false; } }, set(colors, fx, fy, en){ tgt.c = colors.map(hexRgb); if (fx != null) { tgt.fx = fx; tgt.fy = fy; } if (en != null) tgt.en = en; } };
 })();
 
 (function grain(){
@@ -1076,6 +1106,7 @@ function xTheme(){
   const t = xThemeNow(), h = document.documentElement;
   if (t === 'dark') h.removeAttribute('data-lt'); else h.setAttribute('data-lt', t);
   h.classList.toggle('xlight', t === 'light');
+  try { aura.theme(t); } catch {}
   document.querySelectorAll('meta[name=theme-color]').forEach(m => m.setAttribute('content', XLTBG[t] || '#07060b'));
   const cs = document.querySelector('meta[name=color-scheme]'); if (cs) cs.setAttribute('content', t === 'light' ? 'light' : 'dark');
 }
