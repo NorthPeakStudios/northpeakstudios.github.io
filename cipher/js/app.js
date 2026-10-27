@@ -66,7 +66,7 @@ routes.play=(v,d)=>{
   const p=CG.daily(d), id='d_'+d; let rec=Store.get(id)||{id,date:d};
   if(!rec.t0&&!rec.done){ rec.t0=Date.now(); rec.arch=!ranked; Store.put(rec); }
   v.innerHTML=`<div class="pzh"><div><div class="muted small">${ranked?'Daily':'Archive'} #${p.num} · ${fmtDay(d)}</div><h2 style="margin:0">${PZ.icon[p.type]} ${esc(p.title)}</h2></div><span class="timer" id="tm">0:00</span></div>
-   <p class="how">${esc(p.how)}${p.author&&p.type!=='subst'?` <span class="muted">· a quote by ${esc(p.author.toLowerCase().replace(/\b\w/g,c=>c.toUpperCase()))}</span>`:''}</p>
+   <p class="how">${esc(p.how)}${p.author&&p.type!=='subst'?` <span class="muted">· ${/^(proverb|unknown|anonymous)$/i.test(p.author)?'an old saying':'a quote by '+esc(p.author.toLowerCase().replace(/\b\w/g,c=>c.toUpperCase()))}</span>`:''}</p>
    ${p.type==='vigenere'?`<div class="note">Scrambled key: <b class="mono">${esc(p.keyScr)}</b> (${p.keyLen} letters) · <button class="lnk" id="vigT">Open Vigenère helper</button></div>`:''}
    ${p.type==='caesar'?`<p><button class="btn ghost sm" id="whT">🔄 Try shifts on the wheel</button></p>`:''}
    ${p.type==='subst'?`<p><button class="btn ghost sm" id="frT">📊 Letter frequencies</button></p>`:''}
