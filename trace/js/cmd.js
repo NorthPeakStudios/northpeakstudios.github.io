@@ -1,4 +1,4 @@
-// Trace · Search + commands (1.4). One search for logs, meds, notes, reminders and commands; 130 commands in folders,
+// Trace · Search + commands (1.4, 1.4.1). One search for logs, meds, notes, reminders and commands; 132 commands in folders,
 // your own command folders and favorites (synced with your settings). Modeled on Axon's command bar. Northpeak Studios.
 // Trace is a journal, not medical advice: no command suggests amounts, timing or doses.
 (function(){
@@ -70,6 +70,7 @@ c('med-list','Meds','Everything I log',()=>{ const ns=Object.values(nameMap()).s
 c('med-top','Meds','Open my most-logged thing',()=>{ const t=topName(); if(need(t)) go('#sub/'+encodeURIComponent(t.name)); },{k:'top page'});
 c('med-last','Meds','Open the last thing I logged',()=>{ const x=lastSub(); if(need(x)) go('#sub/'+encodeURIComponent(x.what.trim())); },{k:'page item'});
 c('med-fda','Meds','FDA label for the last thing I logged',()=>{ const x=lastSub(); if(need(x)) go('#sub/'+encodeURIComponent(x.what.trim())); },{k:'label warnings info'});
+c('med-happen','Meds','Last thing I logged — what could happen',()=>{ const x=lastSub(); if(need(x)) go('#happen/'+encodeURIComponent(Store.keyOf(x.what))); },{pro:1,k:'what may happen forecast side effects fda label long-term'});
 c('med-mix','Meds','Interaction check',()=>go('#mix'),{k:'interactions together label'});
 c('med-mix-last','Meds','Interaction check with my last thing',()=>{ const x=lastSub(); if(need(x)) go('#mix/'+encodeURIComponent(Store.keyOf(x.what))); },{k:'interactions'});
 c('med-refill','Meds','Refill countdown',()=>go('#refill'),{k:'pills left run out pharmacy'});
@@ -95,7 +96,7 @@ c('rem-clean','Reminders','Delete reminders that are off',()=>{ const rs=Store.r
 c('rem-list','Reminders','List all reminders',()=>{ const D=['Sun','Mon','Tue','Wed','Thu','Fri','Sat']; listSheet('Reminders',Store.reminders().map(r=>`<div class="it" data-go="#rem" role="button" tabindex="0"><span class="tm">${esc(r.time)}</span><span class="wh"><b>${esc(r.what)}</b><small>${esc(amt(r))}${amt(r)?' · ':''}${(r.days&&r.days.length<7)?r.days.map(d=>D[d]).join(' '):'every day'}${r.on===false?' · off':''}</small></span></div>`),'No reminders yet.'); },{k:'all'});
 // Insights
 c('in-fx','Insights','Effects over time',()=>go('#fx'),{pro:1,k:'feelings chart'});
-c('in-forecast','Insights','Forecast',()=>go('#forecast'),{pro:1,k:'predict patterns'});
+c('in-forecast','Insights','What could happen',()=>go('#happen'),{pro:1,k:'what may happen forecast predict patterns side effects fda label long-term warnings'});
 c('in-web','Insights','The web',()=>go('#web'),{pro:1,k:'graph connections'});
 c('in-ctx','Insights','Context patterns',()=>go('#ctx'),{pro:1,k:'where who why'});
 c('in-rhythm','Insights','Rhythm',()=>go('#rhythm'),{pro:1,k:'weekly frequency gaps'});

@@ -23,7 +23,7 @@ routes.sub=async(v,name)=>{
   name=name||''; const mine=Store.entries().filter(x=>Store.keyOf(x.what)===Store.keyOf(name));
   v.innerHTML=`<p><a href="javascript:history.back()">‹ Back</a></p><h2>${esc(name)}</h2>
    <div class="stat"><div><b>${mine.length}</b><span>times logged</span></div><div><b>${new Set(mine.map(x=>Store.dayKey(x.t))).size}</b><span>days</span></div><div><b>${mine.length?esc(fmtD(mine[mine.length-1].t).replace(/^\w+, /,'')):'–'}</b><span>first log</span></div></div>
-   <p class="center" style="margin:10px 0"><a class="btn ghost sm" href="#fx/${encodeURIComponent(Store.keyOf(name))}">Effects in my logs${P()?'':' 🔒'}</a> <a class="btn ghost sm" href="#forecast/${encodeURIComponent(Store.keyOf(name))}">Forecast${P()?'':' 🔒'}</a></p>
+   <p class="center" style="margin:10px 0"><a class="btn ghost sm" href="#fx/${encodeURIComponent(Store.keyOf(name))}">Effects in my logs${P()?'':' 🔒'}</a> <a class="btn ghost sm" href="#happen/${encodeURIComponent(Store.keyOf(name))}">What could happen${P()?'':' 🔒'}</a></p>
    <p class="center" style="margin:0 0 10px"><a class="btn ghost sm" href="#mix/${encodeURIComponent(Store.keyOf(name))}">Check interactions</a> <a class="btn ghost sm" href="#refill">Refill countdown</a></p>
    <h3>What the FDA label says</h3><div class="card" id="fd"><p class="muted">Looking it up…</p></div>`;
   try{ const x=await lookup(name); const box=$('#fd'); if(!box) return;
