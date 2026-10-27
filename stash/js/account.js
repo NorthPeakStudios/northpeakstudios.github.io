@@ -35,7 +35,7 @@ routes.account=v=>{
    <details class="fold"><summary>Change email</summary><p class="muted small">Changes it everywhere (Synapse, Axon, Liminal, Cadence, Mindprint, Trace, Stash). Your old email stops working.</p><label>New email<input id="ne" type="email" autocomplete="email"></label><label>Password<input id="np" type="password" autocomplete="current-password"></label><p><button class="btn" id="neb">Change email</button></p><p id="nem" class="muted"></p></details>
    <button class="btn ghost block" id="lo" style="margin-top:14px">Log out</button><p class="center"><button class="lnk" id="del" style="color:var(--bad)">Delete account</button></p>`;
   $('#snow').onclick=()=>syncNow();
-  $('#ccb').onclick=async()=>{ $('#ccm').textContent='Checking…'; try{ const j=await C().redeem($('#cc').value); $('#ccm').textContent=j.owner?'Owner unlocked 👑':'Pro unlocked ⭐'; chip(); setTimeout(route,900); }catch(x){ $('#ccm').textContent=em(x); } };
+  $('#ccb').onclick=async()=>{ $('#ccm').textContent='Checking…'; try{ const j=await C().redeem($('#cc').value); $('#ccm').textContent=j.owner?'Owner unlocked 👑':'Pro unlocked ⭐'; chip(); syncNow(); setTimeout(route,900); }catch(x){ $('#ccm').textContent=em(x); } };
   $('#neb').onclick=async()=>{ $('#nem').textContent='Changing…'; try{ const r=await C().changeEmail($('#ne').value,$('#np').value); $('#nem').textContent='Email changed to '+r.email+(r.also&&r.also.startsWith('synapse')?' (everywhere)':''); setTimeout(route,1200); }catch(x){ $('#nem').textContent=em(x); } };
   $('#lo').onclick=async()=>{ await C().logout(); toast('Logged out. Your data stays on this phone'); chip(); route(); };
   $('#del').onclick=async()=>{ const p=prompt('Delete your Stash account and its synced copy? Type your password to confirm. (Data on this phone stays.)'); if(!p) return; try{ await C().deleteAccount(p); toast('Account deleted'); chip(); route(); }catch(x){ alert(em(x)); } };
@@ -52,12 +52,12 @@ routes.pro=v=>{
    <details class="fold" open><summary>What Pro adds</summary><p class="muted" style="margin-top:0">Business mode (sales per product, revenue by month, best seller, costs and profit, sales CSV), unlimited savings goals, the “Can I afford it?” simulator (what a purchase does to every goal and how many days of earnings it costs), the subscriptions tracker (renewals, Calendar reminders, yearly total, auto-logging) and encrypted sync between devices.</p></details>
    <details class="fold"><summary>What’s free forever</summary><p class="muted" style="margin-top:0">The income and spending log with categories, sources, quick-add and recurring entries; one savings goal with its weekly plan; insights (month vs last month, top categories, savings rate, no-spend streak) and the basic chart; CSV and backup export/import. Everything stays on your phone.</p></details>
    <p class="muted small center">Have a code? Redeem it on the <a href="#account">Account</a> screen.</p>`;
-  const chk=$('#chk'); if(chk) chk.onclick=async()=>{ await C().refresh(true); route(); };
+  const chk=$('#chk'); if(chk) chk.onclick=async()=>{ await C().refresh(true); syncNow(); route(); };
   const b=$('#pgo'); if(b) b.onclick=async()=>{ const n=$('#pn').value.trim(), ph=$('#pp').value.trim(), pl=(document.querySelector('input[name=pl]:checked')||{}).value; if(!n||ph.length<5) return $('#pm').textContent='Add your name and Apple Cash phone/email.'; $('#pm').textContent='Sending…'; try{ await C().requestPro(pl,n,ph); route(); }catch(x){ $('#pm').textContent=em(x); } };
 };
 function chip(){ const c=document.getElementById('acChip'); if(!c) return; const s=C()&&C().signedIn(); c.textContent=s?(pro()?'⭐ Pro':'Account'):'Sign in'; c.className='acchip'+(s?'':' out'); }
-function boot(){ C().onAccountChange(()=>{ chip(); }); chip(); if(C().signedIn()){ C().refresh(true).then(()=>{ chip(); const h=location.hash.slice(1).split('/')[0]; if(['biz','subs','afford','goals','pro','account','more'].includes(h)) route(); }); syncNow(); }
-  document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&C().signedIn()){ C().refresh().then(chip); syncNow(); } });
+function boot(){ C().onAccountChange(()=>{ chip(); }); chip(); if(C().signedIn()){ C().refresh(true).then(()=>{ chip(); const h=location.hash.slice(1).split('/')[0]; if(['biz','subs','afford','goals','pro','account','more'].includes(h)) route(); syncNow(); }); }
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&C().signedIn()){ C().refresh().then(()=>{ chip(); syncNow(); }); } });
   setInterval(()=>{ if(C().signedIn()&&!document.hidden) syncNow(); },120000);
   const h=location.hash.slice(1).split('/')[0]; if(['account','pro','biz','subs','afford'].includes(h)) route(); }
 if(window.Cloud) boot(); else window.addEventListener('cloud-ready',boot,{once:true});
