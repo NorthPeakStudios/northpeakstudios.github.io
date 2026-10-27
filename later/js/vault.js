@@ -79,7 +79,7 @@ function draw(v,c){
   if(c.mine&&c.people&&c.people.length&&!(c.self&&c.kind==='letter'&&c.people.length===1)) h+=`<div class="card"><h3>${c.kind==='group'?'Members':'Who it’s for'}</h3><div class="ppl">${c.people.map(p=>`<span class="${p.unlocked?'ok':''}">${esc(p.name||p.email)}${p.unlocked?' · opened':p.joined?'':' · not on Later yet'}${p.replied?' · replied':''}</span>`).join('')}</div>${c.people.some(p=>!p.joined)?'<p class="muted small" style="margin-bottom:0">People not on Later yet see it as soon as they sign up with that email.</p>':''}</div>`;
   if(c.code&&(c.mine||c.kind==='group')&&!groupOpen&&(c.kind==='group'||c.mine)) h+=`<details class="fold"><summary>Share code</summary><div class="codebox">${esc(c.code)}</div><p class="muted small">${c.kind==='group'?'Members use this code.':'Anyone with this code can add it to their vault (it still opens only when its conditions are met).'}</p><button class="btn ghost" id="shr2">Share</button></details>`;
   h+='</div>';
-  h+=`<p class="center" style="margin-top:18px"><button class="lnk" id="del" style="color:var(--bad)">${c.mine?'Delete this capsule for everyone':'Remove from my vault'}</button></p>`;
+  h+=`<p class="center" style="margin-top:18px"><button class="lnk" id="del" style="color:var(--bad)">${c.mine?(c.self&&c.kind!=='group'?'Delete this capsule':'Delete this capsule for everyone'):'Remove from my vault'}</button></p>`;
   v.innerHTML=h; tick();
   const share=async()=>{ const url=location.origin+location.pathname+'#join/'+c.code; const text=(c.kind==='group'?'Add your piece to our time capsule “'+c.title+'” on Later: ':'A time capsule for you on Later: ')+url+' (code '+c.code+')';
     try{ if(navigator.share){ await navigator.share({title:'Later',text}); return; } }catch(e){ if(e&&e.name==='AbortError') return; }
@@ -87,7 +87,7 @@ function draw(v,c){
   const s1=$('#shr'), s2=$('#shr2'); if(s1) s1.onclick=share; if(s2) s2.onclick=share;
   const se=$('#seal'); if(se) se.onclick=async()=>{ if(!confirm('Seal it now? Nobody can add or change a piece after this.')) return; se.disabled=true; try{ const j=await Caps.api('/api/caps/seal',{id:c.id}); Caps.put(j.cap); toast('Sealed 🔒'); route(); }catch(e){ se.disabled=false; toast(errText(e)); } };
   const o=$('#opn'); if(o) o.onclick=()=>tryOpen(v,c,false);
-  $('#del').onclick=async()=>{ if(!confirm(c.mine?'Delete it for everyone? This can’t be undone.':'Remove it from your vault?')) return; try{ await Caps.api('/api/caps/delete',{id:c.id}); Caps.drop(c.id); toast(c.mine?'Deleted':'Removed'); go('vault'); }catch(e){ toast(errText(e)); } };
+  $('#del').onclick=async()=>{ if(!confirm(c.mine?(c.self&&c.kind!=='group'?'Delete it? This can’t be undone.':'Delete it for everyone? This can’t be undone.'):'Remove it from your vault?')) return; try{ await Caps.api('/api/caps/delete',{id:c.id}); Caps.drop(c.id); toast(c.mine?'Deleted':'Removed'); go('vault'); }catch(e){ toast(errText(e)); } };
 }
 function geo(){ return new Promise((ok,no)=>{ if(!navigator.geolocation) return no(new Error('no_geo')); navigator.geolocation.getCurrentPosition(p=>ok(p.coords),e=>no(new Error(e.code===1?'geo_denied':'geo_fail')),{enableHighAccuracy:true,timeout:15000,maximumAge:0}); }); }
 async function tryOpen(v,c,quiet){
@@ -113,11 +113,11 @@ function reveal(v,c,ct,first){
   if(ct.replies.length) h+='<h3 style="margin-top:18px">Written back</h3>'+ct.replies.map(r=>`<div class="reply"><div class="who">${esc(r.name)} · ${fmtD(r.t)}</div>${esc(r.text)}</div>`).join('');
   if(!own&&c.unlocked){ const mine=ct.replies.find(r=>false); h+=`<div class="card"><h3>${c.self&&c.kind==='letter'?'Write back to past you':'Write back'}</h3><p class="muted small" style="margin-top:0">Your reply is attached to this capsule${c.self?'':' for everyone who can read it'}.${c.self?' Future-future you will thank you.':''}</p><textarea id="rp" rows="4" placeholder="${c.self?'Dear past me…':'What this meant to me…'}"></textarea><button class="btn block" id="rps" style="margin-top:8px">Attach reply</button></div>`; }
   h+='</div>';
-  h+=`<p class="center" style="margin-top:18px"><button class="lnk" id="del" style="color:var(--bad)">${c.mine?'Delete this capsule for everyone':'Remove from my vault'}</button></p>`;
+  h+=`<p class="center" style="margin-top:18px"><button class="lnk" id="del" style="color:var(--bad)">${c.mine?(c.self&&c.kind!=='group'?'Delete this capsule':'Delete this capsule for everyone'):'Remove from my vault'}</button></p>`;
   v.innerHTML=h;
   loadMedia(v,c);
   const rs=$('#rps'); if(rs) rs.onclick=async()=>{ const t=$('#rp').value.trim(); if(!t) return toast('Write something first'); rs.disabled=true; try{ const j=await Caps.api('/api/caps/reply',{id:c.id,text:t}); toast('Reply attached ✓'); reveal(v,c,j.content,false); }catch(e){ rs.disabled=false; toast(errText(e)); } };
-  $('#del').onclick=async()=>{ if(!confirm(c.mine?'Delete it for everyone? This can’t be undone.':'Remove it from your vault?')) return; try{ await Caps.api('/api/caps/delete',{id:c.id}); Caps.drop(c.id); toast(c.mine?'Deleted':'Removed'); go('vault'); }catch(e){ toast(errText(e)); } };
+  $('#del').onclick=async()=>{ if(!confirm(c.mine?(c.self&&c.kind!=='group'?'Delete it? This can’t be undone.':'Delete it for everyone? This can’t be undone.'):'Remove it from your vault?')) return; try{ await Caps.api('/api/caps/delete',{id:c.id}); Caps.drop(c.id); toast(c.mine?'Deleted':'Removed'); go('vault'); }catch(e){ toast(errText(e)); } };
   if(first){ Caps.load(true).catch(()=>{}); }
 }
 function mediaHTML(ms){ if(!ms||!ms.length) return ''; const im=ms.filter(m=>m.kind==='img'), vo=ms.filter(m=>m.kind==='voice');
