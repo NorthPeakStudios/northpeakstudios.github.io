@@ -4,12 +4,12 @@ const API='https://api.fda.gov/drug/label.json';
 const clean=s=>String(s||'').replace(/^\s*(\d+(\.\d+)*\s*)?(BOXED WARNING|WARNINGS AND PRECAUTIONS|WARNINGS|WARNING:?|ADVERSE REACTIONS|DRUG ABUSE AND DEPENDENCE)\s*/i,'').replace(/\s+/g,' ').trim();
 const cut=(s,n)=>{ s=clean(s); if(s.length<=n) return s; const i=s.lastIndexOf('. ',n); return s.slice(0,i>n*0.6?i+1:n)+' …'; };
 async function lookup(name){
-  const k='trc.fda2.'+Store.keyOf(name); try{ const c=JSON.parse(localStorage.getItem(k)||'null'); if(c&&Date.now()-c.at<7*864e5) return c.r; }catch(e){}
+  const k='trc.fda3.'+Store.keyOf(name); /* 1.4.2: fda3 drops cached allergen-extract matches ("Weed" matched a weed-pollen allergy extract) */ try{ const c=JSON.parse(localStorage.getItem(k)||'null'); if(c&&Date.now()-c.at<7*864e5) return c.r; }catch(e){}
   const q=String(name).trim().replace(/["\\]/g,'').slice(0,60); if(!q) return null;
   const term=f=>f+':"'+q+'"';
   const url=API+'?search='+['openfda.generic_name','openfda.brand_name','openfda.substance_name'].map(term).map(encodeURIComponent).join('+')+'&limit=5';
   const r=await fetch(url,{credentials:'omit',cache:'no-store'}); let out=null;
-  if(r.ok){ const j=await r.json(); const ql=q.toLowerCase().split(/[^a-z0-9]+/).join(' '); const nm=y=>{ const o=y.openfda||{}; const qq=ql.trim(); return [...(o.generic_name||[]),...((o.substance_name||[]).length===1?o.substance_name:[]),...(o.brand_name||[])].some(s=>{ s=s.toLowerCase().split(/[^a-z0-9]+/).join(' ').trim(); return s===qq||s.startsWith(qq+' '); }); }; const x=(j.results||[]).find(nm); if(x){ const o=x.openfda||{};
+  if(r.ok){ const j=await r.json(); const ql=q.toLowerCase().split(/[^a-z0-9]+/).join(' '); const nm=y=>{ const o=y.openfda||{}; const qq=ql.trim(); return [...(o.generic_name||[]),...((o.substance_name||[]).length===1?o.substance_name:[]),...(o.brand_name||[])].some(s=>{ s=s.toLowerCase().split(/[^a-z0-9]+/).join(' ').trim(); return s===qq||s.startsWith(qq+' '); }); }; const allergen=y=>{ const o=y.openfda||{}; return (o.product_type||[]).some(s=>/allergenic/i.test(s))||[...(o.generic_name||[]),...(o.brand_name||[])].some(s=>/\b(antigens?|pollens?|allergenic)\b/i.test(s)); }; const x=(j.results||[]).find(y=>nm(y)&&!allergen(y)); if(x){ const o=x.openfda||{};
     out={brand:(o.brand_name||[])[0]||'',generic:(o.generic_name||[])[0]||'',set:x.set_id||'',date:x.effective_time||'',boxed:(x.boxed_warning||[])[0]||'',adverse:(x.adverse_reactions||[])[0]||'',warn:(x.warnings_and_cautions||x.warnings||[])[0]||'',dep:(x.drug_abuse_and_dependence||[])[0]||'',patient:(x.information_for_patients||[])[0]||''}; } }
   else if(r.status!==404) throw new Error('fda_'+r.status);
   try{ localStorage.setItem(k,JSON.stringify({at:Date.now(),r:out})); }catch(e){}
