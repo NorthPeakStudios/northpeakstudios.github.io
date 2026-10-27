@@ -116,3 +116,4 @@ table.bd{width:100%;border-collapse:collapse;font-size:14px}table.bd td,table.bd
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 .pplans{display:grid;gap:8px}.pplan{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:12px;color:var(--fg);font-size:15px;margin:0}.pplan input{width:auto;margin-top:4px}.pplan span{display:block;color:var(--mut);font-size:13px}
 .toast[hidden],.sheet[hidden]{display:none}
+.hb .btn{white-space:nowrap;font-size:13px;padding-left:6px;padding-right:6px;min-width:0}
