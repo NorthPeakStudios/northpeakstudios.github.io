@@ -64,7 +64,7 @@ function numberLine(q,lo,hi,crowd){ const W=340, PAD=14; const isLog=q.k==='log'
 /* ---------- playing a set of 5 (daily, archive, duel) ---------- */
 function curGet(){ try{ return JSON.parse(localStorage.getItem('bls.cur')||'null'); }catch(e){ return null; } }
 function curSet(c){ c?localStorage.setItem('bls.cur',JSON.stringify(c)):localStorage.removeItem('bls.cur'); }
-function startSet(kind,key,qids,extra){ const c=curGet(); if(!(c&&c.kind===kind&&c.key===key)) curSet(Object.assign({kind,key,qids,i:0,ans:[]},extra||{})); location.hash='#play'; route(); }
+function startSet(kind,key,qids,extra){ const c=curGet(); if(!(c&&c.kind===kind&&c.key===key)) curSet(Object.assign({kind,key,qids,i:0,ans:[]},extra||{})); if(location.hash==='#play') route(); else location.hash='#play'; }
 routes.play=v=>{ const c=curGet(); if(!c){ location.hash='#today'; return; }
   if(c.i>=c.qids.length){ finishSet(c); return; }
   const q=QN[c.qids[c.i]], prev=c.ans[c.i]||{}, conf=prev.c||(+localStorage.getItem('bls.lastc')||80);
@@ -79,9 +79,11 @@ routes.play=v=>{ const c=curGet(); if(!c){ location.hash='#today'; return; }
   let cf=conf; const hint=()=>{ $('#cfh').textContent=cf===50?'50%: a coin flip. Make it tight.':cf===80?'80%: you’d be wrong about 1 time in 5.':'95%: you’d be wrong only 1 time in 20. Go wide.'; };
   hint(); $('#cf').onclick=e=>{ const b=e.target.closest('button'); if(!b) return; cf=+b.dataset.c; $$('#cf button').forEach(x=>{ x.classList.toggle('on',x===b); x.setAttribute('aria-pressed',x===b); }); hint(); };
   const show=(id,out)=>{ const val=parseNum($(id).value,q), el=$(out); if(!$(id).value.trim()){ el.textContent=''; el.classList.remove('err'); return; } el.classList.toggle('err',!isFinite(val)); el.textContent=isFinite(val)?'= '+withUnit(fmtShort(val,q),q):'can’t read that number'; };
-  $('#lo').addEventListener('input',()=>show('#lo','#plo')); $('#hi').addEventListener('input',()=>show('#hi','#phi')); show('#lo','#plo'); show('#hi','#phi');
+  if(c.draft&&c.draft.i===c.i){ if(!$('#lo').value) $('#lo').value=c.draft.lo||''; if(!$('#hi').value) $('#hi').value=c.draft.hi||''; } // keep typed numbers across any re-render or reload
+  const keep=()=>{ const cc=curGet(); if(cc&&cc.i===c.i){ cc.draft={i:c.i,lo:$('#lo').value,hi:$('#hi').value}; curSet(cc); } };
+  $('#lo').addEventListener('input',()=>{ show('#lo','#plo'); keep(); }); $('#hi').addEventListener('input',()=>{ show('#hi','#phi'); keep(); }); show('#lo','#plo'); show('#hi','#phi');
   $('#nx').onclick=()=>{ let lo=parseNum($('#lo').value,q), hi=parseNum($('#hi').value,q); if(!isFinite(lo)||!isFinite(hi)) return toast('Enter a low and a high number'); if(lo>hi){ const t=lo; lo=hi; hi=t; }
-    c.ans[c.i]={q:q.id,lo,hi,c:cf,lr:$('#lo').value,hr:$('#hi').value}; c.i++; localStorage.setItem('bls.lastc',cf); curSet(c); route(); };
+    c.ans[c.i]={q:q.id,lo,hi,c:cf,lr:$('#lo').value,hr:$('#hi').value}; c.i++; delete c.draft; localStorage.setItem('bls.lastc',cf); curSet(c); route(); };
   const bk=$('#bk'); if(bk) bk.onclick=()=>{ c.i--; curSet(c); route(); };
   setTimeout(()=>{ const lo=$('#lo'); if(lo&&!lo.value&&matchMedia('(hover:hover)').matches) lo.focus(); },50);
 };
@@ -164,6 +166,7 @@ function palette(){ sheet(`<input id="pq" placeholder="Search commands" autocomp
 document.addEventListener('click',e=>{ if(e.target.closest('[data-pal]')) palette(); });
 document.addEventListener('keydown',e=>{ if((e.key==='k'&&(e.metaKey||e.ctrlKey))||(e.key==='/'&&!/INPUT|TEXTAREA/.test((document.activeElement||{}).tagName||''))){ e.preventDefault(); palette(); } });
 
+window.npUpdate={ safe:()=>!/^#(play|tf|hl|dueljoin|duelnew)/.test(location.hash)&&!localStorage.getItem('bls.cur')&&!(document.getElementById('sheet')&&!document.getElementById('sheet').hidden), toast:(m,on)=>{ toast(m); const t=document.getElementById('toast'); if(t&&on){ t.style.cursor='pointer'; t.onclick=()=>{ t.onclick=null; on(); }; } } };
 window.addEventListener('bls-data',()=>{ const h=(location.hash||'#today').slice(1).split('/')[0]; if(['today','stats','history','archive'].includes(h)&&!document.querySelector('#view input:focus')) route(); });
 window.addEventListener('DOMContentLoaded',()=>{ route(); });
 window.addEventListener('cloud-ready',()=>{ setTimeout(flushPending,800); });

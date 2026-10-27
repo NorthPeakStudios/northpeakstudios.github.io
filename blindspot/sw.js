@@ -1,7 +1,7 @@
 // Blindspot service worker (Northpeak). Offline app shell; account, sync, crowd and duel calls go straight to the network.
 // auto-update: a new version installs fresh files (cache: 'reload'), takes over at once (skipWaiting + clients.claim), and np-update.js reloads when safe.
-const V = 'blindspot-v2';
-const SHELL = ["./", "index.html", "style.css?v=2", "manifest.webmanifest", "js/qdata.js?v=2", "js/core.js?v=2", "js/store.js?v=2", "js/app.js?v=2", "js/modes.js?v=2", "js/stats.js?v=2", "js/social.js?v=2", "js/account.js?v=2", "js/cloud.js?v=2", "js/cloud-boot.js?v=2", "np-update.js?v=2", "np-email.js?v=2", "nozoom.js", "pwa.js", "icon-180.png", "icon-192.png", "icon-512.png"];
+const V = 'blindspot-v3';
+const SHELL = ["./", "index.html", "style.css?v=3", "manifest.webmanifest", "js/qdata.js?v=3", "js/core.js?v=3", "js/store.js?v=3", "js/app.js?v=3", "js/modes.js?v=3", "js/stats.js?v=3", "js/social.js?v=3", "js/account.js?v=3", "js/cloud.js?v=3", "js/cloud-boot.js?v=3", "np-update.js?v=3", "np-email.js?v=3", "nozoom.js", "pwa.js", "icon-180.png", "icon-192.png", "icon-512.png"];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))).catch(() => {}).then(() => self.skipWaiting())); });
 self.addEventListener('message', e => { if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('blindspot-') && k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
