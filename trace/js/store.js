@@ -36,6 +36,12 @@ const S={
       persist(); window.dispatchEvent(new Event('trc-data')); },
     remove:async id=>{ delete db.e[id]; delete db.r[id]; delete db.u[id]; persist(); window.dispatchEvent(new Event('trc-data')); }
   },
+  /* 1.4: many records at once (import, rename, tidy) — one save, one sync, one redraw */
+  bulk(list){ const ids=[]; const now=Date.now(); for(const x of list||[]){ if(!x||typeof x!=='object') continue; const k=x._kind||(String(x.id||'').slice(0,2)==='r_'?'r':String(x.id||'').slice(0,2)==='u_'?'u':'e'); delete x._kind; if(!x.id) x.id=uid(k+'_'); x.up=now; (k==='r'?db.r:k==='u'?db.u:db.e)[x.id]=x; ids.push(x.id); }
+    persist(); if(C()&&C().signedIn()){ ids.forEach(id=>C().markDirty(id)); clearTimeout(tmr); tmr=setTimeout(()=>window.TrcSync&&TrcSync(),1500); } window.dispatchEvent(new Event('trc-data')); return ids.length; },
+  bulkDel(ids){ let n=0; for(const id of ids||[]){ if(db.e[id]||db.r[id]||db.u[id]){ delete db.e[id]; delete db.r[id]; delete db.u[id]; n++; if(C()&&C().signedIn()) C().markGone(id); } }
+    persist(); setTimeout(()=>window.TrcSync&&TrcSync(),800); window.dispatchEvent(new Event('trc-data')); return n; },
+  bytes(){ try{ return (localStorage.getItem(K)||'').length; }catch(e){ return 0; } },
   _replace(d){ db=d; db.u=db.u||{}; persist(); }, // tests only
   dayKey(t){ const d=new Date(t); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 };

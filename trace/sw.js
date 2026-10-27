@@ -1,7 +1,7 @@
 // Trace service worker (Northpeak). Offline app shell; account/sync and FDA calls go straight to the network.
 // auto-update: a new version installs fresh files (cache: 'reload'), takes over at once (skipWaiting + clients.claim), and np-update.js reloads when safe.
-const V = 'trace-v7';
-const SHELL = ["./", "index.html", "style.css?v=7", "manifest.webmanifest", "js/store.js?v=7", "js/app.js?v=7", "js/fda.js?v=7", "js/insights.js?v=7", "js/graph.js?v=7", "js/tools.js?v=7", "js/account.js?v=7", "js/cloud.js?v=7", "js/cloud-boot.js?v=7", "np-update.js?v=7", "np-email.js?v=7", "nozoom.js", "pwa.js", "icon-180.png", "icon-192.png", "icon-512.png"];
+const V = 'trace-v8';
+const SHELL = ["./", "index.html", "style.css?v=8", "manifest.webmanifest", "js/store.js?v=8", "js/app.js?v=8", "js/fda.js?v=8", "js/insights.js?v=8", "js/graph.js?v=8", "js/tools.js?v=8", "js/xfer.js?v=8", "js/cmd.js?v=8", "js/account.js?v=8", "js/cloud.js?v=8", "js/cloud-boot.js?v=8", "np-update.js?v=8", "np-email.js?v=8", "nozoom.js", "pwa.js", "icon-180.png", "icon-192.png", "icon-512.png"];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))).catch(() => {}).then(() => self.skipWaiting())); });
 self.addEventListener('message', e => { if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('trace-') && k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
