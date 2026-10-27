@@ -5,7 +5,7 @@
 (function () {
   'use strict';
   var SYN = 'https://odin-cards.sites.tab.bot';
-  var APPS = { axon: ['https://axon-sync.sites.tab.bot', 'axon-sync/v1:'], liminal: ['https://liminal-sync.sites.tab.bot', 'liminal-sync/v1:'], cadence: ['https://cadence-sync.sites.tab.bot', 'cadence-sync/v1:'], mindprint: ['https://mindprint.sites.tab.bot', 'mindprint-sync/v1:'], trace: ['https://trace-sync.sites.tab.bot', 'trace-sync/v1:'], orbit: ['https://orbit-sync.sites.tab.bot', 'orbit-sync/v1:'] };
+  var APPS = { axon: ['https://axon-sync.sites.tab.bot', 'axon-sync/v1:'], liminal: ['https://liminal-sync.sites.tab.bot', 'liminal-sync/v1:'], cadence: ['https://cadence-sync.sites.tab.bot', 'cadence-sync/v1:'], mindprint: ['https://mindprint.sites.tab.bot', 'mindprint-sync/v1:'], trace: ['https://trace-sync.sites.tab.bot', 'trace-sync/v1:'], stash: ['https://stash-sync.sites.tab.bot', 'stash-sync/v1:'], orbit: ['https://orbit-sync.sites.tab.bot', 'orbit-sync/v1:'], later: ['https://later-sync.sites.tab.bot', 'later-sync/v1:'], verdict: ['https://verdict-sync.sites.tab.bot', 'verdict-sync/v1:'], blindspot: ['https://blindspot-sync.sites.tab.bot', 'blindspot-sync/v1:'], cipher: ['https://cipher-sync.sites.tab.bot', 'cipher-sync/v1:'] };
   var te = new TextEncoder();
   function hex(b) { return Array.prototype.map.call(new Uint8Array(b), function (x) { return (x < 16 ? '0' : '') + x.toString(16); }).join(''); }
   async function call(url, body, tok, syn) {
