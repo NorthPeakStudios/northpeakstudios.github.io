@@ -6,12 +6,12 @@
 <!-- no zoom on iPhone: pinch, double-tap, input focus -->
 <style id="np-nozoom">html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}</style>
 <script>(function(){if(window.__npNoZoom)return;window.__npNoZoom=1;var p=function(e){e.preventDefault()},o={passive:false};['gesturestart','gesturechange','gestureend'].forEach(function(t){document.addEventListener(t,p,o)});document.addEventListener('dblclick',function(e){var t=e.target;if(!(t&&t.closest&&t.closest('input,textarea,select,[contenteditable]')))e.preventDefault()},o);var b=function(e){var t=e.target;if(t&&/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)&&parseFloat(getComputedStyle(t).fontSize)<16)t.style.fontSize='16px'};document.addEventListener('touchstart',b,{passive:true,capture:true});document.addEventListener('focusin',b,true)})();</script>
-<title>Northpeak Studios: Synapse, Axon, Liminal, Cadence, Mindprint and Trace, apps you pay for once</title>
-<meta name="description" content="Six apps from Northpeak Studios. Synapse: 400 medicine courses, flashcards, a daily diagnosis puzzle and 30 Lab tools. Axon: linked notes and a graph that stay on your device. Liminal: type a feeling, get it back as a poem. Cadence: music theory from your first note to PhD. Mindprint: a personality quiz built on real psychology. Trace: log meds and anything you take, and see how it affects you over time. $35 once each (Mindprint Pro $10), or $100 lifetime for all six.">
+<title>Northpeak Studios: twelve apps you pay for once, from Synapse to Cipher</title>
+<meta name="description" content="Twelve apps from Northpeak Studios. Synapse: 400 medicine courses, flashcards, a daily diagnosis puzzle and 30 Lab tools. Axon: linked notes and a graph that stay on your device. Liminal: type a feeling, get it back as a poem. Cadence: music theory from your first note to PhD. Mindprint: a personality quiz built on real psychology. Trace: log meds and anything you take, and see how it affects you over time. Stash: track what you earn and spend, save toward goals and check if you can afford it. Orbit: see which friends you're drifting from. Later: time capsules that unlock by date, place, streak or a question. Verdict: debate the daily motion with blind votes and Elo. Blindspot: a daily game that shows if you're overconfident. Cipher: daily cipher and logic puzzles, and puzzle hunts for friends. $35 once each (Mindprint Pro $10), or $100 lifetime for all twelve.">
 <meta name="theme-color" content="#05070c">
 <link rel="canonical" href="https://northpeakstudios.github.io/">
-<meta property="og:title" content="Northpeak Studios: Synapse, Axon, Liminal, Cadence, Mindprint and Trace, apps you pay for once">
-<meta property="og:description" content="Six apps from Northpeak Studios. Synapse: 400 medicine courses, flashcards, a daily diagnosis puzzle and 30 Lab tools. Axon: linked notes and a graph that stay on your device. Liminal: type a feeling, get it back as a poem. Cadence: music theory from your first note to PhD. Mindprint: a personality quiz built on real psychology. Trace: log meds and anything you take, and see how it affects you over time. $35 once each (Mindprint Pro $10), or $100 lifetime for all six.">
+<meta property="og:title" content="Northpeak Studios: twelve apps you pay for once, from Synapse to Cipher">
+<meta property="og:description" content="Twelve apps from Northpeak Studios. Synapse: 400 medicine courses, flashcards, a daily diagnosis puzzle and 30 Lab tools. Axon: linked notes and a graph that stay on your device. Liminal: type a feeling, get it back as a poem. Cadence: music theory from your first note to PhD. Mindprint: a personality quiz built on real psychology. Trace: log meds and anything you take, and see how it affects you over time. Stash: track what you earn and spend, save toward goals and check if you can afford it. Orbit: see which friends you're drifting from. Later: time capsules that unlock by date, place, streak or a question. Verdict: debate the daily motion with blind votes and Elo. Blindspot: a daily game that shows if you're overconfident. Cipher: daily cipher and logic puzzles, and puzzle hunts for friends. $35 once each (Mindprint Pro $10), or $100 lifetime for all twelve.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://northpeakstudios.github.io/">
 <meta property="og:image" content="https://northpeakstudios.github.io/assets/og-studio.jpg">
@@ -22,6 +22,7 @@
 <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preload" as="image" href="/assets/shots/home.webp">
+<style id="np-nav12">@media (min-width:821px){.nav .nav-app{display:none}}@media (max-width:820px){.nav .nav-apps{display:none}.nav{max-height:calc(100vh - 62px);overflow-y:auto}}</style>
 <link rel="stylesheet" href="/styles.css?v=4">
 <script>document.documentElement.className+=' js'</script>
 </head>
@@ -31,9 +32,10 @@
   <div class="wrap">
     <a class="brand" href="/"><svg viewBox="0 0 48 44" aria-hidden="true"><path d="M4 40 L19 17 L25 26 L30 19 L44 40 Z" fill="currentColor" opacity=".18"/><path d="M4 40 L19 17 L25 26 L30 19 L44 40" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/><path d="M15.5 22.5 L19 17 L22.4 22.2 L19.6 21 Z" fill="currentColor"/><path d="M24 3.5 L25.4 7.6 L29.5 9 L25.4 10.4 L24 14.5 L22.6 10.4 L18.5 9 L22.6 7.6 Z" fill="#33e1d2"/></svg><span>Northpeak Studios</span></a>
     <nav class="nav" id="site-nav" aria-label="Main">
-      <a href="/#synapse">Synapse</a>
-      <a href="/#axon">Axon</a>
-      <a href="/#liminal">Liminal</a>       <a href="/#cadence">Cadence</a>       <a href="/#mindprint">Mindprint</a>       <a href="/#trace">Trace</a>
+      <a class="nav-apps" href="/#apps">Apps</a>
+      <a class="nav-app" href="/#synapse">Synapse</a>
+      <a class="nav-app" href="/#axon">Axon</a>
+      <a class="nav-app" href="/#liminal">Liminal</a>       <a class="nav-app" href="/#cadence">Cadence</a>       <a class="nav-app" href="/#mindprint">Mindprint</a>       <a class="nav-app" href="/#trace">Trace</a>       <a class="nav-app" href="/#stash">Stash</a>       <a class="nav-app" href="/#orbit">Orbit</a>       <a class="nav-app" href="/#later">Later</a>       <a class="nav-app" href="/#verdict">Verdict</a>       <a class="nav-app" href="/#blindspot">Blindspot</a>       <a class="nav-app" href="/#cipher">Cipher</a>
       <a href="/#new">What's new</a>
       <a href="/#pricing">Pricing</a>
       <a href="/about/">About</a>
@@ -49,10 +51,11 @@
   <div class="wrap hero-grid">
     <div>
       <span class="eyebrow"><span class="dot"></span>Northpeak Studios</span>
-      <h1>Six apps. <span class="grad">Pay once.</span></h1>
+      <h1>Twelve apps. <span class="grad">Pay once.</span></h1>
       <p class="lede"><b>Synapse</b> teaches medicine: 400 courses, flashcards that schedule themselves and a new patient to diagnose every day. <b>Axon</b> holds your own notes: linked Markdown pages and a graph, kept on your device. <b>Liminal</b> turns a feeling you type into a poem, with color and sound. <b>Cadence</b> teaches music theory from your first note to PhD analysis. <b>Mindprint</b> shows you what your answers say about your personality. <b>Trace</b> logs your meds and anything you take, and shows how it affects you over time.</p>
-      <div class="btns"><a class="btn primary big" href="https://odin-cards.sites.tab.bot/" rel="noopener">Open Synapse <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><a class="btn big" href="https://northpeakstudios.github.io/axon/" rel="noopener">Open Axon <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><a class="btn big" href="https://northpeakstudios.github.io/liminal/" rel="noopener">Open Liminal <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><a class="btn big" href="https://northpeakstudios.github.io/cadence/" rel="noopener">Open Cadence <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><a class="btn big" href="https://northpeakstudios.github.io/mindprint/" rel="noopener">Open Mindprint <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><a class="btn big" href="https://northpeakstudios.github.io/trace/" rel="noopener">Open Trace <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
-      <p class="fine"><b>All six run in your browser</b> on iPhone, Android and computer. One Northpeak login works in all of them. $35 once each (Mindprint Pro $10), or $100 lifetime for all of them.</p>
+      <p class="lede"><b>New:</b> <b>Stash</b> tracks the money you make and spend and tells you if you can afford it. <b>Orbit</b> shows which friends you're drifting from. <b>Later</b> seals time capsules that open by date, place, streak or a secret question. <b>Verdict</b> is a daily debate with blind votes and Elo. <b>Blindspot</b> shows whether you're overconfident. <b>Cipher</b> gives you a daily puzzle and lets you build puzzle hunts for friends.</p>
+      <div class="btns"><a class="btn primary big" href="/#apps">See all 12 apps <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><a class="btn big" href="https://odin-cards.sites.tab.bot/" rel="noopener">Open Synapse <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><a class="btn big" href="/#pricing">Pricing</a></div>
+      <p class="fine"><b>All twelve run in your browser</b> on iPhone, Android and computer. One Northpeak login works in all of them. $35 once each (Mindprint Pro $10), or $100 lifetime for all of them.</p>
     </div>
     <div class="hero-visual duo">
       <div class="phone p1"><div class="scr"><img src="/assets/shots/home.webp" alt="Synapse home screen: 100 cards due, Daily challenge and Doctordle" width="780" height="1688" loading="eager" decoding="async" fetchpriority="high"></div></div>
@@ -101,6 +104,42 @@
         <ul class="app-nums"><li><b>Quick</b>log</li><li><b>Calendar</b>heat map</li><li><b>8</b>Labs tools</li></ul>
         <span class="btn primary">Open app <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
         <small>Logging, calendar and reminders are free. Pro is $35 once · v1.1</small>
+      </a>
+      <a class="app-card rv" id="stash" href="https://northpeakstudios.github.io/stash/" rel="noopener">
+        <div class="app-top"><span class="app-ic" style="background:linear-gradient(160deg,#fef3c7,#fbbf24 45%,#059669)" aria-hidden="true">S</span><div><h3>Stash</h3><p>Money app for teen founders: earnings, goals, can I afford it?</p></div></div>
+        <ul class="app-nums"><li><b>Goals</b>with weekly plan</li><li><b>Business</b>sales by product</li><li><b>Private</b>local first</li></ul>
+        <span class="btn primary">Open app <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <small>Free log, 1 goal and insights. Pro is $35 once · v1.0</small>
+      </a>
+      <a class="app-card rv" id="orbit" href="https://northpeakstudios.github.io/orbit/" rel="noopener">
+        <div class="app-top"><span class="app-ic" style="background:linear-gradient(135deg,#7c9cff,#f0abfc)" aria-hidden="true">O</span><div><h3>Orbit</h3><p>Friend gravity: see who you’re drifting from</p></div></div>
+        <ul class="app-nums"><li><b>Live</b>orbit map</li><li><b>Daily</b>reconnect queue</li><li><b>Mutual</b>orbits</li></ul>
+        <span class="btn primary">Open app <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <small>Up to 8 friends free. Pro is $35 once · v1.0</small>
+      </a>
+      <a class="app-card rv" id="later" href="https://northpeakstudios.github.io/later/" rel="noopener">
+        <div class="app-top"><span class="app-ic" style="background:linear-gradient(160deg,#fde68a,#fdba74 50%,#c4b5fd)" aria-hidden="true">L</span><div><h3>Later</h3><p>Time capsules that open on a date, at a place, after a streak, or with a question only they can answer</p></div></div>
+        <ul class="app-nums"><li><b>5</b>unlock types</li><li><b>Group</b>capsules</li><li><b>Voice</b>&amp; photos</li></ul>
+        <span class="btn primary">Open app <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <small>Date capsules are free. Pro is $35 once · v1.0</small>
+      </a>
+      <a class="app-card rv" id="verdict" href="https://northpeakstudios.github.io/verdict/" rel="noopener">
+        <div class="app-top"><span class="app-ic" style="background:linear-gradient(135deg,#34d399 0%,#fbbf24 50%,#fb7185 100%)" aria-hidden="true">V</span><div><h3>Verdict</h3><p>Debate the daily motion. Blind votes, Elo ratings, live rooms</p></div></div>
+        <ul class="app-nums"><li><b>Daily</b>motion</li><li><b>Blind</b>head-to-heads</li><li><b>Elo</b>rating</li></ul>
+        <span class="btn primary">Open app <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <small>Arguing and judging are free. Pro is $35 once · v1.0</small>
+      </a>
+      <a class="app-card rv" id="blindspot" href="https://northpeakstudios.github.io/blindspot/" rel="noopener">
+        <div class="app-top"><span class="app-ic" style="background:linear-gradient(160deg,#fde68a,#fbbf24 50%,#f472b6)" aria-hidden="true">B</span><div><h3>Blindspot</h3><p>How well do you know what you know? A daily calibration game</p></div></div>
+        <ul class="app-nums"><li><b>Daily 5</b>questions</li><li><b>Crowd</b>reveal</li><li><b>Duels</b>with friends</li></ul>
+        <span class="btn primary">Open app <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <small>The daily 5, the crowd reveal and the weekly board are free. Pro is $35 once · v1.0</small>
+      </a>
+      <a class="app-card rv" id="cipher" href="https://northpeakstudios.github.io/cipher/" rel="noopener">
+        <div class="app-top"><span class="app-ic" style="background:linear-gradient(160deg,#c4b5fd,#8b5cf6 50%,#f472b6)" aria-hidden="true">C</span><div><h3>Cipher</h3><p>A new cipher or logic puzzle every day, and puzzle hunts you build for your friends</p></div></div>
+        <ul class="app-nums"><li><b>7</b>puzzle types</li><li><b>Hunts</b>for friends</li><li><b>Daily</b>leaderboards</li></ul>
+        <span class="btn primary">Open app <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <small>The daily puzzle is free. Pro is $35 once · v1.0</small>
       </a>
     </div>
   </div>
@@ -188,14 +227,14 @@
 
 <section id="new" style="padding-top:0">
   <div class="wrap">
-    <div class="sec-head rv"><span class="eyebrow"><span class="dot"></span>What's new · Oct 21, 2026</span><h2>Safer accounts, one email everywhere.</h2><p>Today's updates to all three apps. Synapse v171 · Axon v1.9.1 · Liminal v27.</p></div>
+    <div class="sec-head rv"><span class="eyebrow"><span class="dot"></span>What's new · Oct 27, 2026</span><h2>Six new apps.</h2><p>All on the same Northpeak login, and all included in All-Access.</p></div>
     <div class="tiles">
-      <div class="tile rv"><div class="big grad">Email</div><h3>Change your email once</h3><p>Change it in Synapse, Axon or Liminal and your account moves everywhere: the new email signs in, the old one stops, and Pro, notes and progress stay.</p></div>
-      <div class="tile rv"><div class="big grad">Safe</div><h3>Security fixes</h3><p>Synapse now blocks requests forged by other sites. Every app has stricter security rules, so injected scripts can't run or send data anywhere.</p></div>
-      <div class="tile rv"><div class="big grad">Lock</div><h3>Login lockout</h3><p>Too many wrong passwords and sign-in pauses for a while, per account and per connection.</p></div>
-      <div class="tile rv"><div class="big grad">Ask</div><h3>Password before delete</h3><p>Deleting an account asks for your password again, in all three apps.</p></div>
-      <div class="tile rv"><div class="big grad">👑</div><h3>Owner badge and codes</h3><p>Owner accounts show Owner in Axon and Liminal, and "Have a code?" is always there, even with Pro on.</p></div>
-      <div class="tile rv"><div class="big grad">Poem</div><h3>Copy a poem</h3><p>Liminal can copy the poem from any saved moment so you can send it to someone.</p></div>
+      <a class="tile rv" href="https://northpeakstudios.github.io/stash/" rel="noopener" style="color:inherit;text-decoration:none"><div class="big grad">💸</div><h3>Stash</h3><p>Log what you make and spend, save toward a goal, and ask “Can I afford it?” before you buy.</p></a>
+      <a class="tile rv" href="https://northpeakstudios.github.io/orbit/" rel="noopener" style="color:inherit;text-decoration:none"><div class="big grad">🪐</div><h3>Orbit</h3><p>Friends are planets. The ones you haven’t talked to in a while drift out and glow red, with a daily reconnect queue.</p></a>
+      <a class="tile rv" href="https://northpeakstudios.github.io/later/" rel="noopener" style="color:inherit;text-decoration:none"><div class="big grad">⏳</div><h3>Later</h3><p>Time capsules that open on a date, at a place, after a streak, or only when they answer your question.</p></a>
+      <a class="tile rv" href="https://northpeakstudios.github.io/verdict/" rel="noopener" style="color:inherit;text-decoration:none"><div class="big grad">⚖️</div><h3>Verdict</h3><p>One motion a day. Make your case, judge arguments blind, earn an Elo rating, host live rooms.</p></a>
+      <a class="tile rv" href="https://northpeakstudios.github.io/blindspot/" rel="noopener" style="color:inherit;text-decoration:none"><div class="big grad">🎯</div><h3>Blindspot</h3><p>Five number questions a day. Answer with a range and how sure you are, then see if you’re overconfident.</p></a>
+      <a class="tile rv" href="https://northpeakstudios.github.io/cipher/" rel="noopener" style="color:inherit;text-decoration:none"><div class="big grad">🗝️</div><h3>Cipher</h3><p>A new cipher or logic puzzle every day, a code-breaker’s toolkit, and puzzle hunts you build for friends.</p></a>
     </div>
   </div>
 </section>
@@ -245,18 +284,66 @@
         <ul class="ticks"><li>Effects charts from your own logs</li><li>Forecast: what may happen if a pattern keeps going (a prediction, not medical advice)</li><li>The web: what you take and how you feel, linked</li><li>Labs: context patterns, rhythm, timing &amp; sleep, effect detective, doctor report</li><li>Export your logs</li></ul>
         <a class="btn" href="https://northpeakstudios.github.io/trace/" rel="noopener">Open Trace</a>
       </div>
+      <div class="plan rv">
+        <div class="pname">Stash Pro</div>
+        <div class="price">$35<small>one time</small></div>
+        <p class="muted">The money log, one goal and insights are free. Pro adds the rest.</p>
+        <ul class="ticks"><li>Business mode: sales per product, revenue by month, best seller, CSV</li><li>Unlimited savings goals</li><li>“Can I afford it?” simulator</li><li>Subscriptions tracker with renewal reminders</li><li>Encrypted sync between devices</li></ul>
+        <a class="btn" href="https://northpeakstudios.github.io/stash/" rel="noopener">Open Stash</a>
+      </div>
+      <div class="plan rv">
+        <div class="pname">Orbit Pro</div>
+        <div class="price">$35<small>one time</small></div>
+        <p class="muted">The orbit map, the daily reconnect queue and up to 8 friends are free. Pro adds the rest.</p>
+        <ul class="ticks"><li>Unlimited friends</li><li>Mutual orbits with friends who use Orbit, with a shared streak</li><li>The weekly orbit report</li><li>Birthday radar</li><li>Notes and details to remember about each person</li></ul>
+        <a class="btn" href="https://northpeakstudios.github.io/orbit/" rel="noopener">Open Orbit</a>
+      </div>
+      <div class="plan rv">
+        <div class="pname">Later Pro</div>
+        <div class="price">$35<small>one time</small></div>
+        <p class="muted">Date-unlock text capsules (3 at a time), check-ins and reflection prompts are free. Pro adds the rest.</p>
+        <ul class="ticks"><li>Place, streak, question and “everyone opened it” unlocks</li><li>Group capsules friends add to</li><li>Photos and voice notes</li><li>Unlimited capsules</li></ul>
+        <a class="btn" href="https://northpeakstudios.github.io/later/" rel="noopener">Open Later</a>
+      </div>
+      <div class="plan rv">
+        <div class="pname">Verdict Pro</div>
+        <div class="price">$35<small>one time</small></div>
+        <p class="muted">The daily motion, arguing, blind judging and your Elo are free. Pro adds the rest.</p>
+        <ul class="ticks"><li>Host live debate rooms with friends</li><li>Rating history and win rate by topic</li><li>The full argument coach</li><li>The unlimited archive</li></ul>
+        <a class="btn" href="https://northpeakstudios.github.io/verdict/" rel="noopener">Open Verdict</a>
+      </div>
+      <div class="plan rv">
+        <div class="pname">Blindspot Pro</div>
+        <div class="price">$35<small>one time</small></div>
+        <p class="muted">The daily 5, the crowd reveal, your streak, the weekly board and joining duels are free. Pro adds the rest.</p>
+        <ul class="ticks"><li>Your calibration curve: how often you’re really right at 50, 80 and 95%</li><li>How it changes week by week, and by topic</li><li>True-or-false confidence mode</li><li>Higher-or-lower streaks</li><li>Start friend duels, plus the 60-day archive</li></ul>
+        <a class="btn" href="https://northpeakstudios.github.io/blindspot/" rel="noopener">Open Blindspot</a>
+      </div>
+      <div class="plan rv">
+        <div class="pname">Cipher Pro</div>
+        <div class="price">$35<small>one time</small></div>
+        <p class="muted">Today’s puzzle, solving friends’ hunts, basic hints and the core toolkit are free. Pro adds the rest.</p>
+        <ul class="ticks"><li>Hunt builder: chain 3–10 puzzles, share a code, see who’s on which step</li><li>The full daily archive</li><li>Friend leaderboard</li><li>Advanced toolkit: Vigenère helper, cryptogram bench, auto-shift</li></ul>
+        <a class="btn" href="https://northpeakstudios.github.io/cipher/" rel="noopener">Open Cipher</a>
+      </div>
       <div class="plan hot rv">
         <span class="badge">EVERY APP</span>
         <div class="pname">Northpeak All-Access</div>
         <div class="price">$100<small>lifetime</small></div>
-        <p class="muted">$100 lifetime, all Northpeak apps: Synapse, Axon, Liminal, Cadence, Mindprint, Trace and every app we release in the future.</p>
-        <ul class="ticks"><li>Synapse Pro, Axon Pro, Liminal Pro, Cadence Pro, Mindprint Pro and Trace Pro</li><li>Every future Northpeak app, included when it launches</li><li>Buy it in any Northpeak app</li><li>One payment, forever</li></ul>
+        <p class="muted">$100 lifetime, all twelve Northpeak apps: Synapse, Axon, Liminal, Cadence, Mindprint, Trace, Stash, Orbit, Later, Verdict, Blindspot, Cipher and every app we release in the future.</p>
+        <ul class="ticks"><li>Pro in all twelve: Synapse, Axon, Liminal, Cadence, Mindprint, Trace, Stash, Orbit, Later, Verdict, Blindspot and Cipher</li><li>Every future Northpeak app, included when it launches</li><li>Buy it in any Northpeak app</li><li>One payment, forever</li></ul>
         <a class="btn primary" href="https://odin-cards.sites.tab.bot/" rel="noopener">Get it in Synapse</a>
         <a class="btn" href="https://northpeakstudios.github.io/axon/" rel="noopener" style="margin-top:10px">Get it in Axon</a>
         <a class="btn" href="https://northpeakstudios.github.io/liminal/" rel="noopener" style="margin-top:10px">Get it in Liminal</a>
         <a class="btn" href="https://northpeakstudios.github.io/cadence/" rel="noopener" style="margin-top:10px">Get it in Cadence</a>
         <a class="btn" href="https://northpeakstudios.github.io/mindprint/" rel="noopener" style="margin-top:10px">Get it in Mindprint</a>
         <a class="btn" href="https://northpeakstudios.github.io/trace/" rel="noopener" style="margin-top:10px">Get it in Trace</a>
+        <a class="btn" href="https://northpeakstudios.github.io/stash/" rel="noopener" style="margin-top:10px">Get it in Stash</a>
+        <a class="btn" href="https://northpeakstudios.github.io/orbit/" rel="noopener" style="margin-top:10px">Get it in Orbit</a>
+        <a class="btn" href="https://northpeakstudios.github.io/later/" rel="noopener" style="margin-top:10px">Get it in Later</a>
+        <a class="btn" href="https://northpeakstudios.github.io/verdict/" rel="noopener" style="margin-top:10px">Get it in Verdict</a>
+        <a class="btn" href="https://northpeakstudios.github.io/blindspot/" rel="noopener" style="margin-top:10px">Get it in Blindspot</a>
+        <a class="btn" href="https://northpeakstudios.github.io/cipher/" rel="noopener" style="margin-top:10px">Get it in Cipher</a>
       </div>
     </div>
     <ol class="steps rv">
@@ -270,7 +357,7 @@
 </section>
 <section style="padding-top:0">
   <div class="wrap">
-    <div class="sec-head rv"><span class="eyebrow"><span class="dot"></span>The studio</span><h2>Northpeak Studios</h2><p>An independent studio making study apps, founded by Odin. Synapse, Axon, Liminal, Cadence, Mindprint and Trace are out now. All-Access covers every app that comes next.</p></div>
+    <div class="sec-head rv"><span class="eyebrow"><span class="dot"></span>The studio</span><h2>Northpeak Studios</h2><p>An independent studio making study apps, founded by Odin. Synapse, Axon, Liminal, Cadence, Mindprint, Trace, Stash, Orbit, Later, Verdict, Blindspot and Cipher are out now. All-Access covers every app that comes next.</p></div>
     <div class="btns rv"><a class="btn" href="/about/">About the studio <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><a class="btn" href="/support/">Support</a></div>
   </div>
 </section>
@@ -278,7 +365,7 @@
   <div class="wrap rv">
     <h2>Pick an app and start.</h2>
     <p>$35 once for one app (Mindprint Pro is $10), or $100 lifetime for every app, now and after.</p>
-    <div class="btns"><a class="btn primary big" href="https://odin-cards.sites.tab.bot/" rel="noopener">Open Synapse <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><a class="btn big" href="https://northpeakstudios.github.io/axon/" rel="noopener">Open Axon <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><a class="btn big" href="https://northpeakstudios.github.io/liminal/" rel="noopener">Open Liminal <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><a class="btn big" href="https://northpeakstudios.github.io/cadence/" rel="noopener">Open Cadence <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><a class="btn big" href="https://northpeakstudios.github.io/mindprint/" rel="noopener">Open Mindprint <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><a class="btn big" href="https://northpeakstudios.github.io/trace/" rel="noopener">Open Trace <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
+    <div class="btns"><a class="btn primary big" href="/#apps">See all 12 apps <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><a class="btn big" href="https://odin-cards.sites.tab.bot/" rel="noopener">Open Synapse <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
   </div>
 </div>
 </main>
@@ -288,7 +375,7 @@
     <nav aria-label="Footer">
       <a href="/synapse/">Synapse</a>
       <a href="/#axon">Axon</a>
-      <a href="/#liminal">Liminal</a>       <a href="/#cadence">Cadence</a>       <a href="/#mindprint">Mindprint</a>       <a href="/#trace">Trace</a>
+      <a href="/#liminal">Liminal</a>       <a href="/#cadence">Cadence</a>       <a href="/#mindprint">Mindprint</a>       <a href="/#trace">Trace</a>       <a href="/#stash">Stash</a>       <a href="/#orbit">Orbit</a>       <a href="/#later">Later</a>       <a href="/#verdict">Verdict</a>       <a href="/#blindspot">Blindspot</a>       <a href="/#cipher">Cipher</a>
       <a href="/#new">What's new</a>
       <a href="/#pricing">Pricing</a>
       <a href="/synapse/privacy/">Privacy</a>
