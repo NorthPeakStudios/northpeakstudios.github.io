@@ -96,7 +96,7 @@ c('rem-clean','Reminders','Delete reminders that are off',()=>{ const rs=Store.r
 c('rem-list','Reminders','List all reminders',()=>{ const D=['Sun','Mon','Tue','Wed','Thu','Fri','Sat']; listSheet('Reminders',Store.reminders().map(r=>`<div class="it" data-go="#rem" role="button" tabindex="0"><span class="tm">${esc(r.time)}</span><span class="wh"><b>${esc(r.what)}</b><small>${esc(amt(r))}${amt(r)?' · ':''}${(r.days&&r.days.length<7)?r.days.map(d=>D[d]).join(' '):'every day'}${r.on===false?' · off':''}</small></span></div>`),'No reminders yet.'); },{k:'all'});
 // Insights
 c('in-fx','Insights','Effects over time',()=>go('#fx'),{pro:1,k:'feelings chart'});
-c('in-forecast','Insights','What could happen',()=>go('#happen'),{pro:1,k:'what may happen forecast predict patterns side effects fda label long-term warnings'});
+c('in-forecast','Insights','What could happen',()=>go('#happen'),{pro:1,k:'what may happen forecast predict patterns history all time how often time of day breaks notes side effects fda label long-term warnings'});
 c('in-web','Insights','The web',()=>go('#web'),{pro:1,k:'graph connections'});
 c('in-ctx','Insights','Context patterns',()=>go('#ctx'),{pro:1,k:'where who why'});
 c('in-rhythm','Insights','Rhythm',()=>go('#rhythm'),{pro:1,k:'weekly frequency gaps'});
