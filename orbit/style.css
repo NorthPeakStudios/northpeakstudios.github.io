@@ -182,3 +182,5 @@ body.noscroll{overflow:hidden}
 .fck{display:flex;gap:10px;align-items:center;color:var(--fg);font-size:14px;margin:8px 0}.fck input{width:auto;flex:0 0 auto}
 .lockcard p{margin-left:auto;margin-right:auto;max-width:460px}
 @media (max-width:360px){.kbtn{font-size:11.5px}.kbtn span{font-size:20px}.gnum{width:64px;height:64px}.code{font-size:27px}}
+.sbody{position:absolute}.sx{position:absolute;right:12px;top:10px;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:#0a0e1d;color:var(--mut);font:16px inherit;font-family:inherit;cursor:pointer;z-index:2}
+.sbody h3:first-of-type{padding-right:40px}

@@ -16,7 +16,7 @@ function avatar(f,cls){ cls=cls||''; return f.photo?`<span class="av ${cls}"><im
 function hashN(s){ let h=2166136261; for(const c of String(s)){ h^=c.charCodeAt(0); h=Math.imul(h,16777619); } return h>>>0; }
 function pick(arr,seed){ return arr[hashN(seed)%arr.length]; }
 /* ---------- sheet ---------- */
-function sheet(html,onOpen){ const s=$('#sheet'); $('#sbody').innerHTML='<div class="grab"></div>'+html; s.hidden=false; document.body.classList.add('noscroll'); onOpen&&onOpen($('#sbody')); a11y($('#sbody')); }
+function sheet(html,onOpen){ const s=$('#sheet'); $('#sbody').innerHTML='<div class="grab"></div><button class="sx" data-close="1" aria-label="Close">✕</button>'+html; s.hidden=false; document.body.classList.add('noscroll'); onOpen&&onOpen($('#sbody')); a11y($('#sbody')); }
 function closeSheet(){ $('#sheet').hidden=true; document.body.classList.remove('noscroll'); }
 document.addEventListener('click',e=>{ if(e.target.closest('[data-close]')) closeSheet(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSheet(); });
