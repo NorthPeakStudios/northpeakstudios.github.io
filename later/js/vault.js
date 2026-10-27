@@ -89,7 +89,7 @@ function draw(v,c){
   const o=$('#opn'); if(o) o.onclick=()=>tryOpen(v,c,false);
   $('#del').onclick=async()=>{ if(!confirm(c.mine?'Delete it for everyone? This can’t be undone.':'Remove it from your vault?')) return; try{ await Caps.api('/api/caps/delete',{id:c.id}); Caps.drop(c.id); toast(c.mine?'Deleted':'Removed'); go('vault'); }catch(e){ toast(errText(e)); } };
 }
-function geo(){ return new Promise((ok,no)=>{ if(!navigator.geolocation) return no(new Error('no_geo')); navigator.geolocation.getCurrentPosition(p=>ok(p.coords),e=>no(new Error(e.code===1?'geo_denied':'geo_fail')),{enableHighAccuracy:true,timeout:15000,maximumAge:30000}); }); }
+function geo(){ return new Promise((ok,no)=>{ if(!navigator.geolocation) return no(new Error('no_geo')); navigator.geolocation.getCurrentPosition(p=>ok(p.coords),e=>no(new Error(e.code===1?'geo_denied':'geo_fail')),{enableHighAccuracy:true,timeout:15000,maximumAge:0}); }); }
 async function tryOpen(v,c,quiet){
   const g=routeGen, o=$('#opn'), msg=$('#omsg'); const body={id:c.id}; const cond=c.cond||{};
   if(!quiet){

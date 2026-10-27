@@ -10,7 +10,7 @@ function setSync(t){ window.__ltrSync=t; const el=document.getElementById('ltrSy
 window.LtrSync=syncNow;
 const ERR={wrong:'Wrong email or password.',np_exists:'That email already has a Northpeak account with a different password. Sign in with that password.',bad_email:'That doesn’t look like an email.',taken:'That email already has an account. Sign in instead.',slow_down:'Too many tries. Wait a few minutes.',offline:'You’re offline.',bad_code:'That code didn’t work.',used:'That code is already used on another account.',np_taken:'That email belongs to another Northpeak account.',same:'That’s already your email.',locked:'This account’s email is locked.'};
 const em=e=>ERR[e&&e.message]||('Something went wrong ('+esc(e&&e.message||'error')+').');
-function planLine(){ const a=C().acct; if(a.owner) return '👑 Owner, everything unlocked'; if(a.pro&&a.allAccess) return '⭐ Northpeak All-Access'; if(a.pro) return '⭐ Later Pro'+(a.via?' ('+esc(a.via)+')':''); return 'Free plan'; }
+function planLine(){ const a=C().acct; if(a.owner) return '👑 Owner, everything unlocked'; if(a.pro&&a.allAccess) return '⭐ Northpeak All-Access'; if(a.pro){ const v=String(a.via||''); return v.startsWith('bot:')?'⭐ Northpeak All-Access (test account)':v.startsWith('code:SYN')?'⭐ Northpeak All-Access':'⭐ Later Pro'+(v.startsWith('code:')?' (code)':v.startsWith('paid')?' (paid)':v==='gift'?' (gift)':''); } return 'Free plan'; }
 routes.account=v=>{
   if(!C()){ v.innerHTML='<p class="muted">Loading…</p>'; return; }
   if(!C().signedIn()){
