@@ -202,3 +202,5 @@ td.nw{white-space:nowrap}
 .durs{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px}.durs .dl{margin:4px 0 0}.durs select{margin-top:4px}
 .qa a{font-size:13.5px}
 @media (max-width:360px){.pt{font-size:13px}.mtx{font-size:20px}.cstat b{font-size:17px}.code.big{font-size:26px}}
+
+a.it{color:var(--fg)}a.it .wh b{font-weight:600}
