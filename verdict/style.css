@@ -204,3 +204,6 @@ td.nw{white-space:nowrap}
 @media (max-width:360px){.pt{font-size:13px}.mtx{font-size:20px}.cstat b{font-size:17px}.code.big{font-size:26px}}
 
 a.it{color:var(--fg)}a.it .wh b{font-weight:600}
+.stat div b{white-space:nowrap;font-size:clamp(16px,5.2vw,20px)}.stat div span{line-height:1.25}
+.row .btn.pickf,.row .btn.picka{padding:14px 6px;font-size:16px;white-space:nowrap}
+@media (max-width:360px){.stat{gap:6px}.stat div{padding:8px 4px}}
