@@ -35,7 +35,7 @@ function CAN(c){return !!(ME&&ME.caps.indexOf(c)>=0)}
 function japi(u,o){o=o||{};var ac=window.AbortController?new AbortController():null,tm=ac?setTimeout(function(){ac.abort()},15000):0;if(ac)o.signal=ac.signal; /* np-apps v2: 15 s cap per call, so one app that never answers can't freeze the page */
  return fetch(u,o).then(function(r){clearTimeout(tm);return r.json().catch(function(){return{ok:false,error:'http_'+r.status}})},function(e){clearTimeout(tm);return{ok:false,error:e&&e.name==='AbortError'?'timeout':'unreachable'}})}
 function api(p,b,extra){var h={'content-type':'application/json'};var t=tok();if(t)h.authorization='Bearer '+t;if(extra)for(var k in extra)h[k]=extra[k];
- return japi(API+p,{method:b?'POST':'GET',headers:h,body:b?JSON.stringify(b):undefined,cache:'no-store'}).then(function(j){if(j&&j.error==='signed_out'&&ME){ME=null;setTok(null);show('login');toast('Signed out — sign in again')}return j})}
+ return japi(API+p,{method:b?'POST':'GET',headers:h,body:b?JSON.stringify(b):undefined,cache:'no-store'}).then(function(j){if(j&&j.error==='signed_out'&&ME){if(window.NPApps)NPApps.onSignedOut();ME=null;setTok(null);show('login');toast('Signed out — sign in again')}return j})}
 var RT={};
 function appApi(app,path,body,retry){
  var k=app+':'+path, p;
@@ -79,10 +79,10 @@ $('#chpw').addEventListener('submit',function(e){e.preventDefault();$('#cerr').t
 $('#chCancel').addEventListener('click',function(e){e.preventDefault();show('app')});
 
 /* ---------- app ---------- */
-var TABS=[['req','Requests','view_requests'],['sheet','Sheet','view_sheet'],['more','Codes & apps',['mint_codes','revoke_codes','toggle_buying']],['users','Users','manage_users'],['acct','Accounts','manage_accounts'],['logs','Logs','view_logs']];
-function tabOk(t){var c=t[2];return typeof c==='string'?CAN(c):c.some(CAN)}
+var TABS=[['req','Requests','view_requests'],['sheet','Sheet','view_sheet'],['more','Codes & apps',['mint_codes','revoke_codes','toggle_buying']],['users','Users','manage_users'],['acct','Accounts','manage_accounts'],['logs','Logs','view_logs'],['apps','Apps','@owner']]; /* np-apps-tab v1: Apps = every app + bot accounts, the owner only (apps.js) */
+function tabOk(t){var c=t[2];if(c==='@owner')return !!(ME&&ME.role==='owner'&&window.NPApps);return typeof c==='string'?CAN(c):c.some(CAN)}
 function secTabs(){var x=SEC!=='all'&&AP[SEC]&&AP[SEC].views||[];return TABS.concat(x).filter(tabOk)} /* np-apps v2: an app's own extra tabs (Mindprint: Responses) show in its section */
-var VIEWS=['req','sheet','more','users','acct','logs','resp'];
+var VIEWS=['req','sheet','more','users','acct','logs','resp','apps'];
 function renderSecbar(){var b=$('#secbar');if(!b)return;b.innerHTML=[['all','All']].concat(APPS.map(function(a){return [a.k,a.name]})).map(function(x){return '<button data-sec="'+x[0]+'" class="'+(x[0]===SEC?'on':'')+'">'+(x[0]==='all'?'':'<i class="dot '+AP[x[0]].tag+'"></i>')+esc(x[1])+'</button>'}).join('');var on=b.querySelector('.on');if(on&&on.scrollIntoView)try{on.scrollIntoView({block:'nearest',inline:'center'})}catch(e){}}
 function renderTabs(){var T=secTabs();if(!T.some(function(t){return t[0]===view}))view=T.length?T[0][0]:'';$('#tabs').innerHTML=T.map(function(t){return '<button data-v="'+t[0]+'" class="'+(t[0]===view?'on':'')+'">'+t[1]+'</button>'}).join('');$('#tabs').hidden=T.length<2}
 function setSec(k){if(k!=='all'&&!AP[k])k='all';SEC=k;if(k!=='all')MSEL=k;else if(!MAPP[MSEL])MSEL='syn';try{localStorage.setItem('np_sec',k)}catch(e){}if(view==='req'&&filt==='aa'&&k!=='all')filt='all';renderSecbar();renderTabs();switchView(view);if(D)render();if(view==='acct'&&AC.data)renderAccounts();window.scrollTo(0,0)}
@@ -92,9 +92,9 @@ function startApp(){
  $('#meName').textContent='@'+ME.u+' · '+ME.roleLabel;$('#meCaps').textContent='can: '+ME.caps.map(function(c){return CAPN[c]||c}).join(', ');
  renderSecbar();renderTabs();$('#statsBox').hidden=!CAN('view_requests');
  $('#mintPanel').hidden=!CAN('mint_codes');$('#codesPanel').hidden=!(CAN('revoke_codes')||CAN('mint_codes'));
- switchView(view);load();}
-function switchView(v){view=v;document.querySelectorAll('#tabs button').forEach(function(b){b.classList.toggle('on',b.dataset.v===v)});VIEWS.forEach(function(x){var el=$('#v-'+x);if(el)el.hidden=x!==v});
- if(v==='users')loadUsers();if(v==='acct'){if(AC.data)renderAccounts();else loadAccounts()}if(v==='logs'){loadLogs();loadActlog()}if(v==='resp')loadResp()}
+ switchView(view);load();if(window.NPApps)NPApps.boot();}
+function switchView(v){view=v;document.querySelectorAll('#tabs button').forEach(function(b){b.classList.toggle('on',b.dataset.v===v)});VIEWS.forEach(function(x){var el=$('#v-'+x);if(el)el.hidden=x!==v});var sb=$('#statsBox');if(sb&&ME)sb.hidden=!CAN('view_requests')||v==='apps';
+ if(v==='users')loadUsers();if(v==='acct'){if(AC.data)renderAccounts();else loadAccounts()}if(v==='logs'){loadLogs();loadActlog()}if(v==='resp')loadResp();if(v==='apps'&&window.NPApps)NPApps.show()}
 var MAPP={},MSEL='syn';APPS.forEach(function(a){MAPP[a.k]={app:a.k,body:a.mint||{},name:a.pro,works:a.name}});MAPP.all={app:'syn',body:{product:'all_access'},name:'All-Access',works:allNames()};
 function CODES_OK(){return CAN('mint_codes')||CAN('revoke_codes')}
 function loadAll(){ /* np-apps v2: one list call (and one codes call) per app in APPS */
@@ -224,7 +224,7 @@ function renderUsers(){
 function uop(b,msg){return api('/api/users',b).then(function(j){if(!j.ok){toast(j.words||j.error);return j}toast(msg);loadUsers();return j})}
 
 /* ---------- logs ---------- */
-var ICON={login:'🔓',login_fail:'⛔',login_blocked:'🚫',logout:'👋',setup_key_fail:'⛔',owner_created:'👑',owner_password_recovered:'🛟',password_change:'🔑',denied:'🚫'};
+var ICON={monitor_start:'🔴',monitor_end:'⏹',bot_add:'➕',bot_edit:'✏️',bot_remove:'🗑',bot_refused:'⛔',view_bots:'👁',login:'🔓',login_fail:'⛔',login_blocked:'🚫',logout:'👋',setup_key_fail:'⛔',owner_created:'👑',owner_password_recovered:'🛟',password_change:'🔑',denied:'🚫'};
 var KINDS=[['','All'],['logins','Logins'],['actions','Actions'],['fails','Failed']];
 function loadLogs(quiet,more){
  var q='?u='+encodeURIComponent(LG.u)+'&kind='+LG.kind+(more&&LG.items.length?'&before='+LG.items[LG.items.length-1].id:'');
@@ -252,7 +252,7 @@ document.addEventListener('click',function(e){
  if(t.dataset.copy){navigator.clipboard&&navigator.clipboard.writeText(t.dataset.copy).then(function(){toast('Copied '+t.dataset.copy)},function(){toast(t.dataset.copy)});return}
  if(t.id==='rf'){load();if(view==='users')loadUsers();if(view==='logs'){loadLogs();loadActlog()}return}
  if(t.id==='whoBtn'){$('#mePanel').hidden=!$('#mePanel').hidden;return}
- if(t.id==='logout'){api('/api/logout',{}).then(function(){ME=null;D=null;RT={};setTok(null);show('login');toast('Logged out')});return}
+ if(t.id==='logout'){if(window.NPApps)NPApps.onLogout();api('/api/logout',{}).then(function(){ME=null;D=null;RT={};setTok(null);show('login');toast('Logged out')});return}
  if(t.id==='meChpw'){show('chpw');$('#chCancel').hidden=false;$('#chpwp').textContent='Change your password.';return}
  if(t.id==='openT'){act('syn','open',{open:!(D.syn&&D.syn.open)},'Synapse buying '+((D.syn&&D.syn.open)?'closed':'opened'));return}
  if(t.dataset.mapp){MSEL=t.dataset.mapp;document.querySelectorAll('#mApp .ap').forEach(function(x){x.classList.toggle('on',x===t)});$('#mGo').textContent='Make '+(MSEL==='all'?'All-Access':MAPP[MSEL].works)+' code';$('#mOut').hidden=true;return}
@@ -448,5 +448,8 @@ function loadResp(force,btn){if(!CAN('manage_accounts'))return;if(RS.busy)return
  appApi('mindprint','mp-responses').then(function(j){RS.busy=false;if(btn){btn.disabled=false;btn.textContent='↻'}
   if(!j||!j.ok){$('#rsN').textContent='Couldn’t load responses ('+((j&&(j.words||j.error))||'error')+').';$('#rsBox').innerHTML='';return}
   RS.people=j.people||[];RS.loaded=true;RS.at=Date.now();RS.render()})}
+/* np-apps-tab v1: the few helpers apps.js uses (no tokens, no data) */
+window.NPA={api:api,esc:esc,toast:toast,fmtT:fmtT,apps:function(){return APPS},me:function(){return ME},
+ go:function(v){view=v;renderTabs();switchView(v);window.scrollTo(0,0)},sec:function(k,v){view=v||view;setSec(k)}};
 boot();
 })();
