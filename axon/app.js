@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.18.4 */
+/* Axon · Northpeak Studios · v1.19.0 */
 (function () {
   'use strict';
-  var VERSION = '1.18.4';
+  var VERSION = '1.19.0';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -6060,6 +6060,658 @@
     DB.put('meta', { k: 'cmdGuide', v: Date.now() }).catch(function () {});
     if (fresh && !notes.size) { cgMakeNote(true); rebuildIdx(); }
   }
+
+
+  /* ================= v1.19: 20 from the App Devs list (Oct 29) — timeline, task radar, checkpoints, graveyard, decisions, digests ================= */
+  /* Axon has no bots or tickets: each idea is built for what Axon is (your notes, tasks and edits on this device). Every page is Pro, like the
+     other new tools. Data: localStorage axon.optasks / axon.opseen / axon.opquiet / axon.ophand / axon.opme / axon.oprepo / axon.opdig,
+     IndexedDB meta "opCheckpoints" (this device only, never synced) and a separate database "axon-voice" for voice memos (this device only). */
+  var OP_BOOT = Date.now(), OP_PREVSEEN = 0, opMine = {}, opHist = null, opHistAt = 0;
+  var OP_GRAVE = 'Graveyard', OP_DAY = 864e5;
+  function opNoteOk(n) { return n && !inTemplates(n); }
+  function opTop(n) { return n.folder ? n.folder.split('/')[0] : ''; }
+  function opHM(ts) { return new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); }
+  function opDayLbl(k) { var d = dayOf(k); return d ? d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : k; }
+  function opDur(ms) { var h = ms / 36e5; return h < 1 ? Math.max(1, Math.round(ms / 6e4)) + 'm' : h < 48 ? Math.round(h) + 'h' : Math.round(h / 24) + 'd'; }
+  function opPct(x) { return Math.round(x * 100) + '%'; }
+  function opMedian(a) { if (!a.length) return 0; a = a.slice().sort(function (x, y) { return x - y; }); var m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; }
+  function opLoadHist(force) {
+    if (!window.HIST) return Promise.resolve([]);
+    if (opHist && !force && Date.now() - opHistAt < 60000) return Promise.resolve(opHist);
+    return HIST.all().then(function (vs) { opHist = (vs || []).map(function (v) { return { id: v.id, ts: v.ts, title: v.title }; }); opHistAt = Date.now(); return opHist; }).catch(function () { opHist = opHist || []; return opHist; });
+  }
+  /* redraw an x page once its async data lands, only if we are still on it */
+  function opLater(p, xname) { var h = location.hash; p.then(function () { if (location.hash === h && route().v === 'x' && route().x === xname && !openOverlays.length) render(); }); }
+
+  /* ---------- task log: when each checkbox first appeared and when it was ticked (this device) ---------- */
+  function opTK(id, text) { return id + '|' + String(text).replace(/(^|\s)@[\w.-]+/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase().slice(0, 120); }
+  var opScanT = null;
+  function opScan() {
+    var raw = xLS('optasks', null), first = raw === null, log = raw || {}, now = Date.now(), seen = {};
+    allTasks().forEach(function (t) {
+      if (!opNoteOk(t.n)) return;
+      var k = opTK(t.n.id, t.text), e = log[k]; seen[k] = 1;
+      if (!e) { e = log[k] = { f: first ? (t.n.created || now) : now, n: t.n.id }; if (first) e.est = 1; }
+      if (t.done && !e.d) e.d = first ? Math.max(e.f, t.n.updated || now) : now;
+      if (!t.done && e.d) delete e.d;
+      e.t = t.text.slice(0, 160); delete e.g;
+    });
+    Object.keys(log).forEach(function (k) { var e = log[k]; if (seen[k]) return; if (!e.d && !e.g) e.g = now; if ((e.d || e.g || 0) < now - 180 * OP_DAY) delete log[k]; });
+    var ks = Object.keys(log); if (ks.length > 3000) ks.sort(function (a, b) { return (log[a].d || log[a].f) - (log[b].d || log[b].f); }).slice(0, ks.length - 3000).forEach(function (k) { delete log[k]; });
+    xLSset('optasks', log); return log;
+  }
+  function opScanSoon() { clearTimeout(opScanT); opScanT = setTimeout(function () { try { opScan(); } catch (e) {} }, 1200); }
+  function opGroupOf(text, n) { var m = /(?:^|\s)#([\w\/-]+)/.exec(text); if (m) return '#' + m[1].toLowerCase(); var tg = MD.tags(n.body); return tg.length ? '#' + tg[0] : (opTop(n) || 'Notes'); }
+  /* the usual time from first seen to ticked, per tag (or folder), from tasks finished on this device */
+  function opUsual(log) {
+    var by = {}, all = [];
+    Object.keys(log).forEach(function (k) { var e = log[k]; if (!e.d || e.est || e.d <= e.f) return; var n = notes.get(e.n), d = e.d - e.f; all.push(d); if (n) { var g = opGroupOf(e.t || '', n); (by[g] = by[g] || []).push(d); } });
+    var med = {}; Object.keys(by).forEach(function (g) { if (by[g].length >= 3) med[g] = opMedian(by[g]); });
+    return { by: med, all: all.length >= 3 ? opMedian(all) : 0, n: all.length };
+  }
+  function opRadar() {
+    var log = opScan(), u = opUsual(log), now = Date.now(), today = ymd(new Date()), open = [], late = [];
+    allTasks().forEach(function (t) {
+      if (t.done || !opNoteOk(t.n) || t.n.folder === OP_GRAVE) return;
+      var e = log[opTK(t.n.id, t.text)]; if (!e) return;
+      var g = opGroupOf(t.text, t.n), us = u.by[g] || u.all, age = now - e.f, idle = (now - t.n.updated) / OP_DAY;
+      var due = (/\b(\d{4}-\d{2}-\d{2})\b/.exec(t.text) || [])[1] || xDue(t.n), score = 0, why = [];
+      if (us && age > 2 * us && age > 36e5) late.push({ t: t, age: age, us: us, g: g, est: e.est });
+      var ar = us ? age / us : age / (7 * OP_DAY); score += Math.min(4, ar); if (ar >= 1) why.push(us ? 'open ' + opDur(age) + ' (usual ' + opDur(us) + ')' : 'open ' + opDur(age));
+      if (idle >= 3) { score += Math.min(3, idle / 7); why.push('note untouched ' + Math.round(idle) + 'd'); }
+      if (/\b(wait(ing)?|blocked|stuck|depends?|pending|ask|need(s)?|once|after)\b/i.test(t.text)) { score += 1.5; why.push('waits on something'); }
+      if (due && due < today) { score += 2; why.push('past due ' + opDayLbl(due)); } else if (due && due <= ymd(new Date(now + 2 * OP_DAY))) { score += 1; why.push('due ' + opDayLbl(due)); }
+      if (MD.plain(t.text).length > 90) { score += 0.5; why.push('big or vague'); }
+      open.push({ t: t, score: score, why: why, est: e.est });
+    });
+    var doneLate = [];
+    Object.keys(log).forEach(function (k) { var e = log[k], n = notes.get(e.n); if (!e.d || e.est || !n || e.d < now - 14 * OP_DAY) return; var us = u.by[opGroupOf(e.t || '', n)] || u.all; if (us && e.d - e.f > 2 * us && e.d - e.f > 36e5) doneLate.push({ e: e, n: n, took: e.d - e.f, us: us }); });
+    late.sort(function (a, b) { return b.age / b.us - a.age / a.us; });
+    open.sort(function (a, b) { return b.score - a.score; });
+    return { u: u, late: late, stall: open.filter(function (o) { return o.score >= 1; }).slice(0, 6), doneLate: doneLate, open: open.length };
+  }
+  function opTaskRow(t, right, sub) {
+    return '<button class="row opr" data-act="opopen" data-id="' + t.n.id + '">' + I.check.replace('<svg', '<svg class="fi"') + '<span class="nm">' + esc(MD.plain(t.text)) + '<em class="qd">' + esc(sub || t.n.title) + '</em></span><span class="ct">' + esc(right || '') + '</span><span class="chev">' + I.chev + '</span></button>';
+  }
+  /* 2 · anomaly pings + 7 · stall forecaster */
+  XV.opradar = function () {
+    var r = opRadar(), u = r.u;
+    var h = '<p class="xp">Axon notes when each checkbox appears and when you tick it (on this device), learns how long tasks usually take per #tag or folder, and flags the ones running twice as long.</p>';
+    h += '<div class="xheat-stats"><div><b>' + r.open + '</b><span>open tasks</span></div><div><b>' + r.late.length + '</b><span>taking 2\u00d7 long</span></div><div><b>' + (u.all ? opDur(u.all) : '\u2013') + '</b><span>usual time</span></div></div>';
+    h += '<div class="sec"><span>Taking 2\u00d7 their usual time</span></div><div class="rows">';
+    if (!u.all) h += xEmpty('Still learning', 'Tick off ' + Math.max(1, 3 - u.n) + ' more task' + (3 - u.n === 1 ? '' : 's') + ' and Axon will know your usual pace.');
+    else h += r.late.length ? r.late.map(function (x) { return opTaskRow(x.t, (x.age / x.us).toFixed(1) + '\u00d7', x.t.n.title + ' \u00b7 open ' + opDur(x.age) + ', usual ' + opDur(x.us) + (x.est ? ' \u00b7 start estimated' : '')); }).join('') : xEmpty('Nothing running long', 'Every open task is within twice its usual time.');
+    h += '</div>';
+    if (r.doneLate.length) h += '<div class="sec"><span>Finished late (14 days)</span></div><div class="rows">' + r.doneLate.slice(0, 8).map(function (x) { return opTaskRow({ n: x.n, text: x.e.t || '' }, opDur(x.took), x.n.title + ' \u00b7 usual ' + opDur(x.us)); }).join('') + '</div>';
+    h += '<div class="sec"><span>Likely to stall next</span></div><div class="rows">' + (r.stall.length ? r.stall.map(function (x, i) { return opTaskRow(x.t, i === 0 ? 'next' : '', x.t.n.title + ' \u00b7 ' + x.why.join(', ')); }).join('') : xEmpty('Nothing looks stuck', 'No open task is old, overdue or waiting on something.')) + '</div>';
+    h += '<p class="xp">The forecast is a simple score, not AI: how long a task has been open against your usual pace, how long its note sat untouched, a past or close due date, and words like \u201cwaiting\u201d or \u201cblocked\u201d.</p>';
+    return xPage('Task radar', 'Insights', h);
+  };
+
+  /* 1 · activity timeline (scrub through every day of edits) */
+  function opEvents() {
+    var ev = [], log = xLS('optasks', {});
+    notes.forEach(function (n) { if (!opNoteOk(n)) return; if (n.created) ev.push({ ts: n.created, k: 'new', id: n.id, t: n.title }); if (n.updated && n.updated - (n.created || 0) > 60000) ev.push({ ts: n.updated, k: 'edit', id: n.id, t: n.title }); });
+    trash.forEach(function (n) { if (n.trashed) ev.push({ ts: n.trashed, k: 'trash', id: n.id, t: n.title }); });
+    (opHist || []).forEach(function (v) { ev.push({ ts: v.ts, k: 'save', id: v.id, t: (notes.get(v.id) || {}).title || v.title }); });
+    Object.keys(log).forEach(function (k) { var e = log[k]; if (e.d && !e.est) ev.push({ ts: e.d, k: 'done', id: e.n, t: e.t }); else if (!e.est) ev.push({ ts: e.f, k: 'task', id: e.n, t: e.t }); });
+    return ev.sort(function (a, b) { return b.ts - a.ts; });
+  }
+  var OP_EVK = { 'new': ['Created', 'nw'], edit: ['Last edit', 'ed'], save: ['Edited', 'ed'], trash: ['Trashed', 'tr'], done: ['Ticked', 'dn'], task: ['New task', 'tk'] };
+  function opEvRow(e) {
+    var n = notes.get(e.id), k = OP_EVK[e.k], lbl = (e.k === 'done' || e.k === 'task') ? MD.plain(e.t || '') + (n ? ' \u00b7 ' + n.title : '') : (e.t || 'Untitled');
+    var inner = '<span class="opt">' + esc(opHM(e.ts)) + '</span><span class="opk ' + k[1] + '">' + esc(k[0]) + '</span><span class="nm">' + esc(lbl) + '</span>';
+    return n ? '<button class="opev" data-act="opopen" data-id="' + n.id + '">' + inner + '</button>' : '<div class="opev">' + inner + '</div>';
+  }
+  function opByDay(ev) { var by = {}; ev.forEach(function (e) { var k = ymd(new Date(e.ts)); (by[k] = by[k] || []).push(e); }); return by; }
+  XV.optime = function (arg) {
+    if (!opHist) opLater(opLoadHist(), 'optime');
+    var by = opByDay(opEvents()), days = Object.keys(by).sort().reverse();
+    if (!days.length) return xPage('Timeline', 'Insights', '<div class="rows">' + xEmpty('No activity yet', 'Write something and it shows up here.') + '</div>');
+    var i = Math.max(0, days.indexOf(arg));
+    var day = days[i], list = by[day], mx = 1, last = days.slice(0, 30).reverse();
+    last.forEach(function (d) { mx = Math.max(mx, by[d].length); });
+    var bars = last.map(function (d) { return '<button class="opb' + (d === day ? ' on' : '') + '" data-act="optday" data-d="' + d + '" aria-label="' + esc(opDayLbl(d)) + '"><i style="height:' + Math.max(8, Math.round(100 * by[d].length / mx)) + '%"></i></button>'; }).join('');
+    var h = '<p class="xp">Every change Axon recorded, day by day: notes made, edits, saved versions, tasks added and ticked, notes trashed. Drag the slider to scrub.</p>' +
+      '<div class="opbars">' + bars + '</div>' +
+      '<input class="oprange" type="range" min="0" max="' + (days.length - 1) + '" value="' + (days.length - 1 - i) + '" data-opdays="' + esc(days.join(',')) + '" aria-label="Scrub days">' +
+      '<div class="opdayh"><button class="pill" data-act="optday" data-d="' + (days[i + 1] || '') + '"' + (days[i + 1] ? '' : ' disabled') + '>\u2039 Older</button><b>' + esc(opDayLbl(day)) + '<span>' + list.length + ' change' + (list.length === 1 ? '' : 's') + '</span></b><button class="pill" data-act="optday" data-d="' + (days[i - 1] || '') + '"' + (i ? '' : ' disabled') + '>Newer \u203a</button></div>' +
+      '<div class="opevs">' + list.slice(0, 200).map(opEvRow).join('') + '</div>';
+    return xPage('Timeline', 'Insights', h);
+  };
+  act.opopen = function (el) { go('#/n/' + el.dataset.id); };
+  act.optday = function (el) { if (el.dataset.d) go('#/x/optime/' + el.dataset.d, true); };
+  var opGL = '';
+  viewEl.addEventListener('input', function (e) {
+    var t = e.target; if (!t || !t.closest) return;
+    var r = t.closest('.oprange');
+    if (r) { var days = r.dataset.opdays.split(','), d = days[days.length - 1 - (+r.value)]; clearTimeout(opRangeT); opRangeT = setTimeout(function () { if (d) { go('#/x/optime/' + d, true); var nr = $('.oprange'); if (nr) nr.focus(); } }, 90); return; }
+    if (t.hasAttribute('data-opq')) { var s = t.value.trim().toLowerCase(), c = 0; viewEl.querySelectorAll('[data-s]').forEach(function (x) { x.hidden = !!s && x.dataset.s.indexOf(s) < 0; if (!x.hidden) c++; }); var q = $('#opqn'); if (q) q.textContent = s ? c + ' shown' : ''; }
+  });
+  var opRangeT = null;
+  layer.addEventListener('input', function (e) { if (e.target && e.target.id === 'opgl') opGL = e.target.value; });
+
+  /* 9 · quiet-hours radar */
+  function opQuiet() { var q = xLS('opquiet', [22, 7]); return Array.isArray(q) && q.length === 2 ? q : [22, 7]; }
+  function opInQuiet(ts, q) { var h = new Date(ts).getHours(); return q[0] > q[1] ? (h >= q[0] || h < q[1]) : (h >= q[0] && h < q[1]); }
+  function opH12(h) { return (h % 12 || 12) + (h < 12 ? ' am' : ' pm'); }
+  XV.opquiet = function () {
+    if (!opHist) opLater(opLoadHist(), 'opquiet');
+    var q = opQuiet(), cut = Date.now() - 7 * OP_DAY, ev = opEvents().filter(function (e) { return e.ts >= cut && opInQuiet(e.ts, q); });
+    var away = OP_PREVSEEN ? Array.from(notes.values()).filter(function (n) { return opNoteOk(n) && n.updated > OP_PREVSEEN && !opMine[n.id]; }) : [];
+    var h = '<p class="xp">What happened while you slept or were away: edits in your quiet hours over the last 7 nights, and notes that changed since you last had Axon open on this device (for example synced from another phone or computer).</p>' +
+      '<div class="nf-btns"><button data-act="opqset">Quiet hours: ' + esc(opH12(q[0]) + ' \u2013 ' + opH12(q[1])) + '</button></div>';
+    h += '<div class="sec"><span>Since you were last here</span><span style="text-transform:none;letter-spacing:0">' + (OP_PREVSEEN ? esc(agoLong(OP_PREVSEEN)) : '') + '</span></div><div class="rows">' +
+      (away.length ? away.sort(function (a, b) { return b.updated - a.updated; }).map(function (n) { return xRow(n, ago(n.updated)); }).join('') : xEmpty(OP_PREVSEEN ? 'Nothing changed while you were away' : 'First visit on this device', OP_PREVSEEN ? '' : 'Next time you open Axon, this lists what changed in between.')) + '</div>';
+    var by = opByDay(ev), ds = Object.keys(by).sort().reverse();
+    h += '<div class="sec"><span>Quiet-hours activity \u00b7 7 nights</span><span style="text-transform:none;letter-spacing:0">' + ev.length + '</span></div>';
+    h += ds.length ? ds.map(function (d) { return '<div class="opdayl">' + esc(opDayLbl(d)) + '</div><div class="opevs">' + by[d].slice(0, 60).map(opEvRow).join('') + '</div>'; }).join('') : '<div class="rows">' + xEmpty('All quiet', 'Nothing happened in your quiet hours this week.') + '</div>';
+    return xPage('Quiet hours', 'Insights', h);
+  };
+  act.opqset = async function () {
+    var q = opQuiet(), hrs = []; for (var i = 0; i < 24; i++) hrs.push({ label: opH12(i), value: String(i) });
+    var a = await sheet({ title: 'Quiet hours start', message: 'Now ' + opH12(q[0]) + ' to ' + opH12(q[1]), left: true, actions: hrs }); if (a == null) return;
+    var b = await sheet({ title: 'Quiet hours end', left: true, actions: hrs }); if (b == null || a === b) return;
+    xLSset('opquiet', [+a, +b]); render();
+  };
+
+  /* 8 · checkpoints + one-tap rollback (this device; a rollback is itself undoable) */
+  var OP_CPMAX = 4, opCPcache = null;
+  function opCPs() { return DB.get('meta', 'opCheckpoints').then(function (r) { return (r && Array.isArray(r.v)) ? r.v : []; }).catch(function () { return []; }); }
+  function opCPsave(label, auto) {
+    var cp = { ts: Date.now(), label: label, auto: !!auto, notes: Array.from(notes.values()).map(function (n) { return { id: n.id, title: n.title, folder: n.folder, body: n.body, created: n.created }; }), folders: Array.from(folders) };
+    return opCPs().then(function (l) {
+      l.unshift(cp);
+      var keepAuto = 0; l = l.filter(function (c) { if (!c.auto) return true; keepAuto++; return keepAuto <= 1; }).slice(0, OP_CPMAX);
+      return DB.put('meta', { k: 'opCheckpoints', v: l }).then(function () { opCPcache = l; return cp; });
+    });
+  }
+  function opCPdiff(cp) {
+    var ids = {}, changed = 0, back = 0, gone = 0;
+    cp.notes.forEach(function (o) { ids[o.id] = 1; var n = notes.get(o.id); if (n) { if (n.body !== o.body || n.title !== o.title || n.folder !== o.folder) changed++; } else back++; });
+    notes.forEach(function (n) { if (!ids[n.id] && (n.created || 0) > cp.ts - 1000) gone++; });
+    return { changed: changed, back: back, gone: gone };
+  }
+  XV.opcp = function () {
+    if (!opCPcache) opLater(opCPs().then(function (l) { opCPcache = l; }), 'opcp');
+    var l = opCPcache || [];
+    var h = '<p class="xp">A checkpoint is a copy of every note on this device. Axon makes one the first time you open it each day (your last known-good state), and you can save one before a big change. Rolling back puts every note back the way it was, and notes made after the checkpoint go to Trash. The current state is saved first, so a rollback can be undone.</p>' +
+      '<div class="nf-btns"><button class="acc" data-act="opcpnew">Save checkpoint now</button></div><div class="rows">';
+    h += l.length ? l.map(function (c, i) { var d = opCPdiff(c), same = !d.changed && !d.back && !d.gone; return '<div class="opcard"><div class="opch"><b>' + esc(c.label) + '</b><span>' + esc(whenLabel(c.ts)) + ' \u00b7 ' + c.notes.length + ' notes</span></div><p>' + esc(same ? 'Same as now.' : [d.changed && d.changed + ' changed since', d.back && d.back + ' to bring back', d.gone && d.gone + ' newer to Trash'].filter(Boolean).join(' \u00b7 ')) + '</p><div class="opbtns"><button class="pill acc" data-act="opcproll" data-i="' + i + '"' + (same ? ' disabled' : '') + '>Roll back to this</button></div></div>'; }).join('') : (opCPcache ? xEmpty('No checkpoints yet', 'Tap Save checkpoint now.') : xEmpty('Loading\u2026'));
+    return xPage('Checkpoints', 'Insights', h + '</div>');
+  };
+  act.opcpnew = async function () {
+    var v = await dialog({ title: 'Save checkpoint', input: true, value: 'Checkpoint ' + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + opHM(Date.now()), ok: 'Save', validate: function (x) { return x ? null : 'Give it a name.'; } });
+    if (!v) return;
+    try { await opCPsave(v, false); toast('Checkpoint saved'); } catch (e) { toast('Couldn\u2019t save a checkpoint, this phone may be out of space'); }
+    render();
+  };
+  act.opcproll = async function (el) {
+    var cp = (opCPcache || [])[+el.dataset.i]; if (!cp) return;
+    var d = opCPdiff(cp);
+    var ok = await dialog({ title: 'Roll back to \u201c' + cp.label + '\u201d?', message: [d.changed && d.changed + ' note' + (d.changed === 1 ? '' : 's') + ' go back to how they were', d.back && d.back + ' come back', d.gone && d.gone + ' made since go to Trash'].filter(Boolean).join(', ') + '. The current state is saved as a checkpoint first.', ok: 'Roll back' });
+    if (!ok) return;
+    if (editing) stopEditing(true);
+    try { await opCPsave('Before rollback', false); } catch (e) { toast('Couldn\u2019t save the current state, nothing changed'); return; }
+    var ids = {}, c = 0;
+    cp.notes.forEach(function (o) {
+      ids[o.id] = 1; var n = notes.get(o.id);
+      if (!n && trash.has(o.id)) n = restoreNote(trash.get(o.id));
+      if (n) {
+        if (n.body === o.body && n.title === o.title && n.folder === o.folder) return;
+        snapshot(n, n.body, true); n.body = o.body; n.folder = o.folder || ''; ensureFolder(n.folder);
+        if (n.title !== o.title) { var other = byTitle(o.title); n.title = other && other !== n ? uniqueTitle(o.title + ' (rolled back)') : o.title; }
+        lastSaved[n.id] = n.body; touch(n); c++;
+      } else { var t = byTitle(o.title) ? uniqueTitle(o.title + ' (rolled back)') : o.title; var nn = createNote({ title: t, folder: o.folder, body: o.body, created: o.created }); ids[nn.id] = 1; c++; }
+      rebuildIdx();
+    });
+    var gone = []; notes.forEach(function (n) { if (!ids[n.id] && (n.created || 0) > cp.ts - 1000) gone.push(n); });
+    gone.forEach(trashNote);
+    rebuildIdx(); opScanSoon();
+    toast('Rolled back ' + c + ' note' + (c === 1 ? '' : 's') + (gone.length ? ', ' + gone.length + ' to Trash' : ''));
+    render();
+  };
+  function opAutoCP() { opCPs().then(function (l) { opCPcache = l; var a = l.filter(function (c) { return c.auto; })[0]; if (notes.size && (!a || ymd(new Date(a.ts)) !== ymd(new Date()))) return opCPsave('Start of ' + new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }), true); }).catch(function () {}); }
+
+  /* 10 · idea graveyard */
+  async function opBury(n) {
+    if (!n) return;
+    var why = await dialog({ title: 'Bury \u201c' + n.title + '\u201d?', message: 'It moves to the Graveyard with your reason, stays searchable, and you can bring it back any time.', input: true, placeholder: 'Why not? (too big, already exists\u2026)', ok: 'Bury', validate: function (v) { return v ? null : 'Add a short reason.'; } });
+    if (!why) return;
+    if (editing) stopEditing(true);
+    fmSet(n, 'buried', ymd(new Date())); fmSet(n, 'buried-reason', why.replace(/[\r\n]+/g, ' ').slice(0, 300));
+    n.folder = OP_GRAVE; ensureFolder(OP_GRAVE); lastSaved[n.id] = n.body; touch(n); rebuildIdx();
+    toast('Buried in the Graveyard', { label: 'View', fn: function () { go('#/x/opgrave'); } }); render();
+  }
+  XV.opgrave = function () {
+    var l = Array.from(notes.values()).filter(function (n) { return n.folder === OP_GRAVE || n.folder.indexOf(OP_GRAVE + '/') === 0; }).sort(function (a, b) { return (fmGet(b, 'buried') || '').localeCompare(fmGet(a, 'buried') || '') || b.updated - a.updated; });
+    var h = '<p class="xp">Ideas you decided against, with the reason, so nobody pitches them twice. Search by title, reason or anything inside. Bury a note from its menu or with \u201cBury this idea\u201d in the command search.</p>' +
+      (l.length ? '<input class="opq" type="search" data-opq placeholder="Search the graveyard" autocomplete="off" enterkeyhint="search"><div class="opqn" id="opqn"></div>' : '') + '<div class="rows">';
+    h += l.length ? l.map(function (n) { var why = fmGet(n, 'buried-reason'), when = fmGet(n, 'buried'); return '<div class="opcard" data-s="' + esc((n.title + ' ' + why + ' ' + MD.plain(MD.stripFront(n.body)).slice(0, 2000)).toLowerCase()) + '"><div class="opch"><b>' + esc(n.title) + '</b><span>' + esc(when ? opDayLbl(when) : ago(n.updated)) + '</span></div><p>' + esc(why || 'No reason written') + '</p><div class="opbtns"><button class="pill" data-act="opopen" data-id="' + n.id + '">Open</button><button class="pill" data-act="oprevive" data-id="' + n.id + '">Bring back</button></div></div>'; }).join('') : xEmpty('The graveyard is empty', 'No buried ideas yet.');
+    return xPage('Idea graveyard', 'Insights', h + '</div>');
+  };
+  act.oprevive = function (el) { var n = notes.get(el.dataset.id); if (!n) return; fmSet(n, 'buried', ''); fmSet(n, 'buried-reason', ''); n.folder = ''; lastSaved[n.id] = n.body; touch(n); rebuildIdx(); toast('Brought back \u201c' + n.title + '\u201d', { label: 'Open', fn: function () { go('#/n/' + n.id); } }); render(); };
+
+  /* 11 · decision archive: "Decision: …", "Verdict: …", "Ruling: …" lines and > [!decision] callouts, by verdict */
+  var OP_DRE = /^\s*(?:>\s*)*(?:[-*+]\s+)?(?:\[!(decision|verdict|ruling)\][+-]?\s*|\**(decision|verdict|ruling)\**\s*:\**\s*)(.*)$/i;
+  function opVerdict(s) { s = s.toLowerCase(); if (/\b(reject(ed)?|declined?|no|denied|veto(ed)?|killed|scrapped|dropped|nope|not doing)\b/.test(s)) return 'Rejected'; if (/\b(defer(red)?|later|pending|maybe|parked|on hold|hold|revisit|tbd)\b/.test(s)) return 'Deferred'; if (/\b(approved?|accept(ed)?|yes|go|ship(ped)?|ok(ay)?|green ?lit|agreed|passed|do it)\b/.test(s)) return 'Approved'; return 'Other'; }
+  function opDecisions() {
+    var out = [];
+    notes.forEach(function (n) {
+      if (!opNoteOk(n) || !/decision|verdict|ruling/i.test(n.body)) return;
+      var ls = n.body.split('\n'), fence = false;
+      ls.forEach(function (l, i) {
+        if (/^\s*(```|~~~)/.test(l)) { fence = !fence; return; } if (fence) return;
+        var m = OP_DRE.exec(l); if (!m) return;
+        var text = m[3].trim(); if (m[1] && !text && ls[i + 1] && /^\s*>/.test(ls[i + 1])) text = ls[i + 1].replace(/^\s*(?:>\s*)+/, '').trim();
+        if (!text) return;
+        out.push({ n: n, text: MD.plain(text), v: opVerdict(text) });
+      });
+    });
+    return out.sort(function (a, b) { return b.n.updated - a.n.updated; });
+  }
+  XV.opdec = function (arg) {
+    var all = opDecisions(), f = /^(Approved|Rejected|Deferred|Other)$/.test(arg) ? arg : '', cnt = { Approved: 0, Rejected: 0, Deferred: 0, Other: 0 };
+    all.forEach(function (d) { cnt[d.v]++; });
+    var l = f ? all.filter(function (d) { return d.v === f; }) : all;
+    var h = '<p class="xp">Every ruling in your notes, in one place. Write a line like <b>Decision: approved, ship the dark theme</b> (or Verdict: / Ruling:, or a &gt; [!decision] callout) and it shows up here, sorted by verdict.</p>' +
+      '<div class="xstrip opchips"><button class="chip' + (f ? '' : ' on') + '" data-act="opdecf" data-v="">All ' + all.length + '</button>' + ['Approved', 'Rejected', 'Deferred', 'Other'].map(function (v) { return '<button class="chip' + (f === v ? ' on' : '') + '" data-act="opdecf" data-v="' + v + '">' + v + ' ' + cnt[v] + '</button>'; }).join('') + '</div>' +
+      (all.length ? '<input class="opq" type="search" data-opq placeholder="Search rulings" autocomplete="off" enterkeyhint="search"><div class="opqn" id="opqn"></div>' : '') + '<div class="rows">';
+    h += l.length ? l.map(function (d) { return '<button class="row opr" data-act="opopen" data-id="' + d.n.id + '" data-s="' + esc((d.text + ' ' + d.n.title + ' ' + d.v).toLowerCase()) + '"><span class="opv ' + d.v.toLowerCase() + '">' + esc(d.v) + '</span><span class="nm">' + esc(d.text) + '<em class="qd">' + esc(d.n.title) + '</em></span><span class="chev">' + I.chev + '</span></button>'; }).join('') : xEmpty(all.length ? 'No ' + f.toLowerCase() + ' rulings' : 'No decisions yet', all.length ? '' : 'Add a \u201cDecision:\u201d line to any note.');
+    return xPage('Decision archive', 'Insights', h + '</div>');
+  };
+  act.opdecf = function (el) { go('#/x/opdec/' + (el.dataset.v || ''), true); };
+
+  /* 12 · day rating: a 1–5 score in the daily note's properties (rating: 4) */
+  var OP_MOOD = ['', 'Rough', 'Meh', 'Okay', 'Good', 'Great'];
+  function opDaily(t, make) { var n = byTitle(t); if (!n && make) n = createNote({ title: t, folder: DAILY, body: dailyBody(t) }); return n; }
+  function opRating(n) { var r = parseInt(fmGet(n, 'rating'), 10); return r >= 1 && r <= 5 ? r : 0; }
+  async function opRate(t) {
+    t = t || ymd(new Date());
+    var ex = byTitle(t), cur = ex ? opRating(ex) : 0;
+    var a = await sheet({ title: 'How was ' + (t === ymd(new Date()) ? 'today' : opDayLbl(t)) + '?', message: cur ? 'Now: ' + cur + ' \u00b7 ' + OP_MOOD[cur] : 'Saved as rating: in that day\u2019s note.', actions: [5, 4, 3, 2, 1].map(function (i) { return { label: i + ' \u00b7 ' + OP_MOOD[i], value: String(i) }; }).concat(cur ? [{ label: 'Clear rating', value: '0' }] : []) });
+    if (a == null) return;
+    if (editing) stopEditing(true);
+    var n = opDaily(t, true); fmSet(n, 'rating', a === '0' ? '' : a); lastSaved[n.id] = n.body; touch(n);
+    toast(a === '0' ? 'Rating cleared' : 'Rated ' + a + ' \u00b7 ' + OP_MOOD[+a]); if (route().v === 'x' || route().v === 'note') render();
+  }
+  XV.oprate = function () {
+    var by = {}; notes.forEach(function (n) { if (isDaily(n)) { var r = opRating(n); if (r) by[n.title] = r; } });
+    var d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - d.getDay() - 7 * 11);
+    var cells = '', now = new Date(), sum7 = 0, n7 = 0, sum30 = 0, n30 = 0;
+    for (var i = 0; i < 84; i++) { var k = ymd(d), r = by[k] || 0, fut = d > now; cells += '<i title="' + k + (r ? ' \u00b7 ' + r : '') + '"' + (r ? ' class="r' + r + '"' : '') + (fut ? ' style="opacity:0"' : '') + '></i>'; d.setDate(d.getDate() + 1); }
+    Object.keys(by).forEach(function (k) { var age = (Date.now() - dayOf(k).getTime()) / OP_DAY; if (age < 7) { sum7 += by[k]; n7++; } if (age < 30) { sum30 += by[k]; n30++; } });
+    var today = by[ymd(now)];
+    var h = '<p class="xp">Rate each day 1 to 5. The score is stored in that day\u2019s daily note as <b>rating:</b>, so it syncs with your notes.</p>' +
+      '<div class="nf-btns"><button class="acc" data-act="oprt">' + (today ? 'Today: ' + today + ' \u00b7 ' + OP_MOOD[today] : 'Rate today') + '</button><button data-act="oprty">Rate yesterday</button></div>' +
+      '<div class="xheat-stats"><div><b>' + (n7 ? (sum7 / n7).toFixed(1) : '\u2013') + '</b><span>7-day average</span></div><div><b>' + (n30 ? (sum30 / n30).toFixed(1) : '\u2013') + '</b><span>30-day average</span></div><div><b>' + Object.keys(by).length + '</b><span>days rated</span></div></div>' +
+      '<div class="xheat"><div class="xheat-d"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div><div class="xheat-g oprg">' + cells + '</div></div>' +
+      '<div class="oplegend">' + [1, 2, 3, 4, 5].map(function (i) { return '<span><i class="r' + i + '"></i>' + i + ' ' + OP_MOOD[i] + '</span>'; }).join('') + '</div>';
+    return xPage('Day ratings', 'Insights', h);
+  };
+  act.oprt = function () { opRate(); };
+  act.oprty = function () { opRate(shiftDay(ymd(new Date()), -1)); };
+
+  /* 13 · priority heat map + 14 · workload balance (by tag and folder) */
+  var OP_PRI = /(!!|#urgent\b|#p1\b|#asap\b|\bASAP\b|priority:\s*(high|urgent|p1))/i;
+  function opHeat() {
+    var cut = Date.now() - 14 * OP_DAY, ed = {}, today = ymd(new Date());
+    (opHist || []).forEach(function (v) { if (v.ts >= cut) ed[v.id] = (ed[v.id] || 0) + 1; });
+    var openBy = {}; allTasks().forEach(function (t) { if (!t.done) openBy[t.n.id] = (openBy[t.n.id] || 0) + 1; });
+    var tags = {}, fold = {}, totOpen = 0, totEd = 0;
+    notes.forEach(function (n) {
+      if (!opNoteOk(n) || n.folder === ARCHIVE || n.folder === OP_GRAVE || n.folder === 'Handoffs' || isDaily(n)) return;
+      var e = (ed[n.id] || 0) + (n.updated >= cut ? 1 : 0), o = openBy[n.id] || 0, due = xDue(n), p = (OP_PRI.test(n.body) ? 1 : 0) + (due && due <= today ? 1 : 0);
+      var heat = e + 2 * o + 3 * p; totOpen += o; totEd += e;
+      var f = opTop(n) || '(no folder)'; fold[f] = fold[f] || { heat: 0, open: 0, ed: 0, p: 0 }; fold[f].heat += heat; fold[f].open += o; fold[f].ed += e; fold[f].p += p;
+      if (!heat) return;
+      MD.tags(n.body).forEach(function (t) { tags[t] = tags[t] || { heat: 0, open: 0, ed: 0, p: 0 }; tags[t].heat += heat; tags[t].open += o; tags[t].ed += e; tags[t].p += p; });
+    });
+    return { tags: tags, fold: fold, totOpen: totOpen, totEd: totEd };
+  }
+  function opTiles(m, kind) {
+    var ks = Object.keys(m).filter(function (k) { return m[k].heat > 0; }).sort(function (a, b) { return m[b].heat - m[a].heat; }).slice(0, 24), mx = 1;
+    ks.forEach(function (k) { mx = Math.max(mx, m[k].heat); });
+    if (!ks.length) return '';
+    return '<div class="optiles">' + ks.map(function (k) { var x = m[k], a = x.heat / mx, tap = kind === 'tag' ? 'data-act="stag" data-tag="' + esc(k) + '"' : k === '(no folder)' ? 'data-act="xgo" data-to="x:opheat"' : 'data-act="folder" data-path="' + esc(k) + '"'; return '<button class="optile' + (a > 0.55 ? ' hot' : '') + '" ' + tap + ' style="background:rgba(255,106,61,' + (0.1 + 0.75 * a).toFixed(2) + ')"><b>' + (kind === 'tag' ? '#' : '') + esc(k) + '</b><span>' + x.ed + ' edit' + (x.ed === 1 ? '' : 's') + ' \u00b7 ' + x.open + ' open' + (x.p ? ' \u00b7 ' + x.p + ' urgent' : '') + '</span></button>'; }).join('') + '</div>';
+  }
+  XV.opheat = function () {
+    if (!opHist) opLater(opLoadHist(), 'opheat');
+    var hm = opHeat(), tt = opTiles(hm.tags, 'tag'), ft = opTiles(hm.fold, 'folder');
+    var h = '<p class="xp">What\u2019s hot across your vault in the last 14 days. Heat = edits + 2\u00d7 open tasks + 3\u00d7 urgent (!!, #urgent, priority: high, or due today or overdue). Tap a tile to open it.</p>';
+    h += '<div class="sec"><span>Tags</span></div>' + (tt || '<div class="rows">' + xEmpty('Nothing hot', 'No tagged note was edited lately or has open tasks.') + '</div>');
+    h += '<div class="sec"><span>Folders</span></div>' + (ft || '<div class="rows">' + xEmpty('Nothing hot yet') + '</div>');
+    var fk = Object.keys(hm.fold), warn = [];
+    [['open', hm.totOpen, 'open tasks', 5], ['ed', hm.totEd, 'edits in 14 days', 10]].forEach(function (s) { if (s[1] < s[3] || fk.length < 2) return; fk.forEach(function (f) { var sh = hm.fold[f][s[0]] / s[1]; if (sh >= 0.7) warn.push('<b>' + esc(f) + '</b> has ' + opPct(sh) + ' of all ' + s[2] + ' (' + hm.fold[f][s[0]] + ' of ' + s[1] + ').'); }); });
+    h += '<div class="sec"><span>Workload balance</span></div>' + (warn.length ? '<div class="opwarn">' + warn.join('<br>') + ' The rest may be getting starved.</div>' : '<p class="xp">' + (hm.totOpen >= 5 ? 'Balanced: no single folder has 70% or more of the open tasks or recent edits.' : 'Flags any folder that holds 70% or more of your open tasks (once you have 5) or recent edits.') + '</p>');
+    var mxo = 1; fk.forEach(function (f) { mxo = Math.max(mxo, hm.fold[f].open); });
+    if (hm.totOpen) h += '<div class="opbal">' + fk.filter(function (f) { return hm.fold[f].open; }).sort(function (a, b) { return hm.fold[b].open - hm.fold[a].open; }).slice(0, 10).map(function (f) { var x = hm.fold[f]; return '<div><span>' + esc(f) + '</span><i style="width:' + Math.max(4, Math.round(100 * x.open / mxo)) + '%"></i><b>' + opPct(x.open / hm.totOpen) + '</b></div>'; }).join('') + '</div>';
+    return xPage('Heat map', 'Insights', h);
+  };
+
+  /* 15 · spec-to-build tracer */
+  function opIsSpec(n) { return MD.tags(n.body).some(function (x) { return /^(spec|specs|plan|proposal|pitch|idea|feature)$/i.test(x); }) || /^(spec|plan|proposal|feature)$/i.test(fmGet(n, 'type')) || /(^|\/)(specs?|plans?|proposals?)$/i.test(n.folder); }
+  function opTasksOf(n) { var out = [], fence = false; n.body.split('\n').forEach(function (l) { if (/^\s*(```|~~~)/.test(l)) { fence = !fence; return; } if (fence) return; var m = TASK_RE.exec(l); if (m && m[3].trim()) out.push({ done: m[2] !== ' ' }); }); return out; }
+  function opBuiltTag(o) { return MD.tags(o.body).some(function (x) { return /^(built|shipped|done)$/i.test(x); }) || /^(done|built|shipped|live|complete|released)$/i.test(fmGet(o, 'status')); }
+  function opSpecState(n) {
+    var st = fmGet(n, 'status').toLowerCase();
+    if (opBuiltTag(n)) return ['Built', 1];
+    if (/^(dropped|rejected|cancel(l)?ed|wontfix)$/.test(st) || n.folder === OP_GRAVE) return ['Dropped', 0];
+    var tk = opTasksOf(n), d = tk.filter(function (t) { return t.done; }).length;
+    if (backlinks(n).some(opBuiltTag) || (tk.length && d === tk.length)) return ['Built', 1];
+    if (d || /^(doing|building|in progress|wip|started)$/.test(st)) return ['In progress', d / Math.max(1, tk.length)];
+    return ['Never built', 0];
+  }
+  XV.opspec = function () {
+    var l = Array.from(notes.values()).filter(function (n) { return opNoteOk(n) && opIsSpec(n); }).map(function (n) { return { n: n, s: opSpecState(n) }; });
+    var g = { 'Never built': [], 'In progress': [], 'Built': [], 'Dropped': [] }; l.forEach(function (x) { g[x.s[0]].push(x); });
+    var h = '<p class="xp">Notes tagged #spec, #plan, #idea, #feature or #pitch (or type: spec, or in a Specs folder), and whether they ever got built. Built = status: done, built or shipped, a #built tag, every checkbox ticked, or a #built note linking to it.</p>' +
+      '<div class="xheat-stats"><div><b>' + g['Never built'].length + '</b><span>never built</span></div><div><b>' + g['In progress'].length + '</b><span>in progress</span></div><div><b>' + g['Built'].length + '</b><span>built</span></div></div>';
+    if (!l.length) return xPage('Spec tracer', 'Insights', h + '<div class="rows">' + xEmpty('No specs yet', 'Tag a note #spec and it shows up here.') + '</div>');
+    ['Never built', 'In progress', 'Built', 'Dropped'].forEach(function (k) {
+      if (!g[k].length) return;
+      g[k].sort(function (a, b) { return (a.n.created || 0) - (b.n.created || 0); });
+      h += '<div class="sec"><span>' + k + '</span><span style="text-transform:none;letter-spacing:0">' + g[k].length + '</span></div><div class="rows">' + g[k].map(function (x) { return xRow(x.n, k === 'In progress' ? opPct(x.s[1]) : k === 'Never built' ? 'since ' + ago(x.n.created || x.n.updated) : ago(x.n.updated)); }).join('') + '</div>';
+    });
+    return xPage('Spec tracer', 'Insights', h);
+  };
+
+  /* 16 · auto-changelog + 20 · weekly digest (made on this device; you send it) */
+  function opGenerated(n) { return n.folder === 'Handoffs' || /^(Changelog|Weekly digest) \d{4}-\d{2}-\d{2}( \d+)?$/.test(n.title); }
+  function opRange(days) {
+    var to = Date.now(), from = to - days * OP_DAY, log = opScan(), done = [], made = [], edited = [];
+    Object.keys(log).forEach(function (k) { var e = log[k], n = notes.get(e.n); if (!n || !opNoteOk(n)) return; if (e.d && e.d >= from && !e.est) done.push({ n: n, t: e.t, ts: e.d }); });
+    notes.forEach(function (n) { if (!opNoteOk(n) || isDaily(n) || opGenerated(n)) return; if ((n.created || 0) >= from) made.push(n); else if (n.updated >= from) edited.push(n); });
+    done.sort(function (a, b) { return a.ts - b.ts; }); made.sort(function (a, b) { return a.created - b.created; }); edited.sort(function (a, b) { return b.updated - a.updated; });
+    return { from: from, to: to, done: done, made: made, edited: edited };
+  }
+  function opClean(t) { t = MD.plain(String(t || '')).replace(/(^|\s)[#@][\w\/.-]+/g, ' ').replace(/\b\d{4}-\d{2}-\d{2}\b/g, '').replace(/\s+/g, ' ').trim(); return t.charAt(0).toUpperCase() + t.slice(1); }
+  function opFmtD(ts) { return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }
+  function opChangelog(days) {
+    var r = opRange(days), out = ['# Changelog \u00b7 ' + opFmtD(r.from) + ' \u2013 ' + opFmtD(r.to), ''], by = {};
+    r.done.forEach(function (d) { var g = opGroupOf(d.t || '', d.n); (by[g] = by[g] || []).push(d); });
+    var gs = Object.keys(by).sort(function (a, b) { return by[b].length - by[a].length; });
+    if (gs.length) { out.push('## What\u2019s new', ''); gs.forEach(function (g) { out.push('### ' + g.replace(/^#/, '').replace(/^./, function (c) { return c.toUpperCase(); })); by[g].forEach(function (d) { var c = opClean(d.t); if (c) out.push('- ' + c); }); out.push(''); }); }
+    if (r.made.length) { out.push('## New notes'); r.made.slice(0, 30).forEach(function (n) { out.push('- [[' + n.title + ']]'); }); out.push(''); }
+    if (r.edited.length) { out.push('## Updated'); r.edited.slice(0, 15).forEach(function (n) { out.push('- [[' + n.title + ']]'); }); out.push(''); }
+    if (!gs.length && !r.made.length && !r.edited.length) out.push('_Nothing changed in this period._', '');
+    out.push('_Written by Axon from ' + r.done.length + ' ticked task' + (r.done.length === 1 ? '' : 's') + ' and your note edits._');
+    return out.join('\n');
+  }
+  function opPreview(md) { return '<article class="prose opprev">' + MD.render(md, mdOpt()) + '</article>'; }
+  XV.oplog = function (arg) {
+    var days = [7, 14, 30].indexOf(+arg) >= 0 ? +arg : 7, md = opChangelog(days);
+    return xPage('Auto-changelog', 'Insights', '<p class="xp">Release notes written from what you actually finished: ticked tasks grouped by #tag (or folder), plus new and updated notes, with tags and dates cleaned out. Made on this device, no AI.</p>' +
+      '<div class="xstrip opchips">' + [7, 14, 30].map(function (d) { return '<button class="chip' + (d === days ? ' on' : '') + '" data-act="oplogd" data-d="' + d + '">' + d + ' days</button>'; }).join('') + '</div>' +
+      '<div class="nf-btns"><button class="acc" data-act="opsave" data-k="log" data-d="' + days + '">Save as note</button><button data-act="opshare" data-k="log" data-d="' + days + '">Share</button></div>' + opPreview(md));
+  };
+  act.oplogd = function (el) { go('#/x/oplog/' + el.dataset.d, true); };
+  function opDigest() {
+    var r = opRange(7), byDay = {}, ratings = [], t0 = ymd(new Date()), t7 = ymd(new Date(Date.now() + 7 * OP_DAY));
+    var up = xDueList().filter(function (x) { return x.d >= t0 && x.d <= t7; });
+    opEvents().forEach(function (e) { if (e.ts >= r.from) { var k = ymd(new Date(e.ts)); byDay[k] = (byDay[k] || 0) + 1; } });
+    var busiest = Object.keys(byDay).sort(function (a, b) { return byDay[b] - byDay[a]; })[0];
+    notes.forEach(function (n) { if (isDaily(n) && dayOf(n.title).getTime() >= r.from - OP_DAY) { var x = opRating(n); if (x) ratings.push(x); } });
+    var tc = {}; r.made.concat(r.edited).forEach(function (n) { MD.tags(n.body).forEach(function (t) { tc[t] = (tc[t] || 0) + 1; }); });
+    var tops = Object.keys(tc).sort(function (a, b) { return tc[b] - tc[a]; }).slice(0, 5);
+    var open = allTasks().filter(function (t) { return !t.done && opNoteOk(t.n); }).length;
+    var out = ['# Weekly digest \u00b7 ' + opFmtD(r.from) + ' \u2013 ' + opFmtD(r.to), '',
+      '- **' + r.done.length + '** task' + (r.done.length === 1 ? '' : 's') + ' done, **' + open + '** still open',
+      '- **' + r.made.length + '** new note' + (r.made.length === 1 ? '' : 's') + ', **' + r.edited.length + '** updated',
+      busiest ? '- Busiest day: **' + opDayLbl(busiest) + '** (' + byDay[busiest] + ' changes)' : '- No activity recorded this week',
+      ratings.length ? '- Day rating: **' + (ratings.reduce(function (a, b) { return a + b; }, 0) / ratings.length).toFixed(1) + ' / 5** over ' + ratings.length + ' day' + (ratings.length === 1 ? '' : 's') : '',
+      tops.length ? '- Hot tags: ' + tops.map(function (t) { return '#' + t; }).join(', ') : ''].filter(Boolean);
+    if (r.done.length) { out.push('', '## Done'); r.done.slice(-15).forEach(function (d) { out.push('- ' + opClean(d.t) + ' (' + d.n.title + ')'); }); }
+    if (r.made.length) { out.push('', '## New'); r.made.slice(0, 15).forEach(function (n) { out.push('- [[' + n.title + ']]'); }); }
+    if (up.length) { out.push('', '## Coming up'); up.slice(0, 10).forEach(function (x) { out.push('- ' + opDayLbl(x.d) + ': [[' + x.n.title + ']]'); }); }
+    return out.join('\n');
+  }
+  function opWeekKey() { var d = new Date(); d.setDate(d.getDate() - d.getDay()); return ymd(d); }
+  function opPlain(md) { return md.replace(/\*\*/g, '').replace(/\[\[([^\]|]+)(\|[^\]]*)?\]\]/g, '$1'); }
+  XV.opdigest = function () {
+    var md = opDigest(), sub = 'Axon weekly digest \u00b7 ' + opFmtD(Date.now());
+    xLSset('opdig', opWeekKey());
+    var mail = 'mailto:?subject=' + encodeURIComponent(sub) + '&body=' + encodeURIComponent(opPlain(md).slice(0, 1800));
+    return xPage('Weekly digest', 'Insights', '<p class="xp">A recap of the last 7 days. Axon can\u2019t send email by itself (that needs a server), so every Sunday it shows up at the top of your Notes list, and Email it opens your mail app with the recap filled in.</p>' +
+      '<div class="nf-btns"><a class="opbtn acc" href="' + esc(mail) + '">Email it</a><button data-act="opshare" data-k="dig">Share</button><button data-act="opsave" data-k="dig">Save as note</button></div>' + opPreview(md));
+  };
+  function opDocOf(el) { return el.dataset.k === 'dig' ? { md: opDigest(), title: 'Weekly digest ' + ymd(new Date()) } : { md: opChangelog(+el.dataset.d || 7), title: 'Changelog ' + ymd(new Date()) }; }
+  act.opsave = function (el) { var d = opDocOf(el), n = createNote({ title: uniqueTitle(d.title), folder: '', body: d.md + '\n' }); toast('Saved \u201c' + n.title + '\u201d', { label: 'Open', fn: function () { go('#/n/' + n.id); } }); };
+  act.opshare = function (el) {
+    var d = opDocOf(el), txt = opPlain(d.md);
+    if (navigator.share) { navigator.share({ title: d.title, text: txt }).catch(function () {}); return; }
+    deliver(new Blob([txt], { type: 'text/markdown' }), safeName(d.title) + '.md', 'text/markdown', 'Saved ' + safeName(d.title) + '.md');
+  };
+
+  /* 17 · bug board: #bug tasks, claim with @name, tick to fix (your vault only) */
+  function opBugs() {
+    var out = [];
+    allTasks().forEach(function (t) { if (!opNoteOk(t.n)) return; if (/(^|\s)#bugs?\b/i.test(t.text) || MD.tags(t.n.body).some(function (x) { return /^bugs?$/i.test(x); })) { var m = /(?:^|\s)@([\w.-]+)/.exec(t.text); out.push({ t: t, who: m ? m[1] : '' }); } });
+    return out;
+  }
+  XV.opbugs = function () {
+    var b = opBugs(), col = { open: [], claimed: [], fixed: [] };
+    b.forEach(function (x) { col[x.t.done ? 'fixed' : x.who ? 'claimed' : 'open'].push(x); });
+    function card(x, k) {
+      var t = x.t, txt = MD.plain(t.text).replace(/(^|\s)#bugs?\b/ig, ' ').replace(/(^|\s)@[\w.-]+/g, ' ').trim();
+      return '<div class="opcard"><div class="opch"><b>' + esc(txt) + '</b><span>' + esc(x.who ? '@' + x.who : '') + '</span></div><p>' + esc(t.n.title) + '</p><div class="opbtns"><button class="pill" data-act="opopen" data-id="' + t.n.id + '">Open</button>' +
+        (k === 'open' ? '<button class="pill" data-act="opclaim" data-id="' + t.n.id + '" data-l="' + t.line + '">Claim</button>' : '') + (k !== 'fixed' ? '<button class="pill acc" data-act="opfix" data-id="' + t.n.id + '" data-l="' + t.line + '">Fixed</button>' : '') + '</div></div>';
+    }
+    var h = '<p class="xp">Every checkbox with #bug (or in a note tagged #bug). Claim one to put a name on it, tap Fixed when it\u2019s done. It lives in your vault, so only you and your synced devices see this board.</p>' +
+      '<div class="xheat-stats"><div><b>' + col.open.length + '</b><span>open</span></div><div><b>' + col.claimed.length + '</b><span>claimed</span></div><div><b>' + col.fixed.length + '</b><span>fixed</span></div></div>';
+    if (!b.length) return xPage('Bug board', 'Insights', h + '<div class="rows">' + xEmpty('No bugs', 'Add a task like \u201c- [ ] login button overlaps #bug\u201d to any note.') + '</div>');
+    [['open', 'Open'], ['claimed', 'Claimed'], ['fixed', 'Fixed']].forEach(function (c) { if (col[c[0]].length) h += '<div class="sec"><span>' + c[1] + '</span></div>' + col[c[0]].slice(0, c[0] === 'fixed' ? 20 : 100).map(function (x) { return card(x, c[0]); }).join(''); });
+    return xPage('Bug board', 'Insights', h);
+  };
+  function opEditTask(id, line, fn) {
+    var n = notes.get(id); if (!n) return false; if (editing) stopEditing(true);
+    var ls = n.body.split('\n'), m = TASK_RE.exec(ls[+line] || ''); if (!m) { toast('That task moved, open the note to edit it'); render(); return false; }
+    ls[+line] = fn(m); snapshot(n, n.body, true); n.body = ls.join('\n'); lastSaved[n.id] = n.body; touch(n); opScanSoon(); return true;
+  }
+  act.opclaim = async function (el) {
+    var who = await dialog({ title: 'Who\u2019s fixing it?', input: true, value: xLS('opme', ''), placeholder: 'A name, like odin', ok: 'Claim', validate: function (v) { return /^@?[\w.-]{1,30}$/.test(v) ? null : 'One word: letters, numbers, dots or dashes.'; } });
+    if (!who) return; who = who.replace(/^@/, ''); xLSset('opme', who);
+    if (opEditTask(el.dataset.id, el.dataset.l, function (m) { return m[1] + '[' + m[2] + '] ' + m[3].replace(/\s+$/, '') + ' @' + who; })) { toast('Claimed by @' + who); render(); }
+  };
+  act.opfix = function (el) { if (opEditTask(el.dataset.id, el.dataset.l, function (m) { return m[1] + '[x] ' + m[3]; })) { toast('Marked fixed'); render(); } };
+
+  /* 18 · impact map: what depends on this note, and what breaks if it changes */
+  XV.opimpact = function (arg) {
+    var n = notes.get(arg) || xCurNote();
+    if (!n) return xPage('Impact map', 'Insights', '<div class="rows">' + xEmpty('Open a note first', 'Then run \u201cWhat depends on this note\u201d.') + '</div>');
+    var key = norm(n.title), d1 = backlinks(n), seen = {}, d2 = [], links = 0, embeds = 0, emRe = new RegExp('!\\[\\[\\s*' + escRe(n.title) + '\\s*(?:[#|][^\\]]*)?\\]\\]', 'gi');
+    seen[n.id] = 1; d1.forEach(function (o) { seen[o.id] = 1; linksOf(o).forEach(function (l) { if (norm(l.target) === key) links++; }); var em = o.body.match(emRe); if (em) embeds += em.length; });
+    d1.forEach(function (o) { backlinks(o).forEach(function (p) { if (!seen[p.id]) { seen[p.id] = 1; d2.push({ p: p, via: o }); } }); });
+    var cards = MD.recall(n.body).length, out = outNotes(n);
+    var h = '<p class="xp">What depends on <b>' + esc(n.title) + '</b>, and what changes if you rename or delete it.</p>' +
+      '<div class="xheat-stats"><div><b>' + d1.length + '</b><span>notes link here</span></div><div><b>' + d2.length + '</b><span>one step further</span></div><div><b>' + embeds + '</b><span>embeds</span></div></div>' +
+      '<div class="opcard"><p><b>Rename:</b> ' + (links ? links + ' link' + (links === 1 ? '' : 's') + ' in ' + d1.length + ' note' + (d1.length === 1 ? '' : 's') + ' update automatically.' : 'nothing links here, nothing to update.') + '</p><p><b>Delete:</b> ' + (d1.length ? d1.length + ' note' + (d1.length === 1 ? '' : 's') + ' would get a broken link' + (embeds ? ' and ' + embeds + ' embed' + (embeds === 1 ? '' : 's') + ' would go blank' : '') + '.' : 'no other note would break.') + (cards ? ' ' + cards + ' Recall card' + (cards === 1 ? '' : 's') + ' and their progress go with it.' : '') + '</p></div>';
+    h += '<div class="sec"><span>Links here directly</span></div><div class="rows">' + (d1.length ? d1.map(function (o) { return xRow(o, ''); }).join('') : xEmpty('Nothing links here')) + '</div>';
+    if (d2.length) h += '<div class="sec"><span>Depends on those</span></div><div class="rows">' + d2.slice(0, 40).map(function (x) { return xRow(x.p, 'via ' + esc(x.via.title)); }).join('') + '</div>';
+    if (out.length) h += '<div class="sec"><span>This note depends on</span></div><div class="rows">' + out.map(function (o) { return xRow(o, ''); }).join('') + '</div>';
+    return xPage('Impact map', 'Insights', h);
+  };
+
+  /* 3 · GitHub references in a note become links; paste a git log into a note */
+  var OP_GHRE = /\b([A-Za-z0-9][\w.-]{0,38}\/[\w.-]{1,100})(#\d{1,7}|@[0-9a-f]{7,40})\b/g, OP_SHA = /\b(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}\b/g;
+  function opRepoOf(n) { var r = n ? fmGet(n, 'repo').replace(/^https?:\/\/github\.com\//i, '').replace(/\.git$|\/$/g, '') : ''; return /^[\w.-]+\/[\w.-]+$/.test(r) ? r : ''; }
+  function opGhLinks() {
+    var pr = $('#prose'), r = route(); if (!pr || r.v !== 'note' || !isPro()) return;
+    var n = notes.get(r.id), repo = opRepoOf(n), list = [];
+    var w = document.createTreeWalker(pr, NodeFilter.SHOW_TEXT, { acceptNode: function (t) { return t.parentNode.closest('a,code,pre,button,.wl') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT; } });
+    while (w.nextNode()) list.push(w.currentNode);
+    list.forEach(function (tn) {
+      var s = tn.nodeValue, hits = [], m;
+      OP_GHRE.lastIndex = 0; while ((m = OP_GHRE.exec(s))) hits.push({ i: m.index, len: m[0].length, url: 'https://github.com/' + m[1] + (m[2][0] === '#' ? '/issues/' + m[2].slice(1) : '/commit/' + m[2].slice(1)) });
+      if (repo) { OP_SHA.lastIndex = 0; while ((m = OP_SHA.exec(s))) { var at = m.index; if (!hits.some(function (h) { return at >= h.i && at < h.i + h.len; })) hits.push({ i: at, len: m[0].length, url: 'https://github.com/' + repo + '/commit/' + m[0] }); } }
+      if (!hits.length) return;
+      hits.sort(function (a, b) { return a.i - b.i; });
+      var frag = document.createDocumentFragment(), pos = 0;
+      hits.forEach(function (h) { if (h.i < pos) return; frag.appendChild(document.createTextNode(s.slice(pos, h.i))); var a = document.createElement('a'); a.className = 'ext opgh'; a.href = h.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = s.substr(h.i, h.len); frag.appendChild(a); pos = h.i + h.len; });
+      frag.appendChild(document.createTextNode(s.slice(pos))); tn.parentNode.replaceChild(frag, tn);
+    });
+  }
+  hydrateImgs = (function (f) { return function () { var r = f.apply(this, arguments); try { opGhLinks(); } catch (e) {} return r; }; })(hydrateImgs);
+  async function opGitLog() {
+    var cur = xCurNote(), repo0 = opRepoOf(cur) || xLS('oprepo', '');
+    opGL = '';
+    var ok = await dialog({ title: 'Add commits to a note', message: 'Paste the output of \u201cgit log --oneline\u201d. Each commit becomes a linked line ' + (cur ? 'at the end of \u201c' + cur.title + '\u201d' : 'in today\u2019s note') + '.', html: '<textarea id="opgl" class="opgl" rows="6" placeholder="2dd8622 Axon 1.18.4: Pro banner follows email" spellcheck="false" autocapitalize="off"></textarea>', ok: 'Next' });
+    if (!ok) return;
+    var lines = (opGL || '').split('\n').map(function (l) { var m = /^\s*\*?\s*([0-9a-f]{7,40})\s+(.+)$/.exec(l); return m ? { h: m[1], msg: m[2].trim() } : null; }).filter(Boolean);
+    if (!lines.length) { toast('No commits found, paste lines like \u201c2dd8622 message\u201d'); return; }
+    var repo = repo0 || await dialog({ title: 'Which GitHub repo?', input: true, value: '', placeholder: 'owner/repo', ok: 'Add', validate: function (v) { return /^[\w.-]+\/[\w.-]+$/.test(v) ? null : 'Type it as owner/repo.'; } });
+    if (!repo) return; xLSset('oprepo', repo);
+    if (editing) stopEditing(true);
+    var n = cur || opDaily(ymd(new Date()), true);
+    var block = '## Commits \u00b7 ' + opFmtD(Date.now()) + '\n' + lines.map(function (c) { return '- [' + c.h.slice(0, 7) + '](https://github.com/' + repo + '/commit/' + c.h + ') ' + c.msg.replace(/[\[\]]/g, ''); }).join('\n');
+    n.body = n.body.replace(/\s+$/, '') + (n.body.trim() ? '\n\n' : '') + block + '\n'; lastSaved[n.id] = n.body; touch(n); rebuildIdx();
+    toast('Added ' + lines.length + ' commit' + (lines.length === 1 ? '' : 's'), { label: 'Open', fn: function () { go('#/n/' + n.id); } }); if (route().v === 'note') render();
+  }
+
+  /* 5 · handoff brief: what changed since the last brief, what's still open, what to watch */
+  function opHandoff() {
+    var since = xLS('ophand', 0) || Date.now() - OP_DAY, log = opScan(), done = [], added = [], made = [], edited = [];
+    Object.keys(log).forEach(function (k) { var e = log[k], n = notes.get(e.n); if (!n) return; if (e.d && e.d >= since && !e.est) done.push({ n: n, t: e.t }); else if (!e.d && !e.est && e.f >= since) added.push({ n: n, t: e.t }); });
+    notes.forEach(function (n) { if (!opNoteOk(n) || opGenerated(n)) return; if ((n.created || 0) >= since) made.push(n); else if (n.updated >= since) edited.push(n); });
+    var touched = made.concat(edited), openHere = [];
+    allTasks().forEach(function (t) { if (!t.done && touched.indexOf(t.n) >= 0) openHere.push(t); });
+    var rd = opRadar(), d = new Date(), out = ['---', 'tags: [handoff]', '---',
+      '# Handoff \u00b7 ' + d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ', ' + opHM(d.getTime()), '',
+      '> [!info] Since ' + whenLabel(since), '> ' + done.length + ' done, ' + added.length + ' new task' + (added.length === 1 ? '' : 's') + ', ' + made.length + ' new note' + (made.length === 1 ? '' : 's') + ', ' + edited.length + ' edited.', ''];
+    if (done.length) { out.push('## Done'); done.forEach(function (x) { out.push('- ' + opClean(x.t) + ' \u00b7 [[' + x.n.title + ']]'); }); out.push(''); }
+    if (touched.length) { out.push('## Worked on'); touched.slice(0, 20).forEach(function (n) { out.push('- [[' + n.title + ']]' + ((n.created || 0) >= since ? ' (new)' : '')); }); out.push(''); }
+    if (openHere.length) { out.push('## Still open in those notes'); openHere.slice(0, 20).forEach(function (t) { out.push('- ' + MD.plain(t.text) + ' \u00b7 [[' + t.n.title + ']]'); }); out.push(''); }
+    if (rd.stall.length || rd.late.length) { out.push('## Watch out'); rd.late.slice(0, 3).forEach(function (x) { out.push('- Running long: ' + MD.plain(x.t.text) + ' (open ' + opDur(x.age) + ')'); }); rd.stall.slice(0, 3).forEach(function (x) { out.push('- Might stall: ' + MD.plain(x.t.text) + (x.why.length ? ' (' + x.why.join(', ') + ')' : '')); }); out.push(''); }
+    if (!done.length && !touched.length) out.push('Nothing changed since the last handoff.');
+    return out.join('\n');
+  }
+  function opWriteHandoff() {
+    if (editing) stopEditing(true);
+    var n = createNote({ title: uniqueTitle('Handoff ' + ymd(new Date())), folder: 'Handoffs', body: opHandoff() + '\n' }); xLSset('ophand', Date.now());
+    go('#/n/' + n.id); toast('Handoff brief written');
+  }
+
+  /* 6 · trust score per note: how reliably you recall its cards */
+  XV.optrust = function () {
+    var by = {}; liveCards().forEach(function (c) { if (!c.s || !c.s.reps) return; var b = by[c.note.id] = by[c.note.id] || { n: c.note, reps: 0, lapses: 0, cards: 0, ease: 0 }; b.reps += c.s.reps; b.lapses += c.s.lapses || 0; b.cards++; b.ease += c.s.ease || 2.5; });
+    var l = Object.keys(by).map(function (k) { var b = by[k]; b.score = Math.max(0, Math.min(1, 0.7 * (1 - b.lapses / Math.max(1, b.reps)) + 0.3 * ((b.ease / b.cards - 1.3) / 1.9))); return b; }).sort(function (a, b) { return a.score - b.score; });
+    var h = '<p class="xp">A trust score for each note with Recall cards: 70% from how often you pass its cards (reviews without a lapse), 30% from how easy they\u2019ve become. Lowest first, so you know what to study again.</p>';
+    if (!l.length) return xPage('Trust scores', 'Insights', h + '<div class="rows">' + xEmpty('No reviews yet', 'Review some Recall cards and each note gets a score.') + '</div>');
+    var avg = l.reduce(function (a, b) { return a + b.score; }, 0) / l.length;
+    h += '<div class="xheat-stats"><div><b>' + opPct(avg) + '</b><span>average trust</span></div><div><b>' + l.filter(function (b) { return b.score < 0.6; }).length + '</b><span>below 60%</span></div><div><b>' + l.length + '</b><span>notes scored</span></div></div><div class="rows">';
+    h += l.map(function (b) { var p = Math.round(b.score * 100); return '<button class="row opr" data-act="opopen" data-id="' + b.n.id + '"><span class="optrust' + (p < 60 ? ' low' : p < 80 ? ' mid' : '') + '"><b>' + p + '</b></span><span class="nm">' + esc(b.n.title) + '<em class="qd">' + b.cards + ' card' + (b.cards === 1 ? '' : 's') + ' \u00b7 ' + b.reps + ' reviews \u00b7 ' + b.lapses + ' lapse' + (b.lapses === 1 ? '' : 's') + '</em></span><span class="chev">' + I.chev + '</span></button>'; }).join('');
+    return xPage('Trust scores', 'Insights', h + '</div>');
+  };
+
+  /* 19 · voice memos: record on this device, play back, log a caption to today's note */
+  var opVdb = null, opMemos = null, opRec = null, opURLs = {};
+  function opVopen() { if (opVdb) return Promise.resolve(opVdb); return new Promise(function (res, rej) { var r = indexedDB.open('axon-voice', 1); r.onupgradeneeded = function () { if (!r.result.objectStoreNames.contains('memos')) r.result.createObjectStore('memos', { keyPath: 'id' }); }; r.onsuccess = function () { opVdb = r.result; opVdb.onversionchange = function () { opVdb.close(); opVdb = null; }; res(opVdb); }; r.onerror = function () { rej(r.error); }; }); }
+  function opVtx(mode, fn) { return opVopen().then(function (d) { return new Promise(function (res, rej) { var t = d.transaction('memos', mode), q = fn(t.objectStore('memos')); t.oncomplete = function () { res(q && q.result); }; t.onerror = t.onabort = function () { rej(t.error); }; }); }); }
+  function opVload() { return opVtx('readonly', function (s) { return s.getAll(); }).then(function (l) { opMemos = (l || []).sort(function (a, b) { return b.ts - a.ts; }); }).catch(function () { opMemos = []; }); }
+  function opMemoURL(m) { if (!opURLs[m.id] && m.blob) opURLs[m.id] = URL.createObjectURL(m.blob); return opURLs[m.id] || ''; }
+  function opCanRec() { return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder); }
+  XV.opvoice = function () {
+    if (!opMemos) opLater(opVload(), 'opvoice');
+    var h = '<p class="xp">Record a quick voice memo. It stays on this phone (not synced, not in exports). Give it a caption and log it to today\u2019s note; your keyboard\u2019s dictation mic works in the caption box.</p>';
+    h += opCanRec() ? '<div class="nf-btns"><button class="acc' + (opRec ? ' oprecon' : '') + '" data-act="oprec">' + (opRec ? '\u25a0 Stop recording' : '\u25cf Record a memo') + '</button></div>' : '<div class="opwarn">This browser can\u2019t record audio. On iPhone, update iOS or open Axon in Safari.</div>';
+    h += '<div class="rows">' + (opMemos ? (opMemos.length ? opMemos.map(function (m) { return '<div class="opcard"><div class="opch"><b>' + esc(m.cap || 'Voice memo') + '</b><span>' + esc(whenLabel(m.ts) + ' \u00b7 ' + Math.max(1, Math.round((m.dur || 0) / 1000)) + 's') + '</span></div><audio controls preload="metadata" src="' + esc(opMemoURL(m)) + '"></audio><div class="opbtns"><button class="pill" data-act="opvcap" data-id="' + esc(m.id) + '">Caption</button><button class="pill" data-act="opvlog" data-id="' + esc(m.id) + '">' + (m.logged ? 'Logged \u2713' : 'Log to today') + '</button><button class="pill" data-act="opvdel" data-id="' + esc(m.id) + '">Delete</button></div></div>'; }).join('') : xEmpty('No memos yet', 'Tap Record and talk.')) : xEmpty('Loading\u2026')) + '</div>';
+    return xPage('Voice memos', 'Insights', h);
+  };
+  act.oprec = async function () {
+    if (opRec) { try { opRec.r.stop(); } catch (e) {} return; }
+    if (!opCanRec()) { toast('Recording isn\u2019t available here'); return; }
+    var stream;
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch (e) { toast('Axon needs the microphone to record. Allow it in Settings > Safari > Microphone.'); return; }
+    var type = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'].filter(function (t) { return MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t); })[0];
+    var r; try { r = type ? new MediaRecorder(stream, { mimeType: type }) : new MediaRecorder(stream); } catch (e) { stream.getTracks().forEach(function (t) { t.stop(); }); toast('Couldn\u2019t start recording'); return; }
+    var chunks = [], t0 = Date.now();
+    opRec = { r: r, t0: t0 };
+    r.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+    r.onstop = function () {
+      stream.getTracks().forEach(function (t) { t.stop(); }); var dur = Date.now() - t0; opRec = null;
+      if (!chunks.length) { toast('Nothing was recorded'); render(); return; }
+      var mt = r.mimeType || type || 'audio/mp4', m = { id: uid(), ts: t0, dur: dur, type: mt, blob: new Blob(chunks, { type: mt }), cap: '' };
+      opVtx('readwrite', function (s) { return s.put(m); }).then(function () { (opMemos = opMemos || []).unshift(m); toast('Memo saved', { label: 'Caption', fn: function () { opVcap(m.id); } }); if (route().x === 'opvoice') render(); }).catch(function () { toast('Couldn\u2019t save the memo, this phone may be out of space'); });
+    };
+    r.start(); render();
+    setTimeout(function () { if (opRec && opRec.r === r) try { r.stop(); } catch (e) {} }, 5 * 60000);
+  };
+  function opMemo(id) { return (opMemos || []).filter(function (m) { return m.id === id; })[0]; }
+  async function opVcap(id) { var m = opMemo(id); if (!m) return; var v = await dialog({ title: 'Caption', input: true, value: m.cap || '', placeholder: 'What\u2019s this memo about?', ok: 'Save', validate: function () { return null; } }); if (v == null || v === false) return; m.cap = String(v).slice(0, 300); await opVtx('readwrite', function (s) { return s.put(m); }).catch(function () {}); render(); }
+  act.opvcap = function (el) { opVcap(el.dataset.id); };
+  act.opvlog = async function (el) {
+    var id = el.dataset.id, m = opMemo(id); if (!m) return;
+    if (!m.cap) { await opVcap(id); m = opMemo(id); if (!m || !m.cap) return; }
+    if (editing) stopEditing(true);
+    var n = opDaily(ymd(new Date()), true), d = new Date(m.ts), hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    n.body = n.body.replace(/\s+$/, '') + (n.body.trim() ? '\n' : '') + '- ' + hm + ' \ud83c\udf99\ufe0f ' + m.cap + ' (voice memo, ' + Math.max(1, Math.round(m.dur / 1000)) + 's)\n'; lastSaved[n.id] = n.body; touch(n);
+    m.logged = Date.now(); opVtx('readwrite', function (s) { return s.put(m); }).catch(function () {});
+    toast('Logged to today\u2019s note', { label: 'Open', fn: function () { go('#/n/' + n.id); } }); render();
+  };
+  act.opvdel = async function (el) { var m = opMemo(el.dataset.id); if (!m) return; var ok = await dialog({ title: 'Delete this memo?', message: 'The recording is removed from this phone. A line you logged stays in your note.', ok: 'Delete', danger: true }); if (!ok) return; await opVtx('readwrite', function (s) { return s.delete(m.id); }).catch(function () {}); if (opURLs[m.id]) { URL.revokeObjectURL(opURLs[m.id]); delete opURLs[m.id]; } opMemos = opMemos.filter(function (x) { return x !== m; }); render(); };
+
+  /* ---------- hub, home rows, commands, note menu, Pro, boot ---------- */
+  var OP_TOOLS = [
+    ['optime', 'Timeline', 'Scrub through every change, day by day.'], ['opradar', 'Task radar', 'Tasks taking 2\u00d7 their usual time, and which will stall next.'],
+    ['opheat', 'Heat map', 'What\u2019s hot by tag and folder, plus workload balance.'], ['opquiet', 'Quiet hours', 'What changed overnight or while you were away.'],
+    ['opcp', 'Checkpoints', 'Save your whole vault, roll back in one tap.'], ['opdec', 'Decision archive', 'Every Decision: / Verdict: line, by verdict.'],
+    ['opgrave', 'Idea graveyard', 'Buried ideas with their reasons, searchable.'], ['opspec', 'Spec tracer', 'Which #spec notes never got built.'],
+    ['opbugs', 'Bug board', '#bug tasks: open, claimed, fixed.'], ['oplog', 'Auto-changelog', 'Release notes from what you finished.'],
+    ['opdigest', 'Weekly digest', 'Your week in one recap, to email or save.'], ['oprate', 'Day ratings', 'Rate each day 1\u20135 and see the trend.'],
+    ['optrust', 'Trust scores', 'Which notes you recall reliably.'], ['opvoice', 'Voice memos', 'Record a memo, log it to today.']];
+  var OP_ICON = '<svg class="fi" viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>';
+  XV.ops = function () {
+    var cur = xCurNote() || (ui.lastNote && notes.get(ui.lastNote));
+    return xPage('Insights', 'Axon 1.19', '<p class="xp">Tools for seeing what\u2019s happening across your notes and tasks. Everything is worked out on this device.</p>' +
+      '<div class="nf-btns"><button class="acc" data-act="ophand">Write handoff brief</button><button data-act="oprt">Rate today</button></div>' +
+      '<div class="nf-btns"><button data-act="opgit">Add commits</button><button data-act="xgo" data-to="x:opimpact' + (cur ? '/' + cur.id : '') + '">Impact map' + (cur ? '' : '') + '</button></div>' +
+      '<div class="rows">' + OP_TOOLS.map(function (t) { return '<button class="row" data-act="xgo" data-to="x:' + t[0] + '">' + OP_ICON + '<span class="nm">' + esc(t[1]) + '<em class="qd">' + esc(t[2]) + '</em></span><span class="chev">' + I.chev + '</span></button>'; }).join('') + '</div>');
+  };
+  act.ophand = function () { if (proOk('Handoff briefs')) opWriteHandoff(); };
+  act.opgit = function () { if (proOk('Commit links')) opGitLog(); };
+  XSTRIP.push(['ops', 'Insights', 'x:ops']);
+  /* home: anomaly ping + Sunday digest */
+  var opPingN = 0;
+  function opPing() { try { opPingN = isPro() ? opRadar().late.length : 0; } catch (e) { opPingN = 0; } }
+  xDueRow = (function (f) { return function () {
+    var h = f.apply(this, arguments);
+    if (!isPro()) return h;
+    if (opPingN) h += '<button class="row today" data-act="xgo" data-to="x:opradar">' + I.check.replace('<svg', '<svg class="fi"') + '<span class="nm">Running long</span><span class="ct"><i class="duen">' + opPingN + ' task' + (opPingN === 1 ? '' : 's') + ' at 2\u00d7</i></span><span class="chev">' + I.chev + '</span></button>';
+    if (new Date().getDay() === 0 && notes.size && xLS('opdig', '') !== opWeekKey()) h += '<button class="row today" data-act="xgo" data-to="x:opdigest">' + OP_ICON + '<span class="nm">Weekly digest</span><span class="ct">ready</span><span class="chev">' + I.chev + '</span></button>';
+    return h;
+  }; })(xDueRow);
+  function opNeedNote() { var n = xCurNote(); if (!n) toast('Open a note first'); return n; }
+  XC('Insights', 'Insights', 'All the Axon 1.19 insight tools in one place.', 'insights dashboard ops overview', function () { go('#/x/ops'); }, 1);
+  OP_TOOLS.forEach(function (t) { XC(t[1], 'Insights', t[2], t[1].toLowerCase() + ' ' + t[0].slice(2), function () { go('#/x/' + t[0]); }, 1); });
+  XC('Write handoff brief', 'Insights', 'A note with what changed since your last brief, what\u2019s open and what to watch.', 'handoff brief summary sign off shift end of day', function () { opWriteHandoff(); }, 1);
+  XC('Rate today', 'Insights', 'Give today a 1\u20135 rating in its daily note.', 'mood rate rating day score how was today', function () { opRate(); }, 1);
+  XC('Bury this idea', 'Insights', 'Move this note to the Idea graveyard with a reason.', 'graveyard reject bury kill idea pitch', function () { var n = opNeedNote(); if (n) opBury(n); }, 1);
+  XC('What depends on this note', 'Insights', 'Everything that links here and what breaks if it changes.', 'impact dependency depends backlinks breaks', function () { var n = opNeedNote(); if (n) go('#/x/opimpact/' + n.id); }, 1);
+  XC('Add commits from git log', 'Insights', 'Paste git log --oneline; each commit becomes a GitHub link.', 'github git commit log push changelog', function () { opGitLog(); }, 1);
+  XC('Save checkpoint', 'Insights', 'Save a copy of every note you can roll back to.', 'checkpoint snapshot backup rollback restore', function () { act.opcpnew(); }, 1);
+  XC('Record voice memo', 'Insights', 'Record a memo on this phone.', 'voice memo record audio dictate mic', function () { go('#/x/opvoice'); }, 1);
+  XNMENU.push(function (n) { return n.folder === OP_GRAVE ? null : { label: proTag('Bury this idea\u2026'), value: 'opbury', icon: '<svg viewBox="0 0 24 24"><path d="M7 21V10a5 5 0 0 1 10 0v11M4 21h16M12 9v6M9.5 11.5h5"/></svg>' }; },
+    function () { return { label: proTag('What depends on this'), value: 'opimp', icon: '<svg viewBox="0 0 24 24"><circle cx="12" cy="5.5" r="2.2"/><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="18" r="2.2"/><path d="M11 7.5l-4 8.5M13 7.5l4 8.5"/></svg>' }; });
+  XNMFN.opbury = function (n) { if (proOk('Idea graveyard')) opBury(n); };
+  XNMFN.opimp = function (n) { if (proOk('Impact map')) go('#/x/opimpact/' + n.id); };
+  var OP_XVNAME = { ops: 'Insights', opradar: 'Task radar', optime: 'Timeline', opquiet: 'Quiet hours', opcp: 'Checkpoints', opgrave: 'Idea graveyard', opdec: 'Decision archive', oprate: 'Day ratings', opheat: 'Heat map', opspec: 'Spec tracer', oplog: 'Auto-changelog', opdigest: 'Weekly digest', opbugs: 'Bug board', opimpact: 'Impact map', optrust: 'Trust scores', opvoice: 'Voice memos' };
+  Object.keys(OP_XVNAME).forEach(function (k) { var f = XV[k]; XV[k] = function () { if (isPro()) return f.apply(this, arguments); var nm = OP_XVNAME[k]; return xPage(nm, 'Axon Pro', '<div class="xlocked">' + I.lock + '<h3>' + esc(nm) + ' is part of Axon Pro</h3><p>All of the new tools are in Pro.</p><button data-act="xgetpro" data-f="' + esc(nm) + '">See Axon Pro</button></div>'); }; });
+  opRate = xG('Day ratings', opRate); opWriteHandoff = xG('Handoff briefs', opWriteHandoff); opGitLog = xG('Commit links', opGitLog); opBury = xG('Idea graveyard', opBury);
+  /* every saved change re-reads the checkboxes a moment later (task log), and marks the note as changed by you on this device */
+  touch = (function (f) { return function (n) { if (n && n.id) opMine[n.id] = 1; var r = f.apply(this, arguments); opScanSoon(); return r; }; })(touch);
+  var opScanSoon0 = opScanSoon;
+  opScanSoon = function () { opScanSoon0(); clearTimeout(opPingT); opPingT = setTimeout(opPing, 1500); };
+  var opPingT = null, opBooted = false;
+  function opSeen() { xLSset('opseen', Date.now()); }
+  function opBoot() {
+    OP_PREVSEEN = +xLS('opseen', 0) || 0; opSeen();
+    setInterval(function () { if (!document.hidden) opSeen(); }, 60000);
+    document.addEventListener('visibilitychange', function () { if (document.hidden) opSeen(); });
+    window.addEventListener('pagehide', opSeen);
+    try { opScan(); opPing(); } catch (e) {}
+    setTimeout(function () { if (isPro()) opAutoCP(); opLoadHist(); }, 2500);
+  }
+  applySettings = (function (f) { return function () { var r = f.apply(this, arguments); if (!opBooted) { opBooted = true; try { opBoot(); } catch (e) {} } return r; }; })(applySettings);
 
 
   window.__axon = { notes: notes, folders: folders, trash: trash, rc: rc, recallStats: recallStats, byTitle: byTitle, backlinks: backlinks, renameNote: renameNote, exportFiles: function () { return notes; }, Zip: Zip, importFiles: importFiles };
