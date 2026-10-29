@@ -53,6 +53,35 @@ a{color:var(--syn)}
 #lock{max-width:360px;margin:18vh auto;text-align:center;color:var(--mu)}
 #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 18px);transform:translateX(-50%) translateY(120px);background:var(--tx);color:var(--bg);padding:10px 14px;border-radius:12px;font-weight:600;font-size:14px;transition:transform .25s;max-width:92vw;z-index:9}
 #toast.on{transform:translateX(-50%) translateY(0)}
+/* np-apps-tab v1: Apps tab + the red monitoring bar */
+#monBar{position:fixed;left:0;right:0;top:0;z-index:20;background:#d92d2d;color:#fff;padding:calc(env(safe-area-inset-top) + 6px) 12px 6px;box-shadow:0 2px 14px rgba(217,45,45,.45)}
+#monBar .mb{display:flex;align-items:center;gap:8px;max-width:1100px;margin:0 auto;font-size:13px;min-height:34px}
+#monBar .mb+.mb{border-top:1px solid rgba(255,255,255,.25)}
+#monBar b{letter-spacing:.6px;font-size:11px}#monBar .mn{font-weight:650;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+#monBar .mt{opacity:.85;font-size:12px;white-space:nowrap}
+#monBar button{background:#fff;color:#b11d1d;border:0;padding:7px 10px;font-size:13px}
+.mdot{width:9px;height:9px;border-radius:50%;background:#fff;flex:0 0 auto;animation:mp 1.4s ease-in-out infinite}@keyframes mp{50%{opacity:.25}}
+.apgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.apc{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px 11px}
+.apt{display:flex;align-items:center;justify-content:space-between;gap:6px}.aph{color:var(--mu);font-size:12px;margin:6px 0 8px;word-break:break-all}
+.apc .acts button,.apc .acts .btn{padding:7px 10px;font-size:13px}
+.pg{font-size:11px;color:var(--mu)}.pg.up{color:var(--ok)}.pg.dn{color:var(--bad)}.pg:before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;margin-right:5px;vertical-align:1px}
+.bcard{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:11px 12px;margin-bottom:8px}
+.bcard.mon{border-color:#d92d2d;box-shadow:inset 3px 0 0 #d92d2d}
+.bcard .top{display:flex;align-items:center;gap:10px}.bcard .bn{flex:1;min-width:0;word-break:break-all}.bcard .bn b{font-size:15px}
+.bcard .meta{color:var(--mu);font-size:12px;margin-top:7px;line-height:1.5}.bnote{color:var(--tx)}
+.bcard .acts{margin-top:10px}.bcard .acts .btn,.bcard .acts button{padding:7px 10px;font-size:13px}
+.bk{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font:800 12px/1 inherit;flex:0 0 auto}
+.k-gm{background:rgba(234,67,53,.16);color:#ff7b6e}.k-gh{background:#e8ebf2;color:#0b0d12}.k-ot{background:var(--card);color:var(--mu);border:1px solid var(--line)}
+.s-ok{background:rgba(61,220,151,.14);color:var(--ok)}.s-bad{background:rgba(255,107,107,.14);color:var(--bad)}.s-warn{background:rgba(245,177,76,.16);color:var(--warn)}.s-mu{background:#2a2f3c;color:var(--mu)}
+.monl{color:#ff8a8a;font-weight:650;font-size:13px;margin-top:8px}
+button.openb{background:#d92d2d;color:#fff;border-color:transparent}button.endb,button.endx{background:#fff;color:#b11d1d;border-color:transparent}
+.fl{display:block;margin:8px 0}.fl span{display:block;font-size:12px;color:var(--mu);margin-bottom:4px}
+.fl input,.fl select{width:100%;background:var(--card2);border:1px solid var(--line);color:var(--tx);border-radius:10px;padding:9px 11px;font-size:16px}
+.amod p.nopw{color:var(--mu);font-size:12px}.amod .err{color:var(--bad);font-size:13px;min-height:1em}
+.apc .acts{flex-wrap:nowrap}
+@media (max-width:560px){.apgrid{grid-template-columns:1fr 1fr;gap:6px}.apc{padding:9px}.aph{display:none}.apc .acts{margin-top:8px}.apc .acts button,.apc .acts .btn{padding:6px 8px;font-size:12px}.apt .pg{font-size:10px}}
+.lockline{color:var(--mu);font-size:12px;text-align:center;margin:6px 0 4px}
 /* np-accounts v1 */
 .acard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:11px 12px;margin-bottom:8px}
 .acard .top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.acard .em{font-weight:650;word-break:break-all;flex:1;min-width:0}
@@ -177,6 +206,7 @@ select{-webkit-appearance:none;appearance:none;background-image:linear-gradient(
  <label class="f"><span>Type it again</span><input id="c2" type="password" autocomplete="new-password"></label>
  <div class="err" id="cerr"></div><button class="pri wide" type="submit">Save password</button>
  <p style="margin-top:14px"><a href="#" id="chCancel" hidden>Cancel</a></p></form>
+<div id="monBar" hidden></div>
 <div id="app" hidden>
 <header><div class="logo">N</div><h1>Northpeak Admin</h1><div class="sp"></div><button id="rf" aria-label="refresh">↻</button></header>
 <div class="bar"><button class="who" id="whoBtn"><span class="av" id="av">?</span><span id="whoName"></span><span class="rl" id="whoRole"></span><span class="sub">▾</span></button><div class="sp"></div><div class="sub" id="upd">loading…</div></div>
@@ -235,6 +265,14 @@ select{-webkit-appearance:none;appearance:none;background-image:linear-gradient(
   <p class="sub" style="margin:0 0 8px">Changes made straight to an app with its owner key instead of from this page, for example by scripts or alerts. They're logged starting Oct 21, 2026. Changes made on this page show in the access log above.</p>
   <div id="actBox"><div class="empty">Loading…</div></div></div>
 </section>
+<section id="v-apps" hidden><!-- np-apps-tab v1: owner only; filled by apps.js from the admin API -->
+ <div class="panel"><h2>🧭 Northpeak apps</h2><div class="apgrid" id="apApps"></div></div>
+ <div class="panel"><div class="row" style="justify-content:space-between;margin-bottom:8px"><h2 style="margin:0">🤖 Bot accounts</h2><div class="row"><button id="apRf" aria-label="refresh">↻</button><button class="pri" id="apAdd">＋ Add account</button></div></div>
+  <div id="apBots"><div class="empty"><span class="spin"></span></div></div></div>
+ <div class="panel" id="apFeedP"><div class="row" style="justify-content:space-between;margin-bottom:8px"><h2 style="margin:0">📡 Live activity</h2><span class="sub" id="apUpd"></span></div>
+  <div class="chips" id="apFk"></div><div id="apFeed"></div></div>
+ <p class="lockline">🔒 Owner only · passwords are never shown or stored here · sign-ins happen on Google / GitHub in their own tab</p>
+</section>
 <section id="v-acct" hidden><!-- np-accounts v1 -->
  <div class="panel"><h2>👤 Accounts <span class="sub" id="acN"></span></h2>
   <div class="chips" id="acApp"></div>
@@ -244,4 +282,4 @@ select{-webkit-appearance:none;appearance:none;background-image:linear-gradient(
   <p class="sub" style="margin-top:10px">Passwords are stored scrambled (hashed), so nobody can see them, not even you. Reset password makes a new one and shows it once.</p></div>
 </section>
 </div></div><div id="toast"></div>
-<script src="admin.js?v=13"></script></body></html>
+<script src="admin.js?v=14"></script><script src="apps.js?v=1"></script></body></html>
