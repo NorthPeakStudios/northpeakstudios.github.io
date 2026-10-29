@@ -209,9 +209,14 @@
     if (l[4] && !full()) return labLock(id);
     var r = results('main')[0], sc = r && full() ? scoreOf(r) : null;
     if (l[4] && !sc) return labNeedQuiz(id);
-    ({ today: labToday, battery: labBattery, rate: labRate, compare: labCompare, stretch: labStretch, card: labCard, drift: labDrift, decide: labDecide, prompt: labPrompt, study: labStudy, talk: labTalk })[id](sc, r);
+    (({ today: labToday, battery: labBattery, rate: labRate, compare: labCompare, stretch: labStretch, card: labCard, drift: labDrift, decide: labDecide, prompt: labPrompt, study: labStudy, talk: labTalk })[id] || (MPF && MPF.pages && MPF.pages[id]) || function () { location.replace('#home'); })(sc, r);
   }
   var pc = function (sc, k) { return sc && sc.scales[k] ? sc.scales[k].pct : null; };
+  /* 1.6 (Oct 29 2026): the new tools live in js/features.js (loaded before this file). It adds TOOLS rows (home 'more' = a card on the Results page, grouped by row[7])
+     and their pages, and gets a small API at boot. Without it the app runs exactly as before. */
+  var MPF = window.MPFeatures || null;
+  function featCards() { var g = {}, order = []; TOOLS.forEach(function (l) { if (l[6] !== 'more') return; if (!g[l[7]]) { g[l[7]] = []; order.push(l[7]); } g[l[7]].push(toolRow(l[0])); });
+    return order.map(function (k) { return '<div class="card nlist"><p class="tag">' + esc(k) + '</p>' + g[k].join('') + '</div>'; }).join(''); }
   var dayKey = function (t) { return new Date(t || Date.now()).toLocaleDateString('en-CA'); };
 
   /* 1. Today vs usual (free; quiz markers with Pro) — Fleeson 2001: daily behaviour swings widely around a person's average */
@@ -541,6 +546,7 @@
       row('#history', '\ud83d\uddc2\ufe0f', 'History', 'Every quiz you\u2019ve taken') +
       row(pro() ? '#account' : '#pro', '\u2b50', pro() ? 'Mindprint Pro is on' : 'Mindprint Pro \u00b7 $10', pro() ? 'Your account and plan' : 'Full results, Deep Dive, report, PDF and spreadsheet') + '</div>';
     h += '<div class="card nav"><p class="tag">Today</p>' + toolRows('home') + '</div>';
+    if (MPF && MPF.homeExtra) { try { h += MPF.homeExtra(last) || ''; } catch (e) {} }
     h += '<div class="card"><details class="fold hiw"><summary>How it works</summary><ol class="steps"><li>Answer honestly. There are no right or wrong answers. Taking it is free.</li><li>See your top trait, 4-letter type and cluster right away. Your full results, across every system, come with Mindprint Pro ($10).</li><li>Sign in to keep every result in your account and retake it any time.</li></ol></details></div>' +
       '<p class="muted small center">' + DISC + '</p>';
     V.innerHTML = h;
@@ -574,6 +580,7 @@
     V.innerHTML = '<div class="qtop"><button class="back" id="bk" aria-label="Back"' + (i ? '' : ' disabled') + '>\u2039 Back</button><span class="count">' + (st.review ? 'Skipped \u00b7 ' : '') + (i + 1) + ' / ' + qs.length + '</span><button class="back skipb" id="sk">Skip \u203a</button></div>' +
       '<div class="bar"><i style="width:' + Math.round(100 * i / qs.length) + '%"></i></div>' +
       '<div class="qcard"><p class="tag">' + esc(TAGS[q.framework] || 'About you') + (st.skip[q.id] && st.answers[q.id] == null ? ' \u00b7 skipped' : '') + '</p><h2 class="q">' + esc(q.text) + '</h2><div class="opts' + (q.type === 'likert' ? ' likert' : '') + '">' + opts + '</div></div>';
+    if (MPF && MPF.qShown) MPF.qShown(q.id);
     function adv() { var n = nextIdx(st, ids, i); if (n < 0) { var left = skippedLeft(st, ids); LS.set('quiz', st);
         if (left && !st.review) reviewScreen(left, function () { st.review = true; st.rv = {}; st.i = nextIdx(st, ids, 0); LS.set('quiz', st); quiz(); }, function () { finishQuiz(st); }, function () { quiz(); });
         else finishQuiz(st); return; }
@@ -582,7 +589,7 @@
     $('#sk').onclick = function () { if (st.answers[q.id] == null) st.skip[q.id] = 1; if (st.review) { st.rv = st.rv || {}; st.rv[q.id] = 1; } adv(); };
     V.querySelector('.opts').onclick = function (e) {
       var b = e.target.closest('.opt'); if (!b || b.classList.contains('oth')) return;
-      st.answers[q.id] = +b.dataset.k; b.classList.add('sel'); LS.set('quiz', st);
+      st.answers[q.id] = +b.dataset.k; b.classList.add('sel'); LS.set('quiz', st); if (MPF && MPF.qAnswered) MPF.qAnswered(q.id);
       setTimeout(adv, 170);
     };
     bindOther(function (t) { st.answers[q.id] = -1; st.other = st.other || {}; st.other[q.id] = t.slice(0, 300); LS.set('quiz', st); adv(); });
@@ -591,7 +598,7 @@
     var ans = Q.questions.filter(function (q) { return st.answers[q.id] != null; }).map(function (q) { var a = st.answers[q.id]; return a === -1 ? { q: q.id, a: -1, o: ((st.other || {})[q.id] || '').slice(0, 300) } : { q: q.id, a: a }; });
     var r = { id: rid(), kind: 'main', at: Date.now(), name: st.name || '', answers: ans, qv: Q.version || 1, secs: Math.round((Date.now() - (st.t || Date.now())) / 1000), skipped: Q.questions.length - ans.length };
     if (ans.length < 10) { V.innerHTML = '<div class="card"><h2>Answer a few more first</h2><p class="muted">You’ve answered ' + ans.length + ' so far. Mindprint needs at least 10 answers to say anything about you.</p><button class="btn big block" id="rv">Keep going</button></div>'; $('#rv').onclick = function () { st.review = false; st.i = 0; LS.set('quiz', st); quiz(); }; return; }
-    DB.put(r); LS.set('quiz', null); var sub = submit(r, KEYED ? { scores: compact(scoreOf(r)), flags: r.skipped ? ['skipped:' + r.skipped] : [] } : { flags: r.skipped ? ['skipped:' + r.skipped] : [] }); sync();
+    DB.put(r); LS.set('quiz', null); if (MPF && MPF.quizDone) { try { MPF.quizDone(r); } catch (e) {} } var sub = submit(r, KEYED ? { scores: compact(scoreOf(r)), flags: r.skipped ? ['skipped:' + r.skipped] : [] } : { flags: r.skipped ? ['skipped:' + r.skipped] : [] }); sync();
     if (full()) location.hash = '#results/' + encodeURIComponent(r.id);
     else { V.innerHTML = '<div class="card center"><div class="spin"></div><p>Reading your answers across 7 frameworks\u2026</p></div>'; var go = function () { location.hash = '#results/' + encodeURIComponent(r.id); }; Promise.race([sub, new Promise(function (ok) { setTimeout(ok, 6000); })]).then(go, go); }
   }
@@ -1095,6 +1102,7 @@
       '<a class="btn block" href="#pro">Unlock all of it \u2014 $10</a></div>';
     html += '<div class="card nlist"><p class="tag">Put it to use</p>' + ['battery', 'study', 'talk', 'decide', 'stretch', 'card'].map(toolRow).join('') + '</div>';
     html += '<div class="card nlist"><p class="tag">With friends</p>' + ['rate', 'compare'].map(toolRow).join('') + '</div>';
+    html += featCards();
     html += signed() ? '<p class="muted small center">Saved to your account.</p>' : '<div class="card"><p><b>Keep these results.</b> Sign in or create a free Northpeak account to keep them in your history on any device.</p><a class="btn ghost block" href="#account">Sign in to save</a></div>';
     html += '<div class="row2"><a class="btn ghost" href="#start">Retake</a><a class="btn ghost" href="#history">History</a></div><p class="muted small center">Not a diagnosis \u2014 for fun and self-reflection.</p>';
     V.innerHTML = html; if (tz.types) tyBindShare(tz.types.four, tz.types.cluster); xSetFree(r, tz.types);
@@ -1124,6 +1132,7 @@
     html += '<div class="card x12"><p class="tag">Test yourself</p><a class="x12a" href="#sim/' + encodeURIComponent(r.id) + '"><span>\ud83d\udd2e</span><b>What would you do?</b><small>8 real situations, predicted from your scores</small></a><a class="x12a" href="#guess/' + encodeURIComponent(r.id) + '"><span>\ud83c\udfaf</span><b>How well do you know yourself?</b><small>guess your scores, find your blind spot</small></a></div>';
     html += '<div class="card nlist"><p class="tag">Put it to use</p>' + ['study', 'talk', 'decide', 'stretch', 'battery', 'card'].map(toolRow).join('') + '</div>';
     html += '<div class="card nlist"><p class="tag">With friends</p>' + ['rate', 'compare'].map(toolRow).join('') + '</div>';
+    html += featCards();
     html += '<div class="card deepcard"><p class="tag">Pro</p><h2>Go deeper</h2><p>Get the full written report: what your results say about your strengths, blind spots, relationships, stress and school or work fit, plus the Deep Dive into your childhood and family, a spreadsheet of every answer and a printable PDF.</p>' +
       (pro() ? '<a class="btn block" href="#report/' + encodeURIComponent(r.id) + '">Open your full report</a><a class="btn ghost block" href="#deep">Deep Dive</a>' : '<a class="btn block" href="#pro">Unlock Mindprint Pro \u00b7 $10</a>') + '</div>';
     html += signed() ? '<p class="muted small center">Saved to your account.</p>' : '<div class="card"><p><b>Keep these results.</b> Sign in or create a free Northpeak account to keep them in your history on any device.</p><a class="btn ghost block" href="#account">Sign in to save</a></div>';
@@ -1134,7 +1143,7 @@
     return t && t.four ? ' \u00b7 ' + esc(t.four.code + ' ' + t.cluster.emoji) : ''; } catch (e) { return ''; } }
   function history() {
     var rs = results();
-    V.innerHTML = '<h1 class="pt">Your results</h1>' + (results('main').length > 0 ? '<div class="card nlist">' + toolRow('drift') + '</div>' : '') + (rs.length && !full() && results('main').length ? '<div class="card cta"><p>Your answers are saved. Unlock Pro and your full results show up here instantly, no retake.</p><a class="btn block" href="#pro">Unlock your full Mindprint \u2014 $10</a></div>' : '') + (rs.length ? rs.map(function (r) {
+    V.innerHTML = '<h1 class="pt">Your results</h1>' + (results('main').length > 0 ? '<div class="card nlist">' + toolRows('history') + '</div>' : '') + (rs.length && !full() && results('main').length ? '<div class="card cta"><p>Your answers are saved. Unlock Pro and your full results show up here instantly, no retake.</p><a class="btn block" href="#pro">Unlock your full Mindprint \u2014 $10</a></div>' : '') + (rs.length ? rs.map(function (r) {
       var lk = r.kind === 'main' && !full(), t = r.kind === 'deep' ? 'Deep Dive' : lk ? ((r.teaser && r.teaser.title) || 'Mindprint') : (function () { var h = S.headlines(scoreOf(r)); return h.length ? h[0].title : 'Mindprint'; })();
       return '<a class="hrow" href="' + (r.kind === 'deep' ? deepLink(r) : '#results/' + encodeURIComponent(r.id)) + '"><b>' + esc(t) + (lk ? ' <span class="pill">' + LOCK + ' Full results locked</span>' : '') + '</b><span>' + (r.kind === 'deep' ? 'Childhood & family' : r.diag ? 'Quick diagnostic' : 'Main quiz') + ' \u00b7 ' + fmtDate(r.at) + tyTag(r, lk) + '</span></a>'; }).join('')
       : '<div class="card"><p>No results yet.</p><a class="btn block" href="#start">Take the quiz</a></div>') +
@@ -1288,6 +1297,10 @@
     C().onAccountChange(function () { var h = location.hash; if (/^#(account|pro|home|history|results.*)?$/.test(h) || h === '') route(); });
     if (signed()) C().refresh(true).then(function () { return sync(); }).then(imports).then(function () { var h = location.hash; if (/^#(home|history|pro|deep|results.*|deepres.*|report.*)?$/.test(h)) route(); });
   }
+  if (MPF && MPF.init) { try { MPF.init({ $: $, V: V, LS: LS, esc: esc, toast: toast, results: results, byId: byId, scoreOf: scoreOf, full: full, pro: pro, signed: signed, S: S,
+    labHead: labHead, labNeedQuiz: labNeedQuiz, pc: pc, B5: B5, BNAME: BNAME, myCode: myCode, parseCode: parseCode, parseRate: parseRate, rateScore: rateScore, RATE: RATE, b64: b64, unb64: unb64,
+    typesOf: typesOf, dayKey: dayKey, fmtDate: fmtDate, loadA: loadA, addonRec: addonRec, saveAddon: saveAddon, PRIV: PRIV, DISC: DISC, LOCK: LOCK, sysName: sysName,
+    Q: function () { return Q; }, A: function () { return A; } }); (MPF.tools || []).forEach(function (t) { TOOLS.push(t); }); } catch (e) { try { console.error('features', e); } catch (x) {} MPF = null; } }
   flush();
   if (C()) onCloud(); else window.addEventListener('cloud-ready', onCloud, { once: true });
   document.addEventListener('visibilitychange', function () { if (!document.hidden && signed()) C().refresh(false); });

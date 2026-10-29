@@ -1,0 +1,28 @@
+/* Mindprint 1.6 (Oct 29 2026): styles for js/features.js (the 18 new tools). Same palette as style.css. */
+button.chip{color:var(--ink);font-family:-apple-system,system-ui,sans-serif;cursor:pointer;touch-action:manipulation}
+button.chip.on{background:var(--lav);border-color:var(--lav);color:#17112a}
+.mpf-ok{color:var(--teal)}.mpf-them{color:var(--peach)}.mpf-mid{color:#ffd166}
+.mpf-up{color:var(--teal);font-weight:700}.mpf-dn{color:var(--peach);font-weight:700}
+.mpf-mt td,.mpf-mt th{text-align:center;font-variant-numeric:tabular-nums}.mpf-mt td:first-child,.mpf-mt th:first-child{text-align:left;width:22%}
+.mpf-ans{padding:8px 0;border-top:1px solid var(--line)}.mpf-ans:first-of-type{border-top:0}.mpf-ans p{margin:2px 0}
+.mpf-3{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.mpf-3 .chip{flex:1 1 auto;text-align:center;padding:9px 10px}
+.mpf-big{font-size:56px;line-height:1.1}
+.mpf-tw{font-size:40px}
+.mpf-round{padding:6px 0;border-top:1px solid var(--line)}.mpf-round:first-child{border-top:0}.mpf-round .lb-rg{margin:6px 0}
+.mpf-lt{font-weight:700;font-size:17px}.mpf-lv{font-size:28px;font-weight:800}
+.mpf-gc{margin-top:8px}
+.mpf-grid{table-layout:fixed}.mpf-grid th,.mpf-grid td{text-align:center;padding:6px 2px;font-size:13px;overflow:hidden;text-overflow:ellipsis}.mpf-grid td:first-child{text-align:left;width:auto}
+.mpf-c{font-weight:800;border-radius:8px}.mpf-g{background:rgba(51,225,210,.25)}.mpf-y{background:rgba(255,209,102,.22)}.mpf-r{background:rgba(255,107,107,.28)}.mpf-cx{color:var(--mute)}
+i.lb-key.mpf-g,i.lb-key.mpf-y,i.lb-key.mpf-r{width:12px;height:12px;border-radius:3px;vertical-align:-1px}
+.mpf-rl{padding:7px 0;border-top:1px solid var(--line)}.mpf-rl:first-of-type{border-top:0}
+.mpf-opt .chips{margin-top:8px}
+.mpf-letter p{font-size:18px;line-height:1.6;margin:0 0 14px}.mpf-letter p:last-child{margin:0;color:var(--mute)}
+.mpf-badges{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.mpf-badge{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px;opacity:.6}.mpf-badge.on{opacity:1;border-color:var(--lav)}
+.mpf-badge b{display:block;margin-top:4px}.mpf-badge p{margin:6px 0 0}.mpf-bi{font-size:34px;line-height:1.1}
+.mpf-myth p{margin:6px 0 0}
+.mpf-rq{display:block;margin:14px 0}.mpf-rq b{display:block;font-weight:600;font-size:16px;line-height:1.4}
+@media print{
+  body.mpf-print .top,body.mpf-print .tabbar,body.mpf-print .back,body.mpf-print .toast,body.mpf-print #view>:not(.mpf-printable){display:none!important}
+  body.mpf-print{background:#fff}body.mpf-print .mpf-printable{border:0;background:none;padding:0;margin:0}body.mpf-print .lb-card{max-width:520px;margin:0 auto}
+}
