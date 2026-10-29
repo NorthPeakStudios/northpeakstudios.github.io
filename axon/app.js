@@ -1,7 +1,7 @@
-/* Axon · Northpeak Studios · v1.18.3 */
+/* Axon · Northpeak Studios · v1.18.4 */
 (function () {
   'use strict';
-  var VERSION = '1.18.3';
+  var VERSION = '1.18.4';
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var esc = MD.esc;
   var viewEl = $('#view'), layer = $('#layer');
@@ -2081,6 +2081,16 @@
       '<div class="foot"><b>Axon<i>.</i></b>by Northpeak Studios · v' + VERSION + '<span class="vinfo">' + esc(viewportInfo()) + '</span></div></div>';
     viewEl.innerHTML = h;
     $('#file').addEventListener('change', function (e) { importFiles(Array.from(e.target.files || [])); e.target.value = ''; });
+    synRefresh();
+  }
+  /* v1.18.4: "Cards you make go to <email>" was the email saved when Synapse was connected, so it kept showing an old
+     address after the Northpeak email changed. Opening Settings now asks Synapse which account the link is on (at most
+     once a minute) and redraws if it differs. */
+  var synChkLast = 0;
+  function synRefresh() {
+    var st0 = window.SYNLINK && SYNLINK.state(); if (!st0 || Date.now() - synChkLast < 60000) return;
+    synChkLast = Date.now();
+    SYNLINK.check().then(function (s) { if ((s ? s.email : null) !== st0.email && route().v === 'settings' && !editing && !openOverlays.length) renderSettings(); }).catch(function () {});
   }
   function vaultStats() {
     var s = { notes: 0, words: 0, links: 0, auto: 0, unresolved: 0, tags: 0, cards: 0, images: 0, folders: folders.size, longest: null, oldest: null, newest: null, daily: 0, orphans: 0 };
@@ -3905,7 +3915,7 @@
           try { var d2 = await AXS.derive(kl, v.p); await AXS.api('/api/email', { token: sy.token, body: { email: old, auth: d2.auth } }); d2.raw.fill(0); } catch (e) {}
           msg = 'That email already has a Northpeak account (from Synapse or Liminal). Use a different one.'; continue;
         }
-        sy.kdf = r.kdf || kl; sy.user = r.email || v.u; sySave();
+        sy.kdf = r.kdf || kl; sy.user = r.email || v.u; sySave(); proFollow(old);
         var also = '';
         if (sc.ok) {
           synLinkSet(sc.token, sy.user);
@@ -3934,7 +3944,7 @@
       var me = await NPEmail.synMe(lk.tok);
       if (!me || !me.user || me.user.email === sy.user || !(me.moves || []).some(function (m) { return m.old === sy.user; })) return;
       var res = await NPEmail.apply(me.moves, null, { only: 'axon', tokens: { axon: sy.token } });
-      if (res.axon) { sy.user = me.user.email; sySave(); synLinkSet(lk.tok, sy.user); toast('Your Northpeak email is now ' + sy.user + '. Axon uses it too.'); if (route().v === 'settings' && !openOverlays.length) renderSettings(); }
+      if (res.axon) { var oe = sy.user; sy.user = me.user.email; sySave(); proFollow(oe); synLinkSet(lk.tok, sy.user); toast('Your Northpeak email is now ' + sy.user + '. Axon uses it too.'); if (route().v === 'settings' && !openOverlays.length) renderSettings(); }
     } catch (e) {}
   }
   async function syAddEmail(o) {
@@ -3944,10 +3954,10 @@
       var v = await syForm('email', msg, '', o); if (!v) return false;
       var busy = toast('Adding your email\u2026', null, 20000);
       try {
-        var kl = sy.kdf || sy.user, d = await AXS.derive(kl, v.p);
+        var kl = sy.kdf || sy.user, oe = sy.user, d = await AXS.derive(kl, v.p);
         var n = await AXS.northpeak('signup', v.u, v.p); // the Northpeak account for this email (made now if it's new)
         var r = await AXS.api('/api/email', { token: sy.token, body: { email: v.u, auth: d.auth } }); d.raw.fill(0);
-        sy.kdf = r.kdf || kl; sy.user = r.email || v.u; sySave();
+        sy.kdf = r.kdf || kl; sy.user = r.email || v.u; sySave(); proFollow(oe);
         toast(n && n.exists ? 'Email added. Your Synapse account for it has a different password; change one so they match to use a single login.' : 'Email added. Log in with ' + sy.user + ' from now on, in Axon, Synapse and Liminal.');
         if (n && n.ok) syNorthpeak(v.u, v.p, n);
         if (route().v === 'settings' && !openOverlays.length) renderSettings();
@@ -4451,6 +4461,11 @@
   function savePro() { DB.put('meta', { k: 'pro', v: PRO }).catch(function () {}); }
   function proOk(what) { if (isPro()) return true; openPro(what); return false; }
   function proTag(label) { return isPro() ? label : label + ' \u00b7 Pro'; }
+  /* v1.18.4: Pro on an account is keyed by the account's email; when that email changes (here, in Synapse/Liminal, or on
+     another device) the Pro record follows it. Before, it kept the old email: the Settings banner and the Pro sheet said
+     "On your account <old email>", and a later "not Pro" answer from the server could not clear it. */
+  function proFollow(old) { if (PRO.acct && old && PRO.acct === old && sy.user && sy.user !== old) { PRO.acct = sy.user; savePro(); } }
+  function proStale() { return !!(syOn() && PRO.acct && sy.user && PRO.acct !== sy.user); }
   function proFromServer(on, req) {
     var was = isPro();
     if (req !== undefined) PRO.req = req ? Object.assign({}, PRO.req || {}, req) : null;
@@ -4473,7 +4488,7 @@
     proLast = Date.now();
     try {
       var j = await AXS.api('/api/me', { token: sy.token }), had = PRO.need && !isPro() || PRO.need;
-      if (j.email && j.email !== sy.user) { sy.user = j.email; sySave(); } /* np-email-change v1: changed on another device */
+      if (j.email && j.email !== sy.user) { var oe = sy.user; sy.user = j.email; sySave(); proFollow(oe); } /* np-email-change v1: changed on another device */
       else syFollowEmail();
       if ((j.allAccess || null) !== (PRO.aa || null)) { PRO.aa = j.allAccess || null; savePro(); }
       if ('owner' in j && !!j.owner !== !!PRO.owner) { PRO.owner = !!j.owner; savePro(); }
@@ -4790,7 +4805,7 @@
     } catch (e) {}
     applySettings();
     render(); proTabs();
-    if (syOn()) setTimeout(function () { if (PRO.need) proCheck(true); else syncNow(false); }, 1500);
+    if (syOn()) setTimeout(function () { if (PRO.need || proStale()) proCheck(true); else syncNow(false); }, 1500);
     window.addEventListener('online', function () { sySoon(800); });
     document.addEventListener('visibilitychange', function () { if (!document.hidden && syOn()) { if (PRO.need) proCheck(false); else if (Date.now() - sy.last > 20000) sySoon(600); } });
     setInterval(function () { if (!document.hidden && syOn()) { if (PRO.need) proCheck(false); else syncNow(false); } }, 120000);
