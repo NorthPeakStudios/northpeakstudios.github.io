@@ -3,7 +3,7 @@
 (function(){
 const M=()=>Store.METRICS;
 /* Insights tabs (1.3): the pattern tools that used to sit in Labs are tabs here now. Scrolls sideways on a phone; the open tab scrolls into view. */
-const TABS=[['fx','Effects',1],['forecast','What could happen',1],['web','The web'],['ctx','Context'],['rhythm','Rhythm'],['timing','Timing & sleep'],['detect','Effect detective'],['week','What changed']];
+const TABS=[['fx','Effects',1],['forecast','What could happen',1],['web','The web'],['ctx','Context'],['rhythm','Rhythm'],['timing','Timing & sleep'],['detect','Effect detective'],['week','What changed'],['fp','Deep dives']];
 function nav(on,key){ const k=key?'/'+encodeURIComponent(key):''; setTimeout(()=>{ const a=document.querySelector('.seg.tabs a.on'); if(a&&a.scrollIntoView) a.scrollIntoView({block:'nearest',inline:'center'}); },0);
   return `<div class="seg tabs" role="tablist" aria-label="Insights">${TABS.map(([id,l,kk])=>`<a href="#${id}${kk?k:''}" class="${on===id?'on':''}" ${on===id?'aria-current="page"':''}>${l}</a>`).join('')}</div>`; }
 window.TrcNav=nav;
