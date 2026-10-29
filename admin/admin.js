@@ -79,10 +79,10 @@ $('#chpw').addEventListener('submit',function(e){e.preventDefault();$('#cerr').t
 $('#chCancel').addEventListener('click',function(e){e.preventDefault();show('app')});
 
 /* ---------- app ---------- */
-var TABS=[['req','Requests','view_requests'],['sheet','Sheet','view_sheet'],['more','Codes & apps',['mint_codes','revoke_codes','toggle_buying']],['users','Users','manage_users'],['acct','Accounts','manage_accounts'],['logs','Logs','view_logs'],['apps','Apps','@owner']]; /* np-apps-tab v1: Apps = every app + bot accounts, the owner only (apps.js) */
-function tabOk(t){var c=t[2];if(c==='@owner')return !!(ME&&ME.role==='owner'&&window.NPApps);return typeof c==='string'?CAN(c):c.some(CAN)}
+var TABS=[['req','Requests','view_requests'],['sheet','Sheet','view_sheet'],['more','Codes & apps',['mint_codes','revoke_codes','toggle_buying']],['users','Users','manage_users'],['acct','Accounts','manage_accounts'],['logs','Logs','view_logs'],['pulse','Pulse',['view_requests','view_logs','mint_codes','revoke_codes','toggle_buying']],['apps','Apps','@owner']]; /* np-apps-tab v1: Apps = every app + bot accounts, the owner only (apps.js) · np-features v1: Pulse = briefing, heartbeat, health, radar, tools (features.js) */
+function tabOk(t){var c=t[2];if(t[0]==='pulse'&&!window.NPF)return false;if(c==='@owner')return !!(ME&&ME.role==='owner'&&window.NPApps);return typeof c==='string'?CAN(c):c.some(CAN)}
 function secTabs(){var x=SEC!=='all'&&AP[SEC]&&AP[SEC].views||[];return TABS.concat(x).filter(tabOk)} /* np-apps v2: an app's own extra tabs (Mindprint: Responses) show in its section */
-var VIEWS=['req','sheet','more','users','acct','logs','resp','apps'];
+var VIEWS=['req','sheet','more','users','acct','logs','resp','apps','pulse'];
 function renderSecbar(){var b=$('#secbar');if(!b)return;b.innerHTML=[['all','All']].concat(APPS.map(function(a){return [a.k,a.name]})).map(function(x){return '<button data-sec="'+x[0]+'" class="'+(x[0]===SEC?'on':'')+'">'+(x[0]==='all'?'':'<i class="dot '+AP[x[0]].tag+'"></i>')+esc(x[1])+'</button>'}).join('');var on=b.querySelector('.on');if(on&&on.scrollIntoView)try{on.scrollIntoView({block:'nearest',inline:'center'})}catch(e){}}
 function renderTabs(){var T=secTabs();if(!T.some(function(t){return t[0]===view}))view=T.length?T[0][0]:'';$('#tabs').innerHTML=T.map(function(t){return '<button data-v="'+t[0]+'" class="'+(t[0]===view?'on':'')+'">'+t[1]+'</button>'}).join('');$('#tabs').hidden=T.length<2}
 function setSec(k){if(k!=='all'&&!AP[k])k='all';SEC=k;if(k!=='all')MSEL=k;else if(!MAPP[MSEL])MSEL='syn';try{localStorage.setItem('np_sec',k)}catch(e){}if(view==='req'&&filt==='aa'&&k!=='all')filt='all';renderSecbar();renderTabs();switchView(view);if(D)render();if(view==='acct'&&AC.data)renderAccounts();window.scrollTo(0,0)}
@@ -94,7 +94,7 @@ function startApp(){
  $('#mintPanel').hidden=!CAN('mint_codes');$('#codesPanel').hidden=!(CAN('revoke_codes')||CAN('mint_codes'));
  switchView(view);load();if(window.NPApps)NPApps.boot();}
 function switchView(v){view=v;document.querySelectorAll('#tabs button').forEach(function(b){b.classList.toggle('on',b.dataset.v===v)});VIEWS.forEach(function(x){var el=$('#v-'+x);if(el)el.hidden=x!==v});var sb=$('#statsBox');if(sb&&ME)sb.hidden=!CAN('view_requests')||v==='apps';
- if(v==='users')loadUsers();if(v==='acct'){if(AC.data)renderAccounts();else loadAccounts()}if(v==='logs'){loadLogs();loadActlog()}if(v==='resp')loadResp();if(v==='apps'&&window.NPApps)NPApps.show()}
+ if(v==='users')loadUsers();if(v==='acct'){if(AC.data)renderAccounts();else loadAccounts()}if(v==='logs'){loadLogs();loadActlog()}if(v==='resp')loadResp();if(v==='apps'&&window.NPApps)NPApps.show();if(v==='pulse'&&window.NPF)NPF.show()}
 var MAPP={},MSEL='syn';APPS.forEach(function(a){MAPP[a.k]={app:a.k,body:a.mint||{},name:a.pro,works:a.name}});MAPP.all={app:'syn',body:{product:'all_access'},name:'All-Access',works:allNames()};
 function CODES_OK(){return CAN('mint_codes')||CAN('revoke_codes')}
 function loadAll(){ /* np-apps v2: one list call (and one codes call) per app in APPS */
@@ -138,6 +138,7 @@ function acts(r){
  if(r.app==='syn'){if(open){if(CAN('approve'))b.push('<button class="pri" data-a="paid">Mark paid + code</button>');if(CAN('dismiss'))b.push('<button data-a="dismiss">Dismiss</button>')}}
  else{if(open){if(CAN('approve'))b.push('<button class="pri" data-a="paid">Mark paid</button>');if(CAN('dismiss'))b.push('<button data-a="decline">Decline</button>')}
   if((r.status==='paid'||r.status==='declined')&&CAN('approve'))b.push('<button data-a="undo">Back to pending</button>')}
+ if(window.NPF){var rf=NPF.reqBtn(r);if(rf)b.push(rf)} /* np-features v1: one-tap refund */
  if(CAN('notes'))b.push('<button data-a="note">'+(r.note?'Edit note':'Note')+'</button>');
  if(CAN('delete'))b.push('<button class="dang" data-a="delete">Delete</button>');
  return b.length?'<div class="acts" data-app="'+r.app+'" data-id="'+esc(r.id)+'">'+b.join('')+'</div>':'';
@@ -187,10 +188,11 @@ function renderMore(){ /* np-apps v2: one card per app in this section */
  var tg=function(c){return c.bot?'<span class="tag t-aa">🤖 BOT</span>':c.own?'<span class="tag t-aa">👑 Owner</span>':c.aa?'<span class="tag t-aa">All-Access</span>':aTag(c.app)};
  $('#codesBox').innerHTML=tableHTML(['Code','App','Made','Status',''],C.map(function(c){var st=c.revoked?'<span class="tag s-dismissed">revoked</span>':c.used?'<span class="tag s-paid">used</span>'+(c.by?'<div class="sub">'+esc(c.by)+'</div>':''):'<span class="tag s-new">unused</span>';
   var b='';if(c.own||c.bot)b='<span class="sub">locked</span>';else if(CAN('revoke_codes')){if(c.app==='syn')b=(c.revoked?'':'<button data-c="revoke">Revoke</button>')+'<button class="dang" data-c="code-delete">Delete</button>';else b='<button class="dang" data-c="code-delete">Revoke</button>'}
+  if(window.NPF)b=NPF.codeBtn(c)+b; /* np-features v1: 🔎 code autopsy */
   return ['<span class="code" data-copy="'+esc(c.code)+'">'+esc(c.code)+'</span>'+(c.note?'<div class="sub">'+esc(c.note)+'</div>':''),tg(c),esc(fmtT(c.created)),st,'<div class="acts" data-code="'+esc(c.code)+'" data-capp="'+c.app+'">'+b+'</div>']}));}
 function render(){if(!D)return;if(CAN('view_requests'))renderReq();renderSheet();renderMore();
  var e=badApps();$('#upd').textContent='updated '+tsec(D.at)+(e.length?' · ⚠ '+e.join(' + ')+' not loading':'');
- if(view==='resp'&&RS.loaded)RS.render()}
+ if(view==='resp'&&RS.loaded)RS.render();if(window.NPF)NPF.onData()}
 var LOADING=null;
 function load(quiet,force){if(!ME)return Promise.resolve();if(LOADING)return force?LOADING.then(function(){return load(quiet,true)}):LOADING; /* np-apps v2: never two loads at once (the 30 s timer used to stack them) */
  $('#rf').innerHTML='<span class="spin"></span>';
@@ -198,12 +200,16 @@ function load(quiet,force){if(!ME)return Promise.resolve();if(LOADING)return for
  return LOADING}
 function refreshNow(btn){if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Refreshing…'}RT={};
  return load(false,true).then(function(){if(btn){btn.disabled=false;btn.textContent='↻ Refresh'}if(D)toast('Updated '+tsec(D.at))})}
-function act(app,path,body,label){return appApi(app,path,body).then(function(j){
+var HK={}; /* np-features v1: features.js listens to actions taken here (its undo stack); it never changes what they send */
+function act(app,path,body,label){var pre=HK.pre?HK.pre(app,path,body):null;return appApi(app,path,body).then(function(j){
  if(!j.ok){toast(j.error==='no_permission'?'Your role can’t do that':'Didn’t work: '+(j.words||j.error||'error'));render();return j}
+ if(HK.done)try{HK.done(pre,j)}catch(e){}
  return hop(j).then(function(tr){j.relays=tr;return j})}).then(function(j){if(!j.ok)return j;
  var bad=(j.relays||[]).filter(function(x){return !x.ok});
  toast((label||'Done')+(j.code?' · code '+j.code:'')+(bad.length?' · ⚠ other app not updated':((j.relays||[]).length?' · both apps ✓':'')));
  return load(true).then(function(){return j})})}
+
+function logout(msg){if(window.NPApps)NPApps.onLogout();if(window.NPF)NPF.onLogout();api('/api/logout',{}).then(function(){ME=null;D=null;RT={};setTok(null);show('login');toast(msg)})}
 
 /* ---------- users + roles ---------- */
 function roleLabel(n){var r=(U&&U.roles||[]).filter(function(x){return x.name===n})[0];return r?r.label:n}
@@ -221,7 +227,8 @@ function renderUsers(){
  $('#rolesBox').innerHTML=U.roles.map(function(r){return '<div class="ucard"><div class="top"><span class="rl '+esc(r.name)+'">'+esc(r.label)+'</span>'+(r.builtin?'<span class="sub">built-in</span>':'<span class="sub">custom</span>')+(!r.builtin&&owner?'<span class="sp"></span><button data-role-edit="'+esc(r.name)+'">Edit</button><button class="dang" data-role-del="'+esc(r.name)+'">Delete</button>':'')+'</div><div class="caps">'+(r.caps.length?r.caps.map(function(c){return '<span class="cap">'+esc(CAPN[c]||c)+'</span>'}).join(''):'<span class="sub">nothing</span>')+'</div></div>'}).join('');
  $('#roleForm').hidden=!owner;
  $('#rcaps').innerHTML=U.caps.filter(function(c){return c!=='manage_accounts'}).map(function(c){return '<label><input type="checkbox" value="'+c+'">'+esc(CAPN[c]||c)+'</label>'}).join('');}
-function uop(b,msg){return api('/api/users',b).then(function(j){if(!j.ok){toast(j.words||j.error);return j}toast(msg);loadUsers();return j})}
+function uop(b,msg){var pu=U&&U.users&&U.users.filter(function(x){return x.u===b.username})[0],prev=pu?{role:pu.role,disabled:pu.disabled}:null;
+ return api('/api/users',b).then(function(j){if(!j.ok){toast(j.words||j.error);return j}if(HK.uop)try{HK.uop(b,prev)}catch(e){}toast(msg);loadUsers();return j})}
 
 /* ---------- logs ---------- */
 var ICON={monitor_start:'🔴',monitor_end:'⏹',bot_add:'➕',bot_edit:'✏️',bot_remove:'🗑',bot_refused:'⛔',view_bots:'👁',login:'🔓',login_fail:'⛔',login_blocked:'🚫',logout:'👋',setup_key_fail:'⛔',owner_created:'👑',owner_password_recovered:'🛟',password_change:'🔑',denied:'🚫'};
@@ -252,7 +259,7 @@ document.addEventListener('click',function(e){
  if(t.dataset.copy){navigator.clipboard&&navigator.clipboard.writeText(t.dataset.copy).then(function(){toast('Copied '+t.dataset.copy)},function(){toast(t.dataset.copy)});return}
  if(t.id==='rf'){load();if(view==='users')loadUsers();if(view==='logs'){loadLogs();loadActlog()}return}
  if(t.id==='whoBtn'){$('#mePanel').hidden=!$('#mePanel').hidden;return}
- if(t.id==='logout'){if(window.NPApps)NPApps.onLogout();api('/api/logout',{}).then(function(){ME=null;D=null;RT={};setTok(null);show('login');toast('Logged out')});return}
+ if(t.id==='logout'){logout('Logged out');return}
  if(t.id==='meChpw'){show('chpw');$('#chCancel').hidden=false;$('#chpwp').textContent='Change your password.';return}
  if(t.id==='openT'){act('syn','open',{open:!(D.syn&&D.syn.open)},'Synapse buying '+((D.syn&&D.syn.open)?'closed':'opened'));return}
  if(t.dataset.mapp){MSEL=t.dataset.mapp;document.querySelectorAll('#mApp .ap').forEach(function(x){x.classList.toggle('on',x===t)});$('#mGo').textContent='Make '+(MSEL==='all'?'All-Access':MAPP[MSEL].works)+' code';$('#mOut').hidden=true;return}
@@ -280,7 +287,7 @@ document.addEventListener('click',function(e){
  if(t.dataset.a){var box=t.parentNode,app=box.dataset.app,id=box.dataset.id,a=t.dataset.a;
   var r=rows().filter(function(x){return x.app===app&&x.id===id})[0]||{};
   var who=(r.name||'this request')+' — '+(r.price||'');
-  if(a==='note'){var tx=prompt('Note on '+who+' (empty = remove)',r.note?r.note.txt:'');if(tx==null)return;api('/api/notes',{app:app,id:id,txt:tx}).then(function(j){toast(j.ok?'Note saved':(j.words||j.error));load(true)});return}
+  if(a==='note'){var tx=prompt('Note on '+who+' (empty = remove)',r.note?r.note.txt:'');if(tx==null)return;var ptx=r.note?r.note.txt:'';api('/api/notes',{app:app,id:id,txt:tx}).then(function(j){if(j.ok&&HK.note)try{HK.note(app,id,ptx,tx)}catch(e){}toast(j.ok?'Note saved':(j.words||j.error));load(true)});return}
   if(a==='paid'&&!confirm('Mark '+who+' as PAID?\n\nOnly after the Apple Cash came in.'+(r.aa?'\nAll-Access: unlocks Synapse + Axon + Liminal + Cadence + Mindprint.':'')))return;
   if(a==='delete'&&!confirm('Delete '+who+'? This removes the request'+(r.aa?' from both apps':'')+'.'))return;
   t.disabled=true;
@@ -353,6 +360,7 @@ function acLicense(a,lc){
  }else{
   var tgt=[a];if(a.license==='all_access')wasAA.forEach(function(x){if(x!==a)tgt.push(x)});
   jobs=Promise.all(tgt.map(function(x){return acCall(x,'lic',{license:x===a?lc:'free'})}));
+  if(tgt.length===1&&a.license!=='all_access'&&!a.locked){var prevL=a.license;jobs=jobs.then(function(r){if(r[0]&&r[0].ok&&HK.lic){var bk={who:APPN[a.app]+' · '+acLabel(a),license:prevL};if(a.app==='syn')bk.email=a.email;else bk.uid=a.uid;try{HK.lic(a.app,ARoute[a.app].lic,bk,acLabel(a)+' '+APPN[a.app]+' → '+LICN[lc])}catch(e){}}return r})}
  }
  jobs.then(function(r){var bad=r.filter(function(j){return j&&!j.ok});toast(bad.length?'Couldn’t change: '+(bad[0].words||bad[0].error):acLabel(a)+' → '+LICN[lc]);loadAccounts()},function(e){toast('Couldn’t change: '+((e&&(e.words||e.error))||'error'));loadAccounts()})}
 function acReset(a){
@@ -450,6 +458,10 @@ function loadResp(force,btn){if(!CAN('manage_accounts'))return;if(RS.busy)return
   RS.people=j.people||[];RS.loaded=true;RS.at=Date.now();RS.render()})}
 /* np-apps-tab v1: the few helpers apps.js uses (no tokens, no data) */
 window.NPA={api:api,esc:esc,toast:toast,fmtT:fmtT,apps:function(){return APPS},me:function(){return ME},
- go:function(v){view=v;renderTabs();switchView(v);window.scrollTo(0,0)},sec:function(k,v){view=v||view;setSec(k)}};
+ go:function(v){view=v;renderTabs();switchView(v);window.scrollTo(0,0)},sec:function(k,v){view=v||view;setSec(k)},
+ /* np-features v1: what features.js reads (the data already on this page) and the page's own existing actions */
+ data:function(){return D},rows:function(){return D?rows():[]},can:CAN,appApi:function(a,p){return appApi(a,p)},
+ act:act,uop:uop,users:function(){return U},loadUsers:loadUsers,reload:function(){return load(true)},logout:logout,
+ acData:function(){return AC.data},tabs:function(){renderTabs();switchView(view)},loadAccounts:function(){return Promise.resolve(loadAccounts())},hook:function(h){for(var k in h)HK[k]=h[k]}};
 boot();
 })();

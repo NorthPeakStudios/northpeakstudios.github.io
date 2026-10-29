@@ -162,6 +162,7 @@ window.NPApps={
  show:function(){if(!BOTS)render();load(false);N.apps().forEach(ping)},
  boot:function(){if(N.me()&&N.me().role==='owner')load(true)},  /* after sign-in: restore the red bar if a session is still open */
  onLogout:function(){closeAll()},   /* the API also ends every open session on /api/logout */
+ panic:function(){for(var id in OPEN){var b=byId(id),so=b&&SIGNOUT[b.kind],w=WIN[id];if(!so)continue;try{if(w&&!w.closed){w.location.href=so;continue}}catch(e){}window.open(so,'npmon_'+id)}}, /* np-features v1 panic logout: each open account's own sign-out page; logout() then ends the sessions */
  onSignedOut:function(){closeAll()}
 };
 })();
