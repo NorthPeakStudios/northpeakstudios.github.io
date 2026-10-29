@@ -5,6 +5,7 @@ import { analyze, compose } from './poet.js';
 import { drawScene, sceneFor, SCENES, poster } from './paint.js?v=12';
 import * as cloud from './cloud.js?v=16';
 import * as db from './db.js';
+import { install as x40install } from './sleep.js?v=1';
 
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const LS = { get: (k, d) => { try { const v = localStorage.getItem('lim.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('lim.' + k, JSON.stringify(v)); } catch {} } };
@@ -1170,6 +1171,7 @@ function x6open(html) {
 }
 function x6close() {
   clearTimeout(X6.timer); X6.timer = 0;
+  X40CLOSE.splice(0).forEach(f => { try { f(); } catch (e) {} }); try { X40 && X40.stopAll(); } catch (e) {}
   if (X6.ov) { X6.ov.remove(); X6.ov = null; }
   if (X6.wasMuted !== null) { engine.setMuted(X6.wasMuted); X6.wasMuted = null; syncSound(); }
 }
@@ -1236,6 +1238,8 @@ const x8LS = (k, d) => LS.get('x8.' + k, d), x8set = (k, v) => LS.set('x8.' + k,
 const x8back = '<button class="x8-back" data-x8="back">‹ back</button>';
 const x8head = k => { const t = X8.find(x => x[0] === k); return `${x8back}${t[3] ? '<p class="x6-k">pro</p>' : ''}<h2 class="x8-h">${t[1]}</h2><p class="x8-p">${t[2]}</p>`; };
 /* v35 · commands: every tool is a command, found by typing (or "/" in the feel box). no drawer. */
+/* v40 · night tools (js/sleep.js) register here: their commands, and a hook to stop their sound when an overlay closes */
+const X40GO = {}, X40CLOSE = []; let X40 = null;
 const X35G = [['for right now', ['name', 'worry', 'friend', 'unsent', 'body', 'safe']], ['for later', ['future']], ['looking back', ['sky', 'jar', 'rhythm', 'thennow']]];
 function x8labs(q, focus) {
   const ov = x6open(`<p class="x6-k">commands</p><input class="x35-q" id="x35q" type="search" enterkeyhint="go" placeholder="find a tool…" autocomplete="off" autocapitalize="off" aria-label="find a tool"><div class="x35-list" id="x35l" role="listbox" aria-label="tools"></div>`);
@@ -1257,7 +1261,7 @@ function x8go(k) {
   if (k === 'labs') return x8labs();
   const t = X8.find(x => x[0] === k); if (!t) return;
   if (t[3] && !isPro()) { x6close(); return openPro(t[1]); }
-  ({ name: x8name, unsent: x8unsent, future: x8future, friend: x8friend, sky: x8sky, body: x8body, jar: x8jar, safe: x8safe, worry: x34worry, rhythm: x34rhythm, thennow: () => x34thennow() })[k]();
+  ({ name: x8name, unsent: x8unsent, future: x8future, friend: x8friend, sky: x8sky, body: x8body, jar: x8jar, safe: x8safe, worry: x34worry, rhythm: x34rhythm, thennow: () => x34thennow(), ...X40GO })[k]();
 }
 function x8open(k, html) { const ov = x6open(x8head(k) + html); ov.querySelector('.x8-back').onclick = () => x6close(); return ov; }
 
@@ -1469,4 +1473,6 @@ function x34thennow(pickAgo) {
 })();
 setTimeout(() => { try { const n = x34due(); if (n) { const b = $('#x35C'); if (b) b.classList.add('x34-dot'); } } catch (e) {} }, 1500);
 
+/* v40 · night tools: 20 sleep + calm features, all on this phone (js/sleep.js) */
+try { X40 = x40install({ LS, S, X6, X8, X35G, X40GO, XSET, XSETB, XHELP, XSTOP, engine, esc, toast, isPro, openPro, x6open, x6close, x8open, x8go, syncSound, xApplyLook: () => xApplyLook(), onClose: f => X40CLOSE.push(f) }); } catch (e) { console.error('night tools', e); }
 window.__liminal = { db, S, renderArchive, engine, cloud, afterAccount, x6week, x6blend, x6echo, x8labs, x8go, x34worry, x34rhythm, x34thennow };
