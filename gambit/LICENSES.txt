@@ -1,0 +1,24 @@
+Gambit — third-party components
+
+Stockfish.js 18 (lite, single-threaded WebAssembly build) — engine/stockfish-18-lite-single.js, engine/stockfish-18-lite-single.wasm
+  (c) 2026 Chess.com, LLC — https://github.com/nmrugg/stockfish.js (npm "stockfish" 18.0.8)
+  Based on Stockfish (c) T. Romstad, M. Costalba, J. Kiiski, G. Linscott and other contributors — https://github.com/official-stockfish/Stockfish
+  NNUE net by Linmiao Xu (linrock).
+  License: GNU GPL v3 — full text in engine/Copying.txt. Source: https://github.com/nmrugg/stockfish.js and https://github.com/official-stockfish/Stockfish
+  The engine files are shipped unmodified. Because GPLv3 code is distributed with this app, the app folder as a whole is offered under GPLv3-compatible terms.
+
+chess.js 1.4.0 — vendor/chess.js
+  (c) Jeff Hlywa — BSD 2-Clause — full text in vendor/LICENSE-chess.js.txt — https://github.com/jhlywa/chess.js
+
+Chess piece artwork "cburnett" — vendor/pieces.js
+  By Colin M.L. Burnett, tri-licensed GPLv2+ / BSD / GFDL; taken from lichess-org/chessground (GPL-3.0-or-later).
+
+Chess piece artwork "merida" — vendor/merida.js (templates for the screenshot reader only)
+  By Armando Hernandez Marroquin, GPLv2+; taken from lichess-org/lila public/piece/merida (see lila COPYING.md).
+
+Screenshot reader — reader.js
+  Approach adapted from Tomo's Gambit prototype (crop, grid detection, per-square template correlation, uncertain squares left for the user). Rewritten for this app; ships under the app's terms.
+  Gambit's embedded "alpha" piece set (Eric Bentzen, "free for personal non commercial use") is intentionally NOT included.
+
+Opening names — eco.json
+  Derived from lichess-org/chess-openings (CC0 1.0 public domain dedication) — https://github.com/lichess-org/chess-openings

@@ -1,0 +1,107 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<!-- no zoom on iPhone: pinch, double-tap, input focus -->
+<style id="np-nozoom">html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}</style>
+<script src="nozoom.js"></script>
+<title>Gambit — game analysis with Stockfish</title>
+<meta name="description" content="Gambit by Northpeak Studios: paste a FEN or PGN, get Stockfish analysis on your phone, an eval bar, best-move arrows, top lines and a full move-by-move game review with accuracy.">
+<meta property="og:title" content="Gambit"><meta property="og:description" content="Stockfish analysis and full game review, right on your phone. Paste a FEN or PGN.">
+<meta property="og:image" content="https://northpeakstudios.github.io/gambit/icon-512.png"><meta property="og:url" content="https://northpeakstudios.github.io/gambit/">
+<meta name="app-version" content="1.1.1">
+<meta name="theme-color" content="#0d1117"><meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Gambit">
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-180.png"><link rel="icon" href="icon-192.png">
+<script src="pwa.js"></script>
+<link rel="stylesheet" href="style.css?v=2">
+</head><body>
+<header class="top"><a href="./" class="logo"><span class="dot" aria-hidden="true"></span>Gambit</a><div class="tr"><span id="engState" class="pill">engine…</span></div></header>
+<main id="view">
+
+<details class="fold load" id="loadBox" open>
+<summary><span class="sum-t">Load a position or game</span><span class="sum-s" id="loadSum"></span></summary>
+<div id="drop" class="drop">
+  <label for="paste" class="lbl-big">Paste a FEN or PGN</label>
+  <textarea id="paste" rows="3" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="e.g. rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1&#10;or a whole game: 1. e4 e5 2. Nf3 …"></textarea>
+  <div class="row btns"><button type="button" class="btn" id="loadBtn">Load</button><label class="btn ghost filebtn" for="file">Upload file</label><input type="file" id="file" accept="image/*,.pgn,.fen,.txt,text/plain" hidden></div>
+  <p class="muted small" id="detect">Detects FEN or PGN on its own. Files: .pgn / .txt / .fen, or a board screenshot.</p>
+  <label class="shotslot" for="imgFile"><span class="shot-ic" aria-hidden="true">▣</span><span><b>Got a screenshot of a board?</b><br><span class="muted small">Experimental: read the board from it, then check every square on an editable board before analyzing.</span></span></label><input type="file" id="imgFile" accept="image/*" hidden>
+  <p class="err" id="loadErr" role="alert" hidden></p>
+  <div class="chips"><button type="button" class="chip" id="setupBtn">Set up a board by hand</button><button type="button" class="chip" id="sampleBtn">Sample game</button><button type="button" class="chip" id="startBtn">Start position</button></div>
+  <p class="muted small">iOS Shortcut: open <code>…/gambit/?fen=</code> + the URL-encoded FEN (or <code>?pgn=</code>).</p>
+</div>
+</details>
+
+<section id="imgCard" class="card imgcard" hidden>
+  <div class="row top-row"><h3>Read board from screenshot <span class="tag">experimental</span></h3><button type="button" class="lnk fx0" id="imgClose">Remove</button></div>
+  <p class="honest"><b>Rough read</b> — works best on clean, straight-on lichess-style boards. Check every square before analyzing; squares it isn’t sure about get a <b>?</b>. Everything stays on your phone.</p>
+  <div class="crop" id="crop"><img id="refImg" alt="Your uploaded board screenshot" draggable="false"><div class="cropbox" id="cropBox" hidden><i data-h="nw"></i><i data-h="ne"></i><i data-h="sw"></i><i data-h="se"></i></div></div>
+  <p class="muted small" id="cropHint">Drag the frame (or its corners) so it sits exactly on the board’s edges.</p>
+  <div class="row btns"><button type="button" class="btn" id="readBtn">Read board</button><label class="inline fx0"><input type="checkbox" id="blackBottom"> Black at bottom</label></div>
+  <p class="small" id="readMsg" role="status" hidden></p>
+  <label class="inline"><input type="checkbox" id="ovl"> Lay the framed board over the editor board</label>
+  <input type="range" id="ovlOp" min="10" max="90" value="45" aria-label="Overlay opacity" hidden>
+</section>
+
+<div id="gameInfo" class="ginfo" hidden><div id="players" class="players"></div><div id="opening" class="opening muted small"></div></div>
+
+<section class="boardwrap">
+  <div class="evalbar" id="evalBar" aria-label="Evaluation bar"><div class="eb-w" id="ebW"></div><span class="eb-n" id="ebN">0.0</span></div>
+  <div class="board" id="board"></div>
+</section>
+<div id="explore" class="explore" hidden><span>Exploring a side line</span><button type="button" class="btn sm ghost" id="backGame">Back to game</button></div>
+
+<div id="editor" class="card editor" hidden>
+  <div class="row top-row"><h3>Set up position</h3><button type="button" class="btn sm fx0" id="edDone">Analyze this</button></div>
+  <p class="muted small">Pick a piece, then tap squares. Tap a square again to clear it.</p>
+  <div class="palette" id="palette"></div>
+  <div class="row ed-opts"><div class="seg" id="edTurn"><button type="button" data-t="w" class="on">White to move</button><button type="button" data-t="b">Black to move</button></div></div>
+  <div class="chips"><button type="button" class="chip" id="edStart">Start position</button><button type="button" class="chip" id="edClear">Empty board</button><button type="button" class="chip" id="edFlip">Flip board</button><button type="button" class="chip" id="edOk" hidden>Looks right, clear ?s</button><button type="button" class="chip" id="edCancel">Cancel</button></div>
+  <label for="edFen">FEN</label><input id="edFen" autocomplete="off" autocapitalize="off" spellcheck="false">
+  <p class="err" id="edErr" hidden></p>
+</div>
+
+<nav class="ctrls" id="ctrls" aria-label="Move navigation">
+  <button type="button" id="nFirst" aria-label="First move">⏮</button><button type="button" id="nPrev" aria-label="Previous move">◀</button>
+  <span id="plyLbl" class="plylbl">Start</span>
+  <button type="button" id="nNext" aria-label="Next move">▶</button><button type="button" id="nLast" aria-label="Last move">⏭</button>
+  <button type="button" id="nFlip" aria-label="Flip board">⇅</button>
+</nav>
+
+<section class="card engine" id="engCard">
+  <div class="row top-row"><div class="evalbig" id="evalBig">…</div><div class="fx0 depth" id="depth">depth –</div><label class="switch fx0"><input type="checkbox" id="engOn" checked><span>Engine</span></label></div>
+  <div class="lines" id="lines"><p class="muted small">Starting Stockfish…</p></div>
+  <div class="row eng-opts"><label class="inline-sel">Live depth <select id="liveDepth"><option>12</option><option>16</option><option selected>18</option><option>20</option><option>24</option></select></label><span class="muted small fx0" id="nps"></span></div>
+</section>
+
+<section class="card review" id="revCard">
+  <div class="row top-row"><h3>Game review</h3><label class="inline-sel fx0">Depth <select id="revDepth"><option value="10">10 · fast</option><option value="12">12</option><option value="14" selected>14 · phone</option><option value="16">16</option><option value="18">18 · slow</option></select></label></div>
+  <p class="muted small" id="revHint">Load a PGN (or play moves on the board) to review a game move by move.</p>
+  <div class="row"><button type="button" class="btn" id="revBtn" disabled>Review game</button><button type="button" class="btn ghost fx0" id="revCancel" hidden>Cancel</button></div>
+  <div class="prog" id="prog" hidden><div class="prog-b" id="progB"></div><span id="progT"></span></div>
+  <div id="accRow" class="accrow" hidden></div>
+  <div id="graph" class="graph" hidden></div>
+  <div id="summary" class="summary" hidden></div>
+  <ol id="moves" class="moves"></ol>
+</section>
+
+<section class="card tools">
+  <h3>Share &amp; export</h3>
+  <div class="chips"><button type="button" class="chip" id="copyFen">Copy FEN</button><button type="button" class="chip" id="copyLink">Copy link</button><button type="button" class="chip" id="copyPgn">Copy PGN</button><button type="button" class="chip" id="dlPgn">Download PGN</button></div>
+  <p class="muted small" id="toolMsg" aria-live="polite"></p>
+  <label>Board theme</label>
+  <div class="seg" id="themeSeg"><button type="button" data-th="green">Green</button><button type="button" data-th="brown">Brown</button><button type="button" data-th="slate">Slate</button></div>
+  <details class="fold about"><summary>How the review grades moves</summary>
+    <p class="small">Each position is analysed by Stockfish to the review depth. A move’s <b>centipawn loss</b> is the mover’s evaluation before the move minus after it (evals capped at ±10 pawns; a forced mate counts as 10).</p>
+    <ul class="small bands"><li><span class="bdg best">★</span> Best: the engine’s own top move</li><li><span class="bdg excellent">!</span> Excellent: 0–20 cp</li><li><span class="bdg good">✓</span> Good: 21–50 cp</li><li><span class="bdg inaccuracy">?!</span> Inaccuracy: 51–100 cp</li><li><span class="bdg mistake">?</span> Mistake: 101–300 cp</li><li><span class="bdg blunder">??</span> Blunder: over 300 cp</li></ul>
+    <p class="small">To keep a won game from being covered in red, a move is only an Inaccuracy, Mistake or Blunder if it also costs at least 10, 20 or 30 points of win chance; otherwise it’s graded Good.</p>
+    <p class="small">Accuracy uses the lichess formula: each move is scored from the drop in win chance, then the game’s moves are combined with a volatility-weighted mean and a harmonic mean.</p>
+    <p class="small">Engine: Stockfish 18 lite (single-threaded WebAssembly, GPLv3) running in your browser. Nothing leaves your phone. <a href="engine/Copying.txt">License</a> · <a href="LICENSES.txt">Credits</a></p>
+  </details>
+</section>
+<p class="foot muted small">Northpeak Studios · works offline once loaded<br>Screenshot reader adapted from Tomo’s Gambit prototype.</p>
+</main>
+<div id="toast" class="toast" role="status" hidden></div>
+<script src="np-update.js?v=2" data-sw="sw.js" defer></script>
+<script type="module" src="app.js?v=2"></script>
+</body></html>
