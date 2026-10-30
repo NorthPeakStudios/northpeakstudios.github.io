@@ -1,0 +1,34 @@
+name: add-gambit-engine
+# One-shot: the Stockfish 18 lite wasm (7.3 MB) is too big for the API upload path, so this
+# fetches the identical file from the npm package stockfish@18.0.8 (GPLv3, see gambit/engine/Copying.txt),
+# checks its sha256, commits it to gambit/engine/, and deletes this workflow in the same commit.
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/add-gambit-engine.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  add:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: fetch and verify
+        run: |
+          set -e
+          mkdir -p gambit/engine
+          f=gambit/engine/stockfish-18-lite-single.wasm
+          for u in https://unpkg.com/stockfish@18.0.8/bin/stockfish-18-lite-single.wasm https://cdn.jsdelivr.net/npm/stockfish@18.0.8/bin/stockfish-18-lite-single.wasm; do
+            curl -fsSL --retry 3 -o "$f" "$u" && echo "a8fbc05ec6920b56d7485826dcb02c5ffd2826bcbf751cf973046f237a9096f1  $f" | sha256sum -c - && break || rm -f "$f"
+          done
+          test -f "$f"
+          ls -l "$f"
+      - name: commit
+        run: |
+          git config user.name "NorthPeakStudios"
+          git config user.email "NorthPeakStudios@users.noreply.github.com"
+          git add gambit/engine/stockfish-18-lite-single.wasm
+          git rm -q .github/workflows/add-gambit-engine.yml
+          git commit -m "Gambit: add Stockfish 18 lite engine (wasm, from npm stockfish@18.0.8, sha256 verified)"
+          git push origin HEAD:main
